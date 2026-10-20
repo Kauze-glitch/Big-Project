@@ -134,3 +134,15 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 .ribbon-more{position:absolute;top:100%;left:0;right:0;display:flex;flex-wrap:wrap;align-items:flex-end;gap:12px;padding:16px;background:#f6f8f0;border:1px solid #becdb2;border-radius:0 0 10px 10px;box-shadow:0 12px 24px #263d2526;max-height:min(55dvh,calc(100dvh - var(--editor-top,76px) - 96px));overflow:auto;overscroll-behavior:contain}
 .editor-page .compose-toolbar+.insert-toolbar{padding:10px 14px!important;border-bottom:1px solid #d2ddc8;background:#fafbf5}
 @media(max-width:760px){.editor-page .compose-toolbar{position:sticky;top:0}.editor-page .compose-toolbar .format-toolbar{padding:6px}.ribbon-quick{gap:5px;flex-wrap:nowrap}.ribbon-quick .quick-size{font-size:0;gap:0}.ribbon-quick #font-size{height:44px;min-width:62px;width:62px;font-size:14px}.editor-page .ribbon-quick>button{min-width:36px;min-height:44px;padding:6px}.editor-page .ribbon-quick .ribbon-toggle{font-size:12px;padding-inline:8px!important}.ribbon-more{max-height:55dvh;padding:12px}.ribbon-more .ribbon-group{width:100%}.ribbon-more .ribbon-type label:last-child{flex:1 1 100%}}
+
+/* Shared section order */
+.section-order-launch{margin-top:10px;width:100%;flex-shrink:0}
+.section-order-dialog{width:min(560px,calc(100% - 24px));max-height:85dvh;overflow:auto}
+.section-order-dialog>p{font-size:14px;line-height:1.6}
+.section-order-list{list-style:none;margin:20px 0;padding:0;display:grid;gap:10px}
+.section-order-row{display:flex;align-items:center;gap:10px;padding:12px;border:1px solid #ccd7bf;border-radius:8px;background:#f4f7ee}
+.order-title{flex:1;min-width:0;overflow-wrap:anywhere;font-size:15px}
+.order-number{font-size:12px;color:#536a48}
+.section-order-row .btn{min-width:44px;min-height:44px;padding:7px;font-size:20px}
+.section-order-row button:disabled{opacity:.35;cursor:default}
+@media(max-width:760px){.section-order-launch{width:auto;margin:0;align-self:flex-start;padding:7px 12px;min-height:40px}.section-order-dialog{padding:20px}.section-order-row{gap:6px;padding:8px}}
