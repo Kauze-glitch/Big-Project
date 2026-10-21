@@ -33,7 +33,7 @@
   // Preserve only text formatting; never copy arbitrary CSS, URLs, or event handlers.
   app.sanitize = html => {
     const source=new DOMParser().parseFromString(String(html),'text/html'),target=document.createElement('div');
-    const allowed=new Set(['P','DIV','SPAN','BR','STRONG','B','EM','I','U','S','STRIKE','SUB','SUP','H1','H2','H3','H4','UL','OL','LI','BLOCKQUOTE','HR']);
+    const allowed=new Set(['P','DIV','SPAN','BR','STRONG','B','EM','I','U','S','STRIKE','SUB','SUP','H1','H2','H3','H4','H5','H6','UL','OL','LI','BLOCKQUOTE','HR','TABLE','THEAD','TBODY','TFOOT','TR','TH','TD','CAPTION']);
     const fonts=new Set([...app.fontGroups.flatMap(group=>group.fonts.map(name=>name.toLowerCase())),'serif','sans-serif','monospace']);
     const color=value=>/^(#[0-9a-f]{3,8}|rgba?\([\d.,%\s]+\)|hsla?\([\d.,%\s]+\)|[a-z]+)$/i.test(value)&&CSS.supports('color',value)?value:'';
     function copy(node,parent){
@@ -41,6 +41,8 @@
       if(node.nodeType!==1||['SCRIPT','STYLE','IFRAME','OBJECT','SVG','MATH','IMG','TEMPLATE'].includes(node.tagName))return;
       const tag=node.tagName==='FONT'?'SPAN':node.tagName,next=allowed.has(tag)?document.createElement(tag.toLowerCase()):parent;
       if(next!==parent){
+        if(['TD','TH'].includes(tag))for(const attr of ['colspan','rowspan']){const n=Number(node.getAttribute(attr));if(Number.isInteger(n)&&n>0&&n<=100)next.setAttribute(attr,String(n));}
+        if(tag==='OL'){const start=Number(node.getAttribute('start'));if(Number.isInteger(start)&&start>0&&start<=100000)next.setAttribute('start',String(start));}
         const src=node.style,dst=next.style;
         const face=src.fontFamily||node.getAttribute('face')||'';
         if(face&&face.split(',').every(f=>fonts.has(f.trim().replace(/['"]/g,'').toLowerCase())))dst.fontFamily=face;
