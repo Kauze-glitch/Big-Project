@@ -111,6 +111,7 @@
   async function load(){if(loading)return loading;loading=(async()=>{failed='';const first=!loaded;if(first)render();try{await A.load();loaded=true;}catch(error){failed=error.message;}render(first&&!!currentSlug());})().finally(()=>loading=null);return loading;}
   document.querySelectorAll('.home-link').forEach(el=>el.addEventListener('click',event=>{if(event.ctrlKey||event.metaKey||event.shiftKey||event.altKey)return;event.preventDefault();route('index.html');}));
   window.addEventListener('popstate',()=>render(true));window.addEventListener('authchange',()=>render());window.addEventListener('profilechange',()=>render());
+  window.addEventListener('sectionorderchange',()=>render());
   if(!currentSlug()&&location.hash.startsWith('#phan'))history.replaceState(null,'','section.html?section='+encodeURIComponent(location.hash.slice(1)));
   window.addEventListener('focus',()=>{if(loaded)load();});
   window.addEventListener('storage',event=>{if(loaded&&event.key==='nhom12-section-saved')load();});

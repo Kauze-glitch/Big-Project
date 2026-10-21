@@ -149,5 +149,14 @@
   window.addEventListener('beforeunload',event=>{if(uploading||saving||(dirty&&persistedRevision!==revision)){saveDraft();event.preventDefault();event.returnValue='';}});
   document.addEventListener('keydown',event=>{if((event.ctrlKey||event.metaKey)&&event.key==='s'){event.preventDefault();$('save-btn').click();}});
   async function init(){try{await A.load();$('editor-nav').replaceChildren();for(const [index,section] of A.sections.entries()){const button=A.navItem(section,index,'button');button.dataset.slug=section.slug;button.onclick=()=>choose(section);$('editor-nav').append(button);}const slug=new URLSearchParams(location.search).get('section');const initial=A.sections.find(s=>s.slug===slug)||A.sections.find(s=>A.canEdit(s))||A.sections[0];if(initial)await choose(initial);else status('Chưa có trang nội dung nào.');}catch(error){status(error.message,true);const retry=A.el('button','btn btn-quiet','Thử lại');retry.onclick=init;$('editor-status').append(retry);}}
+  // Rebuild only navigation so reordering never replaces unsaved editor blocks.
+  window.addEventListener('sectionorderchange',()=>{
+    $('editor-nav').replaceChildren();
+    for(const [index,section] of A.sections.entries()){
+      const button=A.navItem(section,index,'button');button.dataset.slug=section.slug;button.onclick=()=>choose(section);$('editor-nav').append(button);
+    }
+    authUI();
+  });
+  window.addEventListener('focus',async()=>{if(A.ready){await A.refreshSectionOrder();window.dispatchEvent(new Event('sectionorderchange'));}});
   init();
 })();
