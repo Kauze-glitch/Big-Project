@@ -7,3 +7,24 @@
 @media(max-width:1100px){:root{--sidebar:222px}.sidebar{padding-inline:16px}.topbar{padding-inline:28px}.reader-main{padding:42px 40px 0}.editor-main{padding:32px 28px}.live-label{display:none}.card-caption>span:last-child{display:none}.intro-symbol{font-size:80px;padding-right:0}}
 @media(max-width:760px){:root{--sidebar:0px}.sidebar{position:sticky;top:0;width:100%;height:auto;padding:12px 16px;background:#eff0e9f5;backdrop-filter:blur(12px);border-right:0;border-bottom:1px solid var(--line);gap:10px}.brand{font-size:20px}.brand-mark{width:33px;height:34px;font-size:26px;border-radius:8px}.brand small{font-size:6px}.sidebar-label,.sidebar-note{display:none}.section-nav{flex-direction:row;gap:6px;min-height:0;max-height:44px;padding-bottom:2px}.section-nav a,.section-nav button{width:auto;flex-shrink:0;max-width:210px;padding:8px 12px;gap:7px;font-size:10px}.nav-arrow{display:none}.sidebar-bottom{position:absolute;right:16px;top:19px;padding:0}.workspace-link{border:0;padding:0;font-size:10px}.topbar{position:static;height:59px;padding:0 20px}.header-actions{gap:8px}.topbar .btn{font-size:10px;padding:7px 12px}.reader-main{padding:33px 23px 0}.intro h1{font-size:49px;letter-spacing:-2px;margin-top:20px}.intro-bottom p{font-size:11px}.intro-symbol{font-size:65px}.intro-meta{font-size:7px;margin-top:28px}.section{padding:36px 0;scroll-margin-top:25px}.section h2{font-size:28px}.section-body{font-size:15px}.site-footer{flex-wrap:wrap;font-size:8px;padding-block:25px}.site-footer span:nth-child(2){width:100%;order:3}.editor-main{padding:26px 16px}.editor-heading h1{font-size:29px}.page-tag{display:none}.editor-actionbar{align-items:flex-start;flex-direction:column}.editor-actionbar .action-group{width:100%}.editor-actionbar .btn{font-size:10px;padding:9px 11px}.field-label{margin:20px 20px 8px}.title-input{margin:0 20px 20px;width:calc(100% - 40px);font-size:25px}.writing-area{padding:20px;min-height:260px}.format-toolbar{padding:8px 12px;gap:1px}.format-toolbar button{padding-inline:6px;font-size:10px}.writing-footer span:first-child{max-width:75%}.card-caption{padding:15px 20px}.diagram-toolbar{padding:14px}.diagram-toolbar .btn{font-size:10px}.eyebrow{font-size:8px;letter-spacing:1.6px}html{scroll-padding-top:115px}.node-properties{padding:16px}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::before,*::after{animation:none!important;transition:none!important}}
+/* Word import: tables remain editable and readable in the editor, reader and slides. */
+:is(.writing-area,.section-body) table{border-collapse:collapse;width:100%;margin:1em 0;table-layout:fixed}
+:is(.writing-area,.section-body) :is(td,th){border:1px solid #a9b99c;padding:.6em .75em;vertical-align:top;overflow-wrap:anywhere}
+:is(.writing-area,.section-body) th{background:#edf2e7;font-weight:700;text-align:left}
+:is(.writing-area,.section-body) :is(td,th) p{margin:.25em 0}
+.word-import-dialog{width:min(900px,calc(100vw - 24px));max-width:900px;max-height:90dvh;overflow:auto;padding:28px;color:#24372b;background:#fffef9}
+.word-file-name{font-weight:600;overflow-wrap:anywhere}
+.word-import-status{min-height:1.5em}
+.word-warnings{font-size:13px;line-height:1.6;color:#58634f}
+.word-preview{border:1px solid #c8d4bf;background:white;border-radius:10px;max-height:32dvh;overflow:auto;padding:24px;overscroll-behavior:contain}
+.word-preview:empty{display:none}
+.word-preview .section-body{font-size:16px;line-height:1.7}
+.word-preview .visual-figure{max-width:600px;margin:16px auto}
+.word-import-mode{border:0;margin:12px 0;padding:0}
+.word-import-mode legend{font-weight:600;margin-bottom:8px}
+.word-import-mode label{display:flex;align-items:center;gap:10px;padding:8px 0;cursor:pointer}
+.word-import-mode input{width:18px;height:18px;margin:0;accent-color:#405f37}
+.word-replace-note{padding:12px;background:#fff2d6;border-radius:8px;font-size:14px}
+.word-import-dialog .dialog-actions{position:sticky;bottom:-28px;background:#fffef9;padding:16px 0;margin-bottom:0;border-top:1px solid #d9dfd2}
+.word-preview :is(h1,h2,h3){line-height:1.3}
+@media(max-width:600px){.word-import-dialog{padding:18px}.word-preview{padding:14px}.word-import-dialog .dialog-actions{bottom:-18px;flex-wrap:wrap}}

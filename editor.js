@@ -1,6 +1,7 @@
 'use strict';
 (() => {
   const A=window.GocViet,$=A.$;
+  let lastImport=null,importUndo=null;
   let current=null,base=null,blocks=[],identity='',dirty=false,revision=0,persistedRevision=-1,epoch=0,saving=false,discarding=false,uploading=false,draftTimer,selection=null,activeId=null,dragId=null,fileIntent=null,lastRemoved=null,draftQueue=Promise.resolve();
   const key=()=>`v2:${identity}:${current?.slug}`;
   const owns=()=>A.canEdit(current);
@@ -12,8 +13,9 @@
     const snapshot={title:$('title-input').value,blocks:structuredClone(blocks),baseUpdatedAt:base.updated_at,baseContent:base.updated_at?undefined:base.content,updatedAt:Date.now()},draftKey=key(),version=revision;
     draftQueue=draftQueue.catch(()=>{}).then(()=>A.drafts.put(draftKey,snapshot)).then(()=>{if(current&&key()===draftKey&&revision===version){persistedRevision=version;$('draft-status').textContent='● Chưa đăng · Bản nháp được giữ trên thiết bị';}}).catch(()=>{if(current&&key()===draftKey)$('draft-status').textContent='Chưa lưu được bản nháp. Giữ trang này mở và lưu lên website.';});return draftQueue;
   }
-  function change(){dirty=true;revision++;counts();$('draft-status').textContent='Đang giữ bản nháp…';clearTimeout(draftTimer);draftTimer=setTimeout(saveDraft,450);}
+  function change(){lastImport=null;if(importUndo)importUndo.hidden=true;dirty=true;revision++;counts();$('draft-status').textContent='Đang giữ bản nháp…';clearTimeout(draftTimer);draftTimer=setTimeout(saveDraft,450);}
   function authUI(){
+    if($('import-word'))$('import-word').disabled=!owns()||saving||uploading||discarding;
     $('editor-workspace').hidden=!owns();$('save-btn').disabled=!owns()||saving||uploading||discarding;$('restore-btn').disabled=saving||uploading||discarding;
     if(!A.user)status('Đăng nhập bằng tài khoản thành viên để chỉnh sửa nội dung.');
     else if(!A.isMember())status('Tài khoản này chưa được phân công trang nội dung. Bạn vẫn có thể sửa tên trong “Hồ sơ của tôi”.');
@@ -22,6 +24,7 @@
     document.querySelectorAll('#editor-nav button').forEach(button=>{const section=A.sections.find(s=>s.slug===button.dataset.slug);button.classList.toggle('active',current?.slug===section?.slug);button.title=A.canEdit(section)?'Trang của bạn':'Trang của thành viên khác';if(section)button.querySelector('.nav-title').textContent=section.title||'Chưa đặt tiêu đề';});
   }
   async function choose(section,restore=true){
+    lastImport=null;if(importUndo)importUndo.hidden=true;
     const token=++epoch;await saveDraft();if(token!==epoch)return;
     current=section;base=structuredClone(section);identity=A.user?.id||'';dirty=false;revision++;selection=null;activeId=null;lastRemoved=null;$('undo-remove').hidden=true;
     $('editor-workspace').hidden=true;
@@ -106,6 +109,23 @@
     const wrap=[...document.querySelectorAll('.content-block')].find(el=>el.dataset.id===block.id),area=wrap?.querySelector('.writing-area');
     if(!area||!selection.range.startContainer.isConnected||!area.contains(selection.range.endContainer))return null;
     return {area,range:selection.range.cloneRange(),commit(){block.html=A.sanitize(area.innerHTML);const sel=getSelection();if(sel.rangeCount&&area.contains(sel.anchorNode)&&area.contains(sel.focusNode))selection={blockId:block.id,range:sel.getRangeAt(0).cloneRange()};change();}};
+  });
+  importUndo=A.el('button','btn btn-quiet','↶ Hoàn tác nhập Word');importUndo.type='button';importUndo.hidden=true;
+  document.querySelector('.editor-actionbar .action-group').prepend(importUndo);
+  importUndo.onclick=()=>{
+    if(!lastImport||!owns()||saving||uploading||discarding)return;
+    blocks=lastImport;lastImport=null;selection=null;activeId=null;renderBlocks();change();A.toast('Đã khôi phục nội dung trước khi nhập Word.');
+  };
+  A.initWordImport({
+    allowed:()=>owns()&&!saving&&!uploading&&!discarding,
+    context:()=>({epoch,revision,user:identity}),
+    valid:ctx=>!!ctx&&ctx.epoch===epoch&&ctx.revision===revision&&ctx.user===A.user?.id&&owns()&&!saving&&!uploading&&!discarding,
+    apply:(incoming,replace)=>{
+      const next=replace?incoming:[...blocks,...incoming];
+      if(next.length>118||A.encode(next,A.decode(current.content).author).length>4500000)throw new Error('Nội dung sau khi nhập vượt giới hạn trang. Hãy chia nhỏ file hoặc chọn thay thế.');
+      const previous=structuredClone(blocks);blocks=structuredClone(next);selection=null;activeId=null;lastRemoved=null;$('undo-remove').hidden=true;
+      renderBlocks();change();lastImport=previous;importUndo.hidden=false;saveDraft();
+    }
   });
   $('title-input').addEventListener('input',change);
   $('restore-btn').onclick=()=>{if(owns()&&!saving&&!uploading&&!discarding)$('discard-dialog').showModal();};$('discard-cancel').onclick=()=>{if(!discarding)$('discard-dialog').close();};
