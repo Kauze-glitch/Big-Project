@@ -5,6 +5,19 @@
   const $ = id => document.getElementById(id);
   const db = window.supabase ? window.supabase.createClient(URL, KEY) : null;
   const app = window.GocViet = { db, user: null, sections: [], $, ready: false };
+  app.askAssistant = async (body,signal) => {
+    if(!db)throw new Error('Chưa kết nối được dịch vụ đăng nhập.');
+    const {data,error}=await db.auth.getSession();
+    if(error||!data?.session?.access_token)throw new Error('Hãy đăng nhập lại để dùng trợ lý.');
+    const response=await fetch(URL+'/functions/v1/gemini-assistant',{
+      method:'POST',signal,headers:{'Content-Type':'application/json',apikey:KEY,Authorization:'Bearer '+data.session.access_token},
+      body:JSON.stringify(body)
+    });
+    let result;try{result=await response.json();}catch{throw new Error('Trợ lý chưa sẵn sàng. Hãy thử lại sau.');}
+    if(!response.ok)throw new Error(result.error||'Không kết nối được trợ lý. Hãy đăng nhập lại hoặc thử sau.');
+    if(typeof result.answer!=='string')throw new Error('Phản hồi không hợp lệ. Hãy thử lại.');
+    return result;
+  };
   app.roster = [
     {key:'hieu',name:'Nguyễn Minh Hiếu',role:'Thành viên',task:''},
     {key:'tien-hieu',name:'Nguyễn Tiến Minh Hiếu',role:'Trưởng nhóm',task:''},

@@ -1,0 +1,4 @@
+[functions.gemini-assistant]
+# The function validates every bearer token with Auth /user and checks section
+# ownership before calling Gemini. The legacy-HS256 gateway is not used.
+verify_jwt = false
