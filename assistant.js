@@ -69,6 +69,6 @@
   $('.ai-stop').addEventListener('click',()=>{stop();status.textContent='Đã dừng chờ phản hồi. Yêu cầu đã gửi có thể vẫn được tính vào hạn mức.';input.focus();});
   scope.addEventListener('change',()=>{clear();input.focus();});
   $('.ai-suggestions').addEventListener('click',event=>{if(event.target.tagName==='BUTTON'){input.value=event.target.textContent==='Tóm tắt nội dung'?'Tóm tắt nội dung đã lưu, nêu các ý chính và chỉ rõ phần nào chưa có nội dung.':'Dựa trên bài đã lưu, gợi ý những nội dung nhóm cần bổ sung cho đề tài. Phân biệt nội dung đã có với đề xuất mới.';send(input.value);}});
-  window.addEventListener('authchange',sync);window.addEventListener('sectionorderchange',sync);
+  window.addEventListener('authchange',sync);window.addEventListener('sectionorderchange',sync);window.addEventListener('sectionsloaded',sync);
   A.load().then(sync).catch(()=>{});sync();
 })();

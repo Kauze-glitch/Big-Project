@@ -184,7 +184,9 @@
     }finally{clearTimeout(timeout);}
     const {data,error}=result;
     if(error)throw new Error('Chưa tải được nội dung. Vui lòng kiểm tra kết nối và thử lại.');
-    app.sections=data || [];app.ready=true;return app.sections;
+    app.sections=data || [];app.ready=true;
+    window.dispatchEvent(new Event('sectionsloaded'));
+    return app.sections;
     })().finally(()=>loadTask=null);
     return loadTask;
   };
