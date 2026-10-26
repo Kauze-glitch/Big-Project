@@ -60,7 +60,7 @@
     const title=A.el('h1','chapter-title',section.title);article.append(title);
     if(A.canEdit(section)){const rename=A.el('button','btn btn-quiet rename-section','✎ Đổi tên phần');rename.type='button';rename.onclick=()=>openRename(section);article.append(rename);}
     const owner=A.memberProfiles().find(p=>p.owner===section.owner_id)?.profile;
-    const action=A.el('div','chapter-byline');action.append(A.el('span','',owner?.name?'Biên soạn bởi '+owner.name:'Nhóm 12 · Phân tích & thiết kế hệ thống'));
+    const action=A.el('div','chapter-byline');action.append(A.progressBadge(section));action.append(A.el('span','',owner?.name?'Biên soạn bởi '+owner.name:'Nhóm 12 · Phân tích & thiết kế hệ thống'));
     if(A.canEdit(section)){const edit=A.el('a','btn','✎ Chỉnh sửa trang này');edit.href='editor.html?section='+encodeURIComponent(slug);action.append(edit);}else if(A.isMember()){const mine=A.el('a','btn btn-quiet','Mở trang của tôi →');mine.href='editor.html';action.append(mine);}article.append(action);
     const content=A.el('div','chapter-content'),doc=A.decode(section.content);A.renderBlocks(content,doc.blocks);
     if(!content.textContent.trim()&&!doc.blocks.some(b=>b.type==='visual'))content.append(A.el('p','empty-content','Chưa có nội dung được đăng.'));

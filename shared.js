@@ -33,6 +33,9 @@
     {label:'Phông có sẵn trên máy',fonts:['Arial','Times New Roman','Calibri','Georgia','Verdana','Tahoma','Courier New','Trebuchet MS']}
   ];
   app.isMember=()=>!!app.user && app.sections.some(s=>s.owner_id===app.user.id);
+  app.progressLabels={drafting:'Đang viết',review:'Chờ góp ý',complete:'Hoàn thành'};
+  app.progressValue=value=>Object.hasOwn(app.progressLabels,value)?value:'drafting';
+  app.progressBadge=section=>{const value=app.progressValue(section?.progress_status),badge=app.el('span','section-status',app.progressLabels[value]);badge.dataset.status=value;return badge;};
   app.canEdit=section=>!!app.user && section?.owner_id===app.user.id;
   app.el=(tag,className,text)=>{const el=document.createElement(tag);if(className)el.className=className;if(text!==undefined)el.textContent=text;return el;};
   $('auth-dialogs').innerHTML='<dialog id="login-dialog" class="dialog"><form id="login-form"><div class="eyebrow">KHÔNG GIAN THÀNH VIÊN</div><h2>Chào bạn trở lại.</h2><p class="muted">Đăng nhập để chỉnh sửa hồ sơ và nội dung của bạn.</p><label for="login-email">Email</label><input id="login-email" type="email" autocomplete="username" required><label for="login-password">Mật khẩu</label><input id="login-password" type="password" autocomplete="current-password" required><p id="login-error" class="error" role="alert"></p><div class="dialog-actions"><button id="login-cancel" type="button" class="btn btn-quiet">Để sau</button><button id="login-submit" class="btn" type="submit">Đăng nhập →</button></div></form></dialog>';
@@ -110,7 +113,7 @@
     n.className='nav-number'; n.textContent=String(index+1).padStart(2,'0');
     title.className='nav-title'; title.textContent=section.title || 'Chưa đặt tiêu đề';
     arrow.className='nav-arrow'; arrow.textContent='↗';
-    el.append(n,title,arrow); return el;
+    const copy=app.el('span','nav-copy');copy.append(title,app.progressBadge(section));el.append(n,copy,arrow);return el;
   };
   app.drawEdges = (svg,diagram) => {
     svg.replaceChildren();
