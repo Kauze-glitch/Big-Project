@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#e4eadb"><title>Xuất báo cáo · Nhóm 12</title><link rel="icon" href="favicon.png"><link rel="stylesheet" href="report.css?v=20261027-report1"></head>
+<body><a class="skip" href="#main">Đến nội dung báo cáo</a>
+<header class="report-header"><a class="back" href="index.html">← Về website</a><div><span class="eyebrow">NHÓM 12 / TÀI LIỆU</span><h1>Xuất báo cáo</h1></div><span class="saved-note">Từ nội dung đã đăng</span></header>
+<main id="main" class="report-layout"><aside class="report-options" aria-label="Tùy chọn báo cáo">
+<h2>Chuẩn bị bản nộp</h2><p class="muted">Gom nội dung theo thứ tự trên website. Bản nháp chưa đăng sẽ không được đưa vào báo cáo.</p>
+<label for="report-title">Tên đề tài trên bìa</label><textarea id="report-title" maxlength="300" rows="3"></textarea>
+<label for="report-group">Nhóm thực hiện</label><input id="report-group" maxlength="80" value="Nhóm 12">
+<div class="report-check"><label><input id="include-cover" type="checkbox" checked> Trang bìa và thành viên</label><label><input id="include-toc" type="checkbox" checked> Mục lục</label></div>
+<fieldset><legend>Các phần trong báo cáo</legend><div id="report-sections">Đang tải các phần…</div></fieldset>
+<button id="refresh-report" class="secondary" type="button">↻ Tải nội dung mới nhất</button>
+<p class="muted small">Word giữ định dạng cơ bản và có thể sửa tiếp. PDF dùng phông hỗ trợ tiếng Việt. Ảnh và sơ đồ được giữ bố cục dưới dạng hình.</p>
+<div class="export-actions"><button id="export-word" disabled>Tải Word .docx</button><button id="export-pdf" disabled>Tải PDF</button></div>
+<button id="preview-pdf" class="secondary" disabled>Xem trước PDF</button>
+<p id="report-status" role="status" aria-live="polite">Đang tải nội dung…</p><p id="report-error" role="alert"></p>
+</aside><section class="preview-panel" aria-label="Xem trước báo cáo"><div class="preview-heading"><h2>Bản xem trước</h2><span id="report-count"></span></div><p class="muted preview-help">Dưới đây là nội dung sẽ xuất. Chọn “Xem trước PDF” để kiểm tra ngắt trang và số trang chính xác.</p><div id="report-preview" aria-busy="true"><div class="report-empty">Đang chuẩn bị báo cáo…</div></div></section></main>
+<dialog id="pdf-dialog"><div class="pdf-dialog-header"><h2>Xem trước PDF</h2><button id="close-pdf" class="secondary" aria-label="Đóng xem trước PDF">Đóng ×</button></div><div class="pdf-pager"><button id="pdf-prev" class="secondary" disabled>← Trang trước</button><span id="pdf-page-label" role="status">Đang tạo bản xem trước…</span><button id="pdf-next" class="secondary" disabled>Trang sau →</button></div><div id="pdf-pages"><canvas id="pdf-canvas" role="img" aria-label="Trang PDF"></canvas></div><p id="pdf-preview-error" role="alert"></p></dialog>
+<div hidden><nav id="section-nav"></nav><button id="login-btn"></button><button id="logout-btn"></button><button id="profile-btn"></button><div id="auth-dialogs"></div><div id="toast" role="status"></div></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script><script src="shared.js?v=20261026-1"></script><script src="section-order.js?v=20261027-report1"></script><script src="content.js?v=20261019-slides11"></script><script src="profile.js"></script><script src="report-core.js?v=20261027-report1"></script><script src="report.js?v=20261027-report1"></script></body></html>

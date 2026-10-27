@@ -18,7 +18,7 @@
       if(error||!data||!Array.isArray(data.slugs))throw new Error();
       state=data;available=true;
     }catch{ /* Keep published sections readable before the database migration is installed. */ }
-    sort();refreshButton();
+    A.sectionOrderAvailable=available;sort();refreshButton();
   };
   const originalLoad=A.load;
   A.load=()=>{
