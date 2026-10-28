@@ -71,7 +71,7 @@
       const sources=A.el('div','ai-sources');sources.append(A.el('span','','Nội dung đã tham khảo: '));
       for(const source of (Array.isArray(result.sources)?result.sources:[])){
         if(!A.sections.some(s=>s.slug===source.slug))continue;
-        const link=A.el('a','',source.title||source.slug);link.href='index.html?section='+encodeURIComponent(source.slug);link.target='_blank';link.rel='noopener';sources.append(link);
+        const link=A.el('a','',source.title||source.slug);link.href='index.html?section='+encodeURIComponent(source.slug);sources.append(link);
       }
       answer.append(sources);
       if(result.truncated)answer.append(A.el('small','ai-note','Bài dài đã được rút gọn. Chọn từng phần để hỏi chi tiết hơn.'));
