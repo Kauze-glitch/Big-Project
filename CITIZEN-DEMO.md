@@ -1,11 +1,11 @@
 # Citizen UI prototype
 
-This is a standalone, public UI demonstration for the Nhóm 12 coursework. It does not grant project membership, create Supabase users, send Telegram messages or verify identity.
+This is a coursework UI demonstration for the Nhóm 12 coursework. It does not grant project membership, create Supabase users, send Telegram messages or verify identity.
 
 Entry: `portal.html`. Routes: `#/login`, `#/admin`, `#/profile`.
 
 - The citizen tab demonstrates credentials followed by OTP and a read-only profile.
-- The member tab links to the public manager preview and to the original project website. The existing three member accounts and report login are unchanged.
+- The member tab and manager route are available only after Supabase Auth validates the report session and the user owns one of the three project sections (phan1, phan2, phan3). Guests and citizen demo sessions cannot open the manager through the UI. Auth failures deny access; signing out closes manager dialogs. Mutations revalidate membership. The existing three member accounts and report login are unchanged.
 - The manager supports accent-insensitive search, account and area filters, pagination, create/edit, unique mock CCCD validation, account issue/lock/unlock and a local activity feed.
 - All records are fictional. Mock CCCD numbers must start with `000`, mock phone numbers with `000`, and optional emails use `example.invalid`. Do not enter real personal information.
 - Active sample account: `000000000001`, password `demo123`, OTP `123456`. Every issued mock account uses the same demo password. This is not a security implementation.
@@ -17,4 +17,4 @@ Entry: `portal.html`. Routes: `#/login`, `#/admin`, `#/profile`.
 
 `portal-store.js` is the data adapter. The UI currently uses synchronous methods `list`, `get`, `save`, `setAccount`, `checkLogin`, `events`, and `reset`. Connecting an asynchronous server requires updating their callers to await responses and display loading/error states; adding a database alone does not connect it automatically.
 
-Before a real authentication implementation, replace the public admin preview, shared demo password, local session and static OTP completely. Enforce member ownership and citizen identity on the server and database; do not rely on browser routes or localStorage permissions. Send Telegram only to the pre-enrolled number with recipient consent; keep tokens in server Secrets. Only authorize private profile access after the server verifies both authentication steps, with rate limits and one-time challenge consumption. No real provider is connected in this UI release.
+Before a real authentication implementation, replace the browser-only manager guard, shared demo password, local citizen session and static OTP completely. Enforce member ownership and citizen identity on the server and database; do not rely on browser routes or localStorage permissions. Send Telegram only to the pre-enrolled number with recipient consent; keep tokens in server Secrets. Only authorize private profile access after the server verifies both authentication steps, with rate limits and one-time challenge consumption. No real provider is connected in this UI release.
