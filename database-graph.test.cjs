@@ -1,12 +1,12 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs');
 const data=JSON.parse(fs.readFileSync('database-schema.json','utf8'));
-function setup(){
-  const window={},elements=new Map();vm.runInNewContext(fs.readFileSync('database-graph.js','utf8'),{window});
+function setup(storage=new Map(),fail=false){
+  const window={localStorage:{getItem:k=>storage.get(k)||null,setItem(k,v){if(fail)throw Error('quota');storage.set(k,v);}}},elements=new Map();vm.runInNewContext(fs.readFileSync('database-graph.js','utf8'),{window});
   const get=id=>{if(!elements.has(id))elements.set(id,{innerHTML:'',clientWidth:1100,clientHeight:660,textContent:'',value:'',attrs:{},handlers:{},classList:{add(){},remove(){},toggle(){}},setAttribute(k,v){this.attrs[k]=v;},getAttribute(k){return this.attrs[k]||'false';},addEventListener(k,fn){this.handlers[k]=fn;},removeEventListener(k){delete this.handlers[k];},setPointerCapture(){},getBoundingClientRect:()=>({left:0,top:0,width:1100,height:660}),querySelector:s=>get(s.slice(1))});return elements.get(id);};
   const container={innerHTML:'',contains:()=>true,classList:{toggle(){},remove(){}},querySelector:s=>get(s.slice(1))};let widget,detail=0;
   widget=window.DatabaseGraph.mount(container,data,n=>widget.setTable(n),()=>detail++);
   const click=id=>container.onclick({target:{closest:s=>s==='button'?{id}:null}});
-  return {api:window.DatabaseGraph,container,get,widget,click,detail:()=>detail};
+  return {api:window.DatabaseGraph,container,get,widget,click,storage,detail:()=>detail};
 }
 test('All 22 tables and all declared foreign keys appear in full ERD',()=>{const {api}=setup(),m=api.model(data,'all');assert.equal(m.nodes.length,22);assert.equal(m.edges.length,data.refs.length);for(const n of m.nodes){assert.equal(n.fields.length,data.tables.find(t=>t.name===n.name).fields.length);assert(n.width>0&&n.height>0);}});
 test('Core ERD contains citizen, household, staff, card and request tables',()=>{const {api}=setup(),m=api.model(data);for(const name of ['CONG_DAN','HO_GIA_DINH','THE_CAN_CUOC','CAN_BO','HO_SO_YEU_CAU'])assert(m.nodes.some(n=>n.name===name));assert.equal(m.nodes.length,9);});
@@ -20,3 +20,36 @@ test('Zoom and fit update the camera while reset restores readable scale',()=>{c
 test('Pointer drag pans the canvas instead of selecting a table',()=>{const p=setup(),svg=p.get('erd-svg'),scene=p.get('erd-scene'),before=scene.attrs.transform;const target={closest:()=>null};svg.onpointerdown({button:0,clientX:100,clientY:100,pointerId:1,target});svg.onpointermove({clientX:180,clientY:130,pointerId:1});svg.onpointerup({type:'pointerup'});assert.notEqual(scene.attrs.transform,before);});
 test('Wheel zoom is anchored to pointer and prevents page scrolling',()=>{const p=setup();let prevented=false;p.get('erd-svg').handlers.wheel({deltaY:-100,clientX:200,clientY:200,preventDefault(){prevented=true;}});assert(prevented);assert(Number.parseInt(p.get('diagram-reset').textContent)>85);});
 test('Cleanup removes gesture handlers and detail action is available',()=>{const p=setup();p.click('erd-detail');assert.equal(p.detail(),1);p.widget.destroy();assert.equal(p.container.onclick,null);assert.equal(p.get('erd-svg').onpointerdown,null);assert.equal(p.get('erd-svg').handlers.wheel,undefined);});
+
+function dragTable(p,name,dx,dy,type='pointerup'){
+  const svg=p.get('erd-svg'),target={closest:()=>({dataset:{erdTable:name}})};
+  svg.onpointerdown({button:0,clientX:100,clientY:100,pointerId:2,target});
+  svg.onpointermove({clientX:100+dx,clientY:100+dy,pointerId:2});
+  svg.onpointerup({type});
+}
+const key='nhom12.database.erd-layout.v1';
+test('Dragging moves only one table at the current zoom, reconnects edges and persists after remount',()=>{
+  const p=setup(),before=p.get('erd-scene').attrs.transform;dragTable(p,'CONG_DAN',85,170);
+  const positions=JSON.parse(p.storage.get(key)).layouts.core;
+  assert.deepEqual(positions.CONG_DAN,{x:835,y:820});assert.equal(Object.keys(positions).length,1);
+  assert.equal(p.get('erd-scene').attrs.transform,before);assert.match(p.get('erd-save-status').textContent,/Đã lưu/);
+  const model=p.api.model(data,'core','CONG_DAN',false,positions),base=p.api.model(data);
+  assert.equal(model.nodes.find(n=>n.name==='HO_GIA_DINH').x,base.nodes.find(n=>n.name==='HO_GIA_DINH').x);
+  assert.equal(model.edges.find(e=>e.to==='CONG_DAN').ty,base.edges.find(e=>e.to==='CONG_DAN').ty+200);
+  const reloaded=setup(p.storage);assert.match(reloaded.get('erd-svg').innerHTML,/x="835" y="820"/);
+});
+test('Scope layouts stay separate and resetting the current scope survives reload',()=>{
+  const p=setup();dragTable(p,'CONG_DAN',85,85);
+  p.container.onchange({target:{id:'erd-scope',value:'all'}});dragTable(p,'CONG_DAN',85,85);
+  assert(JSON.parse(p.storage.get(key)).layouts.core.CONG_DAN);assert(JSON.parse(p.storage.get(key)).layouts.all.CONG_DAN);
+  p.click('erd-layout-reset');const layouts=JSON.parse(p.storage.get(key)).layouts;assert(layouts.core.CONG_DAN);assert(!layouts.all.CONG_DAN);
+  const reloaded=setup(p.storage);assert.match(reloaded.get('erd-svg').innerHTML,/x="835" y="720"/);
+});
+test('Canceled drag restores the table and does not save an interrupted gesture',()=>{
+  const p=setup(),before=p.get('erd-svg').innerHTML;dragTable(p,'CONG_DAN',85,85,'pointercancel');assert.equal(p.get('erd-svg').innerHTML,before);assert.equal(p.storage.size,0);
+});
+test('Broken storage and invalid saved coordinates fall back safely; save failures are visible',()=>{
+  const corrupt=setup(new Map([[key,'{broken']]));assert.match(corrupt.get('erd-svg').innerHTML,/CONG_DAN/);
+  const invalid=setup(new Map([[key,JSON.stringify({version:1,layouts:{core:{CONG_DAN:{x:-10,y:40}}}})]]));assert.match(invalid.get('erd-svg').innerHTML,/x="735" y="620"/);
+  const denied=setup(new Map(),true);dragTable(denied,'CONG_DAN',85,85);assert.match(denied.get('erd-save-status').textContent,/Chưa lưu được/);denied.click('erd-save');assert.match(denied.get('erd-save-status').textContent,/Lưu bố cục/);
+});

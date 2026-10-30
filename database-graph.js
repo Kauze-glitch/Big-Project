@@ -13,7 +13,7 @@
     }
     return {parents:[...parents.values()],children:[...children.values()],self};
   }
-  function model(data,scope='core',selected='CONG_DAN',common=false){
+  function model(data,scope='core',selected='CONG_DAN',common=false,positions={}){
     let visible;
     if(scope==='all')visible=data.tables;
     else if(scope==='core')visible=data.tables.filter(t=>core.includes(t.name));
@@ -29,6 +29,7 @@
       let x,y;
       if(scope==='core'){[x,y]=layout[t.name];}
       else {const col=scope==='all'?t.group:nodes.length%3;x=65+col*(W+GAP);y=heights[col];heights[col]+=height+170;}
+      const saved=positions[t.name];if(saved&&Number.isFinite(saved.x)&&Number.isFinite(saved.y)){x=saved.x;y=saved.y;}
       nodes.push({...t,fields,x,y,width:W,height});
     }
     const byName=new Map(nodes.map(n=>[n.name,n]));
@@ -53,7 +54,13 @@
   function mount(container,data,onSelect,onDetail){
     let selected='CONG_DAN',scope='core',common=false,m,svg,scene,resize,drag=null,moved=false;
     let camera={scale:.85,x:0,y:0},size={width:1100,height:660};
-    container.innerHTML=`<div class="erd-toolbar"><label>Đến bảng<select id="erd-table-select" aria-label="Đến bảng">${data.tables.map(t=>`<option value="${t.name}">${escape(t.title)} · ${t.name}</option>`).join('')}</select></label><label>Phạm vi sơ đồ<select id="erd-scope" aria-label="Phạm vi sơ đồ"><option value="core">Nhóm bảng cốt lõi</option><option value="all">Toàn bộ 22 bảng</option><option value="neighbors">Bảng đang chọn và liên quan</option>${data.groups.map((g,i)=>`<option value="${i}">${escape(g)}</option>`).join('')}</select></label><div class="erd-tools"><button id="diagram-out" aria-label="Thu nhỏ sơ đồ">−</button><button id="diagram-reset">100%</button><button id="diagram-in" aria-label="Phóng to sơ đồ">+</button><button id="erd-fit">Vừa khung</button><button id="erd-expand" aria-pressed="false">Mở rộng</button></div></div><div class="erd-help"><span>Kéo nền để di chuyển · Cuộn trong khung để phóng to · Chọn bảng để tô sáng quan hệ</span><label><input id="erd-common" type="checkbox"> Hiện trường quản lý chung</label></div><div class="erd-canvas" id="erd-canvas"><svg id="erd-svg" xmlns="http://www.w3.org/2000/svg" role="group" aria-label="Sơ đồ ERD gồm các bảng, cột, kiểu dữ liệu và quan hệ" tabindex="0"></svg></div><div class="erd-status"><span id="erd-status" role="status"></span><span>PK: khóa chính · FK: khóa ngoại · UQ: duy nhất</span><button id="erd-detail">Chi tiết bảng đang chọn ↓</button></div><p class="erd-footnote">Đầu nối thể hiện quan hệ một/nhiều và bắt buộc/tùy chọn. Các khóa AUTH thuộc dịch vụ xác thực được ghi trong chi tiết bảng.</p>`;
+    const storageKey='nhom12.database.erd-layout.v1',layouts={};
+    const layoutKey=()=>scope+(scope==='neighbors'?':'+selected:'')+(common?':common':'');
+    try{const saved=JSON.parse(window.localStorage.getItem(storageKey));if(saved?.version===1&&saved.layouts&&typeof saved.layouts==='object')for(const [key,positions] of Object.entries(saved.layouts)){if(!positions||typeof positions!=='object')continue;layouts[key]={};for(const t of data.tables){const p=positions[t.name];if(p&&Number.isFinite(p.x)&&Number.isFinite(p.y)&&p.x>=20&&p.y>=20&&p.x<=100000&&p.y<=100000)layouts[key][t.name]={x:p.x,y:p.y};}}}catch{}
+    const positions=()=>layouts[layoutKey()]||(layouts[layoutKey()]={});
+    function save(){try{window.localStorage.setItem(storageKey,JSON.stringify({version:1,layouts}));get('erd-save-status').textContent='Đã lưu trên trình duyệt này';return true;}catch{get('erd-save-status').textContent='Chưa lưu được. Hãy cho phép lưu dữ liệu trong trình duyệt rồi bấm Lưu bố cục.';return false;}}
+
+    container.innerHTML=`<div class="erd-toolbar"><label>Đến bảng<select id="erd-table-select" aria-label="Đến bảng">${data.tables.map(t=>`<option value="${t.name}">${escape(t.title)} · ${t.name}</option>`).join('')}</select></label><label>Phạm vi sơ đồ<select id="erd-scope" aria-label="Phạm vi sơ đồ"><option value="core">Nhóm bảng cốt lõi</option><option value="all">Toàn bộ 22 bảng</option><option value="neighbors">Bảng đang chọn và liên quan</option>${data.groups.map((g,i)=>`<option value="${i}">${escape(g)}</option>`).join('')}</select></label><div class="erd-tools"><button id="diagram-out" aria-label="Thu nhỏ sơ đồ">−</button><button id="diagram-reset">100%</button><button id="diagram-in" aria-label="Phóng to sơ đồ">+</button><button id="erd-fit">Vừa khung</button><button id="erd-expand" aria-pressed="false">Mở rộng</button><button id="erd-save">Lưu bố cục</button><button id="erd-layout-reset">Đặt lại vị trí</button></div></div><div class="erd-help"><span>Kéo từng bảng để sắp xếp · Kéo nền để di chuyển · Cuộn để phóng to</span><label><input id="erd-common" type="checkbox"> Hiện trường quản lý chung</label></div><div class="erd-canvas" id="erd-canvas"><svg id="erd-svg" xmlns="http://www.w3.org/2000/svg" role="group" aria-label="Sơ đồ ERD gồm các bảng, cột, kiểu dữ liệu và quan hệ" tabindex="0"></svg></div><div class="erd-status"><span id="erd-status" role="status"></span><span>PK: khóa chính · FK: khóa ngoại · UQ: duy nhất</span><button id="erd-detail">Chi tiết bảng đang chọn ↓</button></div><p id="erd-save-status" class="erd-save-status" role="status">Vị trí bảng được tự lưu trên trình duyệt này theo từng phạm vi xem.</p><p class="erd-footnote">Đầu nối thể hiện quan hệ một/nhiều và bắt buộc/tùy chọn. Các khóa AUTH thuộc dịch vụ xác thực được ghi trong chi tiết bảng.</p>`;
     const get=id=>container.querySelector('#'+id);
     svg=get('erd-svg');
     function transform(){scene?.setAttribute('transform',`translate(${camera.x} ${camera.y}) scale(${camera.scale})`);get('diagram-reset').textContent=Math.round(camera.scale*100)+'%';}
@@ -63,8 +70,9 @@
       camera.x=size.width/2-(node.x+W/2)*camera.scale;camera.y=Math.max(25,(size.height-node.height*camera.scale)/2)-node.y*camera.scale;transform();
     }
     function measure(){size={width:svg.clientWidth||1100,height:svg.clientHeight||660};svg.setAttribute('viewBox',`0 0 ${size.width} ${size.height}`);}
+    function render(){m=model(data,scope,selected,common,positions());svg.innerHTML=svgMarkup(m,selected);scene=svg.querySelector('#erd-scene');transform();}
     function draw(){
-      m=model(data,scope,selected,common);svg.innerHTML=svgMarkup(m,selected);scene=svg.querySelector('#erd-scene');measure();
+      render();measure();
       get('erd-status').textContent=`${m.nodes.length}/${data.tables.length} bảng · ${m.edges.length} quan hệ · Đang chọn: ${selected}`;
       get('erd-table-select').value=selected;get('erd-scope').value=scope;focus(selected);
     }
@@ -78,9 +86,9 @@
       camera.x=p.x-(p.x-camera.x)*ratio;camera.y=p.y-(p.y-camera.y)*ratio;camera.scale=next;transform();
     }
     function fit(){camera.scale=Math.min((size.width-60)/m.width,(size.height-60)/m.height,1);camera.x=(size.width-m.width*camera.scale)/2;camera.y=(size.height-m.height*camera.scale)/2;transform();}
-    svg.onpointerdown=event=>{if(event.button!==0)return;drag={...point(event),x0:camera.x,y0:camera.y,id:event.pointerId,table:event.target.closest('[data-erd-table]')?.dataset.erdTable};moved=false;svg.setPointerCapture(event.pointerId);svg.classList.add('panning');};
-    svg.onpointermove=event=>{if(!drag||drag.id!==event.pointerId)return;const p=point(event),dx=p.x-drag.x,dy=p.y-drag.y;if(Math.abs(dx)+Math.abs(dy)>4)moved=true;camera.x=drag.x0+dx;camera.y=drag.y0+dy;transform();};
-    const end=event=>{const table=drag?.table,clicked=drag&&!moved&&event.type!=='pointercancel';drag=null;svg.classList.remove('panning');if(clicked&&table){onSelect(table);moved=true;}};svg.onpointerup=end;svg.onpointercancel=end;
+    svg.onpointerdown=event=>{if(event.button!==0)return;const table=event.target.closest('[data-erd-table]')?.dataset.erdTable,node=m.nodes.find(n=>n.name===table);drag={...point(event),x0:camera.x,y0:camera.y,id:event.pointerId,table,nodeX:node?.x,nodeY:node?.y,previous:table?positions()[table]:null};moved=false;svg.setPointerCapture(event.pointerId);svg.classList.add('panning');};
+    svg.onpointermove=event=>{if(!drag||drag.id!==event.pointerId)return;const p=point(event),dx=p.x-drag.x,dy=p.y-drag.y;if(Math.abs(dx)+Math.abs(dy)>4)moved=true;if(!moved)return;if(drag.table){positions()[drag.table]={x:Math.max(20,Math.min(100000,drag.nodeX+dx/camera.scale)),y:Math.max(20,Math.min(100000,drag.nodeY+dy/camera.scale))};render();get('erd-save-status').textContent='Đang sắp xếp…';}else{camera.x=drag.x0+dx;camera.y=drag.y0+dy;transform();}};
+    const end=event=>{if(!drag)return;const current=drag,clicked=!moved&&event.type!=='pointercancel';drag=null;svg.classList.remove('panning');if(current.table&&moved){if(event.type==='pointercancel'){if(current.previous)positions()[current.table]=current.previous;else delete positions()[current.table];render();get('erd-save-status').textContent='Đã hủy thao tác kéo.';}else save();}if(clicked&&current.table){onSelect(current.table);moved=true;}};svg.onpointerup=end;svg.onpointercancel=end;
     const wheel=event=>{event.preventDefault();zoom(camera.scale*Math.exp(-Math.max(-150,Math.min(150,event.deltaY))*.0025),point(event));};
     svg.addEventListener('wheel',wheel,{passive:false});
     container.onclick=event=>{
@@ -88,6 +96,7 @@
       const button=event.target.closest('button');if(!button||!container.contains(button))return;
       if(button.id==='diagram-in')zoom(camera.scale*1.2);else if(button.id==='diagram-out')zoom(camera.scale/1.2);
       else if(button.id==='diagram-reset'){camera.scale=1;focus(selected);}else if(button.id==='erd-fit')fit();
+      else if(button.id==='erd-save')save();else if(button.id==='erd-layout-reset'){delete layouts[layoutKey()];draw();save();}
       else if(button.id==='erd-detail')onDetail();else if(button.id==='erd-expand'){const expanded=button.getAttribute('aria-pressed')!=='true';container.classList.toggle('erd-expanded',expanded);button.setAttribute('aria-pressed',String(expanded));button.textContent=expanded?'Thu gọn':'Mở rộng';measure();focus(selected);}
     };
     container.onchange=event=>{if(event.target.id==='erd-table-select')onSelect(event.target.value);else if(event.target.id==='erd-scope'){scope=event.target.value;const next=model(data,scope,selected,common);if(!next.nodes.some(n=>n.name===selected))selected=next.nodes[0].name;draw();onSelect(selected);}else if(event.target.id==='erd-common'){common=event.target.checked;draw();}};
