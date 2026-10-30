@@ -1,0 +1,420 @@
+// Bản thiết kế logic để duyệt, chưa triển khai. auth.users là bảng của dịch vụ Auth hiện có.
+Table auth.users {
+ id uuid [pk]
+}
+
+Table DON_VI_HC {
+ id uuid [pk, note: 'Mã nội bộ, tự sinh']
+ ma_don_vi text [not null, unique, note: 'Mã nghiệp vụ']
+ ten_don_vi text [not null, note: 'Tên đơn vị']
+ cap_hanh_chinh text [not null, note: 'Mã cấp trong danh mục được nhóm thống nhất']
+ don_vi_cha_id uuid [ref: > DON_VI_HC.id, note: 'Để trống với đơn vị gốc']
+ hieu_luc_tu date [not null, note: 'Ngày bắt đầu sử dụng']
+ hieu_luc_den date [note: 'Ngày kết thúc sử dụng']
+ trang_thai text [not null, note: 'hoat_dong / ngung_hoat_dong']
+ created_at timestamptz [not null, note: 'Thời điểm tạo, máy chủ đặt']
+ updated_at timestamptz [not null, note: 'Thời điểm cập nhật, máy chủ đặt']
+ created_by uuid [ref: > auth.users.id, note: 'Người tạo; trống nếu tác vụ hệ thống']
+ updated_by uuid [ref: > auth.users.id, note: 'Người cập nhật cuối']
+ row_version integer [not null, note: 'Bắt đầu 1, tăng khi cập nhật để chống ghi đè']
+ Note: 'Cây đơn vị quản lý và địa bàn; lưu đơn vị ngừng hoạt động để giữ lịch sử. Không cho đơn vị làm cha của chính nó hoặc tạo chu trình nhiều cấp. Mã không tái sử dụng cho một đơn vị khác. Đổi tên/địa giới không tự sửa địa chỉ lịch sử. Không xóa đơn vị đã được tham chiếu; dùng trạng thái và thời gian hiệu lực.'
+}
+
+Table CONG_DAN {
+ id uuid [pk, note: 'Mã nội bộ, tự sinh']
+ so_dinh_danh varchar(12) [unique, note: 'Chuỗi 12 chữ số; cho trống khi hồ sơ đang chờ bổ sung']
+ ho_ten_khai_sinh text [not null, note: 'Họ tên đầy đủ, Unicode NFC']
+ ten_goi_khac text [note: 'Tên gọi khác']
+ ngay_sinh date [note: 'Chỉ nhập ngày chính xác khi có căn cứ']
+ nam_sinh smallint [note: 'Dùng khi chỉ biết năm; không tự bịa ngày 01/01']
+ do_chinh_xac_ngay_sinh text [not null, note: 'day_du / chi_nam / chua_ro']
+ gioi_tinh text [not null, note: 'nam / nu / khac / chua_xac_dinh']
+ noi_sinh text [note: 'Nơi sinh theo hồ sơ']
+ noi_dang_ky_khai_sinh text [note: 'Khác với nơi sinh và quê quán']
+ que_quan text [note: 'Quê quán theo hồ sơ']
+ dan_toc text [note: 'Chọn từ danh mục']
+ ton_giao text [note: 'Chọn từ danh mục; chưa rõ khác với không tôn giáo']
+ nghe_nghiep text [note: 'Nghề nghiệp hiện tại']
+ so_dien_thoai_lien_he text [note: 'Số liên hệ; không tự thay số nhận OTP']
+ email_lien_he text [note: 'Email liên hệ']
+ tinh_trang_ca_nhan text [not null, note: 'con_song / da_chet / mat_tich / chua_xac_minh']
+ ngay_ghi_nhan_tinh_trang date [note: 'Ngày gắn với tình trạng cá nhân']
+ trang_thai_ho_so text [not null, note: 'nhap / da_xac_nhan / luu_tru']
+ created_at timestamptz [not null, note: 'Thời điểm tạo, máy chủ đặt']
+ updated_at timestamptz [not null, note: 'Thời điểm cập nhật, máy chủ đặt']
+ created_by uuid [ref: > auth.users.id, note: 'Người tạo; trống nếu tác vụ hệ thống']
+ updated_by uuid [ref: > auth.users.id, note: 'Người cập nhật cuối']
+ row_version integer [not null, note: 'Bắt đầu 1, tăng khi cập nhật để chống ghi đè']
+ Note: 'Thông tin nhân thân gốc; độc lập với việc có thẻ, có hộ hoặc được cấp tài khoản. Số định danh không phải khóa chính; mã UUID nội bộ giữ ổn định khi hiệu chỉnh thông tin. Ngày sinh không ở tương lai. Chỉ một cách biểu diễn ngày sinh được sử dụng theo độ chính xác. Không bắt hồ sơ công dân phải có tài khoản, thẻ hoặc hộ ngay khi tạo. Thông tin quốc tịch, cư trú, hộ, quan hệ và hôn nhân lấy từ các bảng liên quan, không lưu thêm bản sao tại đây.'
+}
+
+Table QUOC_TICH_CONG_DAN {
+ id uuid [pk, note: 'Mã nội bộ, tự sinh']
+ cong_dan_id uuid [not null, ref: > CONG_DAN.id, note: 'Công dân']
+ ma_quoc_gia text [not null, note: 'Mã từ danh mục quốc gia']
+ tu_ngay date [note: 'Ngày bắt đầu nếu biết']
+ den_ngay date [note: 'Ngày kết thúc nếu có']
+ ghi_chu text [note: 'Nguồn hoặc ghi chú']
+ created_at timestamptz [not null, note: 'Thời điểm tạo, máy chủ đặt']
+ updated_at timestamptz [not null, note: 'Thời điểm cập nhật, máy chủ đặt']
+ created_by uuid [ref: > auth.users.id, note: 'Người tạo; trống nếu tác vụ hệ thống']
+ updated_by uuid [ref: > auth.users.id, note: 'Người cập nhật cuối']
+ row_version integer [not null, note: 'Bắt đầu 1, tăng khi cập nhật để chống ghi đè']
+ Note: 'Cho phép một người có nhiều quốc tịch mà không ghép nhiều giá trị vào một ô. Không lặp một quốc tịch đang hiệu lực cho cùng một công dân. Không có bản ghi nghĩa là chưa cập nhật; không tự kết luận không quốc tịch.'
+}
+
+Table CU_TRU {
+ id uuid [pk, note: 'Mã nội bộ, tự sinh']
+ cong_dan_id uuid [not null, ref: > CONG_DAN.id, note: 'Công dân']
+ loai_cu_tru text [not null, note: 'thuong_tru / tam_tru / noi_o_hien_tai']
+ don_vi_hc_id uuid [not null, ref: > DON_VI_HC.id, note: 'Địa bàn tại thời điểm ghi nhận']
+ dia_chi_chi_tiet text [not null, note: 'Số nhà, đường, thôn hoặc tổ dân phố']
+ dia_chi_day_du_tai_thoi_diem text [not null, note: 'Bản chụp tên địa chỉ để giữ lịch sử']
+ tu_ngay date [not null, note: 'Bắt đầu hiệu lực']
+ den_ngay date [note: 'Kết thúc; trống là còn hiệu lực']
+ trang_thai text [not null, note: 'cho_xac_nhan / da_xac_nhan / huy']
+ ho_so_nguon_id uuid [ref: > HO_SO_YEU_CAU.id, note: 'Yêu cầu làm căn cứ, nếu có']
+ created_at timestamptz [not null, note: 'Thời điểm tạo, máy chủ đặt']
+ updated_at timestamptz [not null, note: 'Thời điểm cập nhật, máy chủ đặt']
+ created_by uuid [ref: > auth.users.id, note: 'Người tạo; trống nếu tác vụ hệ thống']
+ updated_by uuid [ref: > auth.users.id, note: 'Người cập nhật cuối']
+ row_version integer [not null, note: 'Bắt đầu 1, tăng khi cập nhật để chống ghi đè']
+ Note: 'Phân biệt thường trú, tạm trú và nơi ở hiện tại; theo dõi thay đổi theo thời gian. Quy ước đồ án: không có hai khoảng cư trú đã xác nhận chồng lấn cho cùng người và cùng loại. Thường trú và tạm trú được phép đồng thời vì khác loại. Khi chuyển nơi cư trú: kết thúc bản ghi cũ và thêm bản ghi mới trong cùng giao dịch.'
+}
+
+Table HO_GIA_DINH {
+ id uuid [pk, note: 'Mã nội bộ, tự sinh']
+ ma_ho text [not null, unique, note: 'Mã hộ trong hệ thống']
+ so_ho_so_cu_tru text [unique, note: 'Số hồ sơ nghiệp vụ nếu được nhập']
+ don_vi_hc_id uuid [not null, ref: > DON_VI_HC.id, note: 'Đơn vị quản lý']
+ dia_chi text [not null, note: 'Địa chỉ hộ hiện tại']
+ ngay_lap date [not null, note: 'Ngày tạo hộ']
+ trang_thai text [not null, note: 'nhap / hoat_dong / da_giai_the']
+ ngay_giai_the date [note: 'Khi hộ kết thúc']
+ created_at timestamptz [not null, note: 'Thời điểm tạo, máy chủ đặt']
+ updated_at timestamptz [not null, note: 'Thời điểm cập nhật, máy chủ đặt']
+ created_by uuid [ref: > auth.users.id, note: 'Người tạo; trống nếu tác vụ hệ thống']
+ updated_by uuid [ref: > auth.users.id, note: 'Người cập nhật cuối']
+ row_version integer [not null, note: 'Bắt đầu 1, tăng khi cập nhật để chống ghi đè']
+ Note: 'Thay tên kỹ thuật HO_KHAU để mô tả nhóm hộ; không giả định luôn có một sổ giấy. Không lưu ma_chu_ho ở bảng này: chủ hộ được xác định bởi THANH_VIEN_HO để tránh vòng khóa ngoại và hai nguồn thông tin. Hộ nháp được phép chưa có thành viên; hộ hoạt động phải có đúng một chủ hộ còn hiệu lực.'
+}
+
+Table THANH_VIEN_HO {
+ id uuid [pk, note: 'Mã nội bộ, tự sinh']
+ ho_id uuid [not null, ref: > HO_GIA_DINH.id, note: 'Hộ']
+ cong_dan_id uuid [not null, ref: > CONG_DAN.id, note: 'Thành viên']
+ quan_he_voi_chu_ho text [not null, note: 'chu_ho / vo_chong / con / cha_me / khac']
+ tu_ngay date [not null, note: 'Bắt đầu thuộc hộ']
+ den_ngay date [note: 'Kết thúc thuộc hộ']
+ ly_do_thay_doi text [note: 'Lý do chuyển hộ hoặc đổi quan hệ']
+ ho_so_nguon_id uuid [ref: > HO_SO_YEU_CAU.id, note: 'Yêu cầu làm căn cứ']
+ created_at timestamptz [not null, note: 'Thời điểm tạo, máy chủ đặt']
+ updated_at timestamptz [not null, note: 'Thời điểm cập nhật, máy chủ đặt']
+ created_by uuid [ref: > auth.users.id, note: 'Người tạo; trống nếu tác vụ hệ thống']
+ updated_by uuid [ref: > auth.users.id, note: 'Người cập nhật cuối']
+ row_version integer [not null, note: 'Bắt đầu 1, tăng khi cập nhật để chống ghi đè']
+ Note: 'Liên kết công dân với hộ và giữ lịch sử chuyển hộ, đổi chủ hộ. Quy ước phạm vi đồ án: một người không thuộc hai hộ đang hiệu lực cùng lúc. Một hộ không có hai chủ hộ trong cùng khoảng thời gian. Đổi chủ hộ, chuyển hộ và giải thể thực hiện trong giao dịch; kiểm tra đúng một chủ hộ ở thời điểm hoàn tất. Quan hệ với chủ hộ không thay thế quan hệ nhân thân.'
+}
+
+Table THE_CAN_CUOC {
+ id uuid [pk, note: 'Mã nội bộ, tự sinh']
+ cong_dan_id uuid [not null, ref: > CONG_DAN.id, note: 'Chủ thể']
+ loai_giay_to text [not null, note: 'can_cuoc / cccd / cmnd']
+ so_tren_giay_to text [not null, note: 'Số ghi trên giấy tờ, giữ số 0 đầu']
+ ngay_cap date [not null, note: 'Ngày cấp của lần này']
+ noi_cap text [not null, note: 'Cơ quan hoặc nơi cấp']
+ ngay_het_han date [note: 'Nếu có thời hạn xác định']
+ trang_thai text [not null, note: 'con_hieu_luc / het_han / da_thay_the / mat / thu_hoi']
+ thay_the_giay_to_id uuid [ref: > THE_CAN_CUOC.id, note: 'Thẻ hoặc giấy tờ trước đó']
+ phien_ban_mau text [not null, note: 'cccd / can_cuoc / cmnd; chọn bố cục hiển thị tương ứng']
+ thong_tin_tren_the jsonb [not null, note: 'Bản chụp các thông tin tại thời điểm cấp; chỉ các khóa được cho phép']
+ ly_do_cap text [not null, note: 'cap_lan_dau / cap_doi / cap_lai']
+ ngay_thu_hoi date [note: 'Nếu thẻ bị thu hồi hoặc bị hủy']
+ ly_do_ngung_hieu_luc text [note: 'Lý do thay thế hoặc thu hồi']
+ created_at timestamptz [not null, note: 'Thời điểm tạo, máy chủ đặt']
+ updated_at timestamptz [not null, note: 'Thời điểm cập nhật, máy chủ đặt']
+ created_by uuid [ref: > auth.users.id, note: 'Người tạo; trống nếu tác vụ hệ thống']
+ updated_by uuid [ref: > auth.users.id, note: 'Người cập nhật cuối']
+ row_version integer [not null, note: 'Bắt đầu 1, tăng khi cập nhật để chống ghi đè']
+ Note: 'Nguồn dữ liệu hiển thị thẻ trong hồ sơ điện tử: một công dân có lịch sử nhiều lần cấp, với thẻ hiện hành được chọn theo hiệu lực. Không đặt UNIQUE riêng trên số giấy tờ: các lần cấp đổi có thể dùng cùng số. Kiểm tra trùng theo loại + số + ngày cấp và chủ thể. Một số định danh không được gán cho hai công dân; nếu lưu số định danh trên thẻ thì phải khớp hồ sơ công dân. Giấy tờ thay thế phải thuộc cùng người, không tự tham chiếu hoặc tạo chu trình. Ngày hết hạn, nếu có, không trước ngày cấp. Ảnh chân dung và hình mặt trước/mặt sau là các TEP_DINH_KEM gắn với thẻ này; phân biệt bằng vai_tro_tep. Không đặt đường dẫn công khai trong hồ sơ. Bản chụp thong_tin_tren_the giữ nguyên theo lần cấp, khác với hồ sơ hiện tại có thể thay đổi. API trả riêng thông tin trên thẻ và thông tin hiện tại, không trộn hai nguồn. Màn hình chỉ hiển thị thẻ khi tài khoản đã qua đủ hai bước, tài khoản đang hoạt động và thẻ đúng chủ thể. Thẻ hết hạn/mất/thu hồi vẫn xem lịch sử nhưng không gắn nhãn đang có hiệu lực. Với bố cục CCCD hoặc căn cước: thẻ hiện hành là bản ghi con_hieu_luc, có ngay_cap không ở tương lai và chưa hết hạn; nếu có hai bản ghi cạnh tranh thì yêu cầu thành viên giải quyết, không tự chọn tùy ý.'
+}
+
+Table QUAN_HE_NHAN_THAN {
+ id uuid [pk, note: 'Mã nội bộ, tự sinh']
+ cong_dan_id uuid [not null, ref: > CONG_DAN.id, note: 'Người có hồ sơ đang xét']
+ nguoi_lien_quan_id uuid [ref: > CONG_DAN.id, note: 'Liên kết nếu người thân có hồ sơ']
+ loai_quan_he text [not null, note: 'cha / me / nguoi_dai_dien']
+ ho_ten_ngoai_he_thong text [note: 'Chỉ dùng khi chưa có hồ sơ người liên quan']
+ so_dinh_danh_ngoai_he_thong varchar(12) [note: 'Nếu biết và chưa liên kết']
+ quoc_tich_ngoai_he_thong text [note: 'Nếu chưa có hồ sơ']
+ tu_ngay date [note: 'Ngày bắt đầu nếu biết']
+ den_ngay date [note: 'Kết thúc quan hệ đại diện nếu có']
+ can_cu text [note: 'Thông tin giấy tờ làm căn cứ']
+ created_at timestamptz [not null, note: 'Thời điểm tạo, máy chủ đặt']
+ updated_at timestamptz [not null, note: 'Thời điểm cập nhật, máy chủ đặt']
+ created_by uuid [ref: > auth.users.id, note: 'Người tạo; trống nếu tác vụ hệ thống']
+ updated_by uuid [ref: > auth.users.id, note: 'Người cập nhật cuối']
+ row_version integer [not null, note: 'Bắt đầu 1, tăng khi cập nhật để chống ghi đè']
+ Note: 'Cha/mẹ và đại diện pháp luật được quản lý độc lập với hộ; vợ/chồng nằm ở bảng hôn nhân. Phải có người liên quan hoặc họ tên ngoài hệ thống; không có cả liên kết và bản sao ngoài hệ thống làm nguồn song song. Không tự làm cha/mẹ hoặc đại diện cho chính mình; quan hệ cha mẹ không tạo chu trình tổ tiên. Quan hệ con được truy ngược từ cha/mẹ, không lưu thêm dòng đối xứng. Khi liên kết hồ sơ mới cho người thân, cập nhật quan hệ thay vì nhân đôi bản ghi.'
+}
+
+Table TINH_TRANG_HON_NHAN {
+ id uuid [pk, note: 'Mã nội bộ, tự sinh']
+ cong_dan_id uuid [not null, ref: > CONG_DAN.id, note: 'Công dân']
+ tinh_trang text [not null, note: 'chua_ket_hon / dang_ket_hon / da_ly_hon / goa / chua_xac_minh']
+ vo_chong_id uuid [ref: > CONG_DAN.id, note: 'Vợ/chồng nếu có hồ sơ']
+ ho_ten_vo_chong_ngoai text [note: 'Nếu chưa có hồ sơ liên kết']
+ so_dinh_danh_vo_chong_ngoai varchar(12) [note: 'Nếu biết']
+ tu_ngay date [not null, note: 'Ngày bắt đầu hiệu lực được ghi nhận']
+ den_ngay date [note: 'Ngày kết thúc']
+ giay_to_can_cu_id uuid [ref: > GIAY_TO_HO_TICH.id, note: 'Giấy tờ căn cứ, nếu có']
+ created_at timestamptz [not null, note: 'Thời điểm tạo, máy chủ đặt']
+ updated_at timestamptz [not null, note: 'Thời điểm cập nhật, máy chủ đặt']
+ created_by uuid [ref: > auth.users.id, note: 'Người tạo; trống nếu tác vụ hệ thống']
+ updated_by uuid [ref: > auth.users.id, note: 'Người cập nhật cuối']
+ row_version integer [not null, note: 'Bắt đầu 1, tăng khi cập nhật để chống ghi đè']
+ Note: 'Lưu trạng thái theo thời gian; không lặp tình trạng hiện tại trong CONG_DAN. Không chồng lấn khoảng trạng thái của cùng một công dân. Chưa có dữ liệu hiển thị Chưa cập nhật, không suy ra độc thân. Không liên kết vợ/chồng với chính mình; dùng liên kết hoặc thông tin ngoài hệ thống, không cả hai. Nếu cả hai người có hồ sơ, cập nhật hai phía đồng bộ bằng nghiệp vụ máy chủ; kiểm tra mâu thuẫn vợ/chồng đang hiệu lực.'
+}
+
+Table GIAY_TO_HO_TICH {
+ id uuid [pk, note: 'Mã nội bộ, tự sinh']
+ cong_dan_id uuid [not null, ref: > CONG_DAN.id, note: 'Hồ sơ sở hữu bản ghi giấy tờ']
+ loai_giay_to text [not null, note: 'khai_sinh / ket_hon / khai_tu / khac']
+ so_giay_to text [not null, note: 'Số trên giấy tờ']
+ so_quyen text [note: 'Quyển đăng ký nếu có']
+ ngay_cap date [not null, note: 'Ngày cấp']
+ co_quan_cap text [not null, note: 'Cơ quan cấp']
+ trang_thai text [not null, note: 'hieu_luc / da_thay_the / huy']
+ ghi_chu text [note: 'Thông tin bổ sung']
+ created_at timestamptz [not null, note: 'Thời điểm tạo, máy chủ đặt']
+ updated_at timestamptz [not null, note: 'Thời điểm cập nhật, máy chủ đặt']
+ created_by uuid [ref: > auth.users.id, note: 'Người tạo; trống nếu tác vụ hệ thống']
+ updated_by uuid [ref: > auth.users.id, note: 'Người cập nhật cuối']
+ row_version integer [not null, note: 'Bắt đầu 1, tăng khi cập nhật để chống ghi đè']
+ Note: 'Đăng ký giấy tờ và căn cứ của công dân; tệp đính kèm được lưu riêng. Số giấy tờ không được mặc định duy nhất toàn hệ thống; phát hiện trùng theo chủ thể + loại + cơ quan + số/quyển + ngày cấp. Mô hình đơn giản: cùng giấy tờ liên quan hai người có thể được ghi nhận ở hai hồ sơ; dùng thông tin căn cứ để đối chiếu.'
+}
+
+Table CAN_BO {
+ id uuid [pk, note: 'Mã nội bộ, tự sinh']
+ ma_can_bo text [not null, unique, note: 'Mã nghiệp vụ']
+ ho_ten text [not null, note: 'Họ tên']
+ chuc_vu text [not null, note: 'Chức vụ trong mô hình đồ án']
+ don_vi_hc_id uuid [not null, ref: > DON_VI_HC.id, note: 'Đơn vị công tác hiện tại']
+ thanh_vien_du_an_id uuid [unique, ref: > THANH_VIEN_DU_AN.id, note: 'Tài khoản thực hiện nếu được ánh xạ']
+ trang_thai text [not null, note: 'dang_cong_tac / ngung_cong_tac']
+ created_at timestamptz [not null, note: 'Thời điểm tạo, máy chủ đặt']
+ updated_at timestamptz [not null, note: 'Thời điểm cập nhật, máy chủ đặt']
+ created_by uuid [ref: > auth.users.id, note: 'Người tạo; trống nếu tác vụ hệ thống']
+ updated_by uuid [ref: > auth.users.id, note: 'Người cập nhật cuối']
+ row_version integer [not null, note: 'Bắt đầu 1, tăng khi cập nhật để chống ghi đè']
+ Note: 'Nhân sự được phân công xử lý; không tự động trở thành thành viên có quyền đăng nhập. Một bản ghi cán bộ không cấp quyền quản trị. Quyền thuộc bảng thành viên dự án. Bản đầu lưu đơn vị công tác hiện tại; lịch sử xử lý vẫn giữ đơn vị tiếp nhận và người thực hiện của từng sự kiện.'
+}
+
+Table HO_SO_YEU_CAU {
+ id uuid [pk, note: 'Mã nội bộ, tự sinh']
+ ma_tra_cuu text [not null, unique, note: 'Mã nghiệp vụ; không dùng làm bí mật truy cập']
+ cong_dan_id uuid [not null, ref: > CONG_DAN.id, note: 'Công dân được giải quyết']
+ nguoi_nop_user_id uuid [not null, ref: > auth.users.id, note: 'Tài khoản nộp hoặc nhập hộ']
+ don_vi_tiep_nhan_id uuid [not null, ref: > DON_VI_HC.id, note: 'Đơn vị tiếp nhận']
+ can_bo_phu_trach_id uuid [ref: > CAN_BO.id, note: 'Để trống khi chưa phân công']
+ loai_yeu_cau text [not null, note: 'cap_nhat_thong_tin / cu_tru / chuyen_ho / ho_tich / khac']
+ tieu_de text [not null, note: 'Tiêu đề yêu cầu']
+ noi_dung text [not null, note: 'Nội dung người nộp']
+ thay_doi_de_nghi jsonb [note: 'Dữ liệu đề nghị; kiểm tra cấu trúc theo loại, không tự ghi đè hồ sơ gốc']
+ trang_thai text [not null, note: 'nhap / da_gui / da_tiep_nhan / dang_xu_ly / can_bo_sung / hoan_thanh / tu_choi / da_huy']
+ ngay_nop timestamptz [note: 'Có khi chuyển từ nháp sang đã gửi']
+ han_xu_ly timestamptz [note: 'Hạn xử lý nội bộ của đồ án']
+ ngay_ket_thuc timestamptz [note: 'Có khi hoàn thành, từ chối hoặc hủy']
+ ket_qua text [note: 'Kết quả giải quyết']
+ ly_do_tu_choi text [note: 'Bắt buộc nếu từ chối']
+ created_at timestamptz [not null, note: 'Thời điểm tạo, máy chủ đặt']
+ updated_at timestamptz [not null, note: 'Thời điểm cập nhật, máy chủ đặt']
+ created_by uuid [ref: > auth.users.id, note: 'Người tạo; trống nếu tác vụ hệ thống']
+ updated_by uuid [ref: > auth.users.id, note: 'Người cập nhật cuối']
+ row_version integer [not null, note: 'Bắt đầu 1, tăng khi cập nhật để chống ghi đè']
+ Note: 'Nơi tiếp nhận yêu cầu cập nhật thông tin, cư trú, chuyển hộ hoặc giấy tờ. Công dân chỉ nộp cho mình trong bản đầu; nộp thay bởi người đại diện để giai đoạn sau. Thành viên được nhập hộ và phải có nhật ký. Chỉ cập nhật dữ liệu gốc sau khi người có quyền phê duyệt; thay đổi + biến động + lịch sử xử lý cùng giao dịch. Khóa phiên bản khi xử lý để tránh hai người ghi đè; kết thúc không trước ngày nộp.'
+}
+
+Table LICH_SU_XU_LY {
+ id uuid [pk, note: 'Mã nội bộ, tự sinh']
+ ho_so_id uuid [not null, ref: > HO_SO_YEU_CAU.id, note: 'Yêu cầu']
+ nguoi_thuc_hien_user_id uuid [not null, ref: > auth.users.id, note: 'Người thao tác đã xác thực']
+ can_bo_id uuid [ref: > CAN_BO.id, note: 'Nếu thao tác trong vai cán bộ']
+ hanh_dong text [not null, note: 'gui / tiep_nhan / phan_cong / xu_ly / yeu_cau_bo_sung / bo_sung / hoan_thanh / tu_choi / huy']
+ trang_thai_truoc text [note: 'Trạng thái trước sự kiện']
+ trang_thai_sau text [not null, note: 'Trạng thái sau sự kiện']
+ noi_dung text [not null, note: 'Giải thích hoặc ghi chú']
+ hien_cho_cong_dan boolean [not null, note: 'Phân biệt phản hồi công khai với ghi chú nội bộ']
+ thoi_diem timestamptz [not null, note: 'Do máy chủ ghi']
+ Note: 'Dòng thời gian xử lý, bổ sung, phân công và phản hồi cho công dân. Chỉ thêm mới; không cho khách hoặc công dân tự viết trạng thái xử lý. Công dân chỉ đọc sự kiện được đánh dấu hiển thị trên hồ sơ của mình.'
+}
+
+Table BIEN_DONG {
+ id uuid [pk, note: 'Mã nội bộ, tự sinh']
+ cong_dan_id uuid [not null, ref: > CONG_DAN.id, note: 'Công dân bị tác động']
+ ho_so_nguon_id uuid [ref: > HO_SO_YEU_CAU.id, note: 'Nếu xuất phát từ yêu cầu']
+ can_bo_id uuid [ref: > CAN_BO.id, note: 'Nếu được xử lý trong vai cán bộ']
+ nguoi_ghi_nhan_user_id uuid [not null, ref: > auth.users.id, note: 'Tài khoản thực hiện']
+ loai_bien_dong text [not null, note: 'chuyen_ho / doi_chu_ho / thay_doi_cu_tru / dieu_chinh_nhan_than / khac']
+ ngay_hieu_luc date [not null, note: 'Ngày nghiệp vụ có hiệu lực']
+ du_lieu_truoc jsonb [note: 'Các trường nghiệp vụ liên quan trước thay đổi']
+ du_lieu_sau jsonb [not null, note: 'Các trường nghiệp vụ liên quan sau thay đổi']
+ ly_do text [not null, note: 'Căn cứ hoặc giải thích']
+ thoi_diem_ghi_nhan timestamptz [not null, note: 'Ngày máy chủ ghi sự kiện']
+ Note: 'Theo dõi thay đổi thực tế trong mô hình: chuyển hộ, địa chỉ hoặc thông tin nhân thân. Khác nhật ký kỹ thuật; không tạo biến động dân cư khi chỉ đổi mật khẩu hoặc khóa tài khoản. Không chỉnh sửa lịch sử âm thầm; sửa sai bằng sự kiện điều chỉnh có tham chiếu căn cứ.'
+}
+
+Table TEP_DINH_KEM {
+ id uuid [pk, note: 'Mã nội bộ, tự sinh']
+ ho_so_id uuid [ref: > HO_SO_YEU_CAU.id, note: 'Tệp thuộc yêu cầu']
+ giay_to_ho_tich_id uuid [ref: > GIAY_TO_HO_TICH.id, note: 'Hoặc thuộc giấy tờ hộ tịch']
+ giay_to_dinh_danh_id uuid [ref: > THE_CAN_CUOC.id, note: 'Hoặc thuộc thẻ căn cước/CCCD']
+ vai_tro_tep text [not null, note: 'chan_dung / mat_truoc / mat_sau / minh_chung']
+ bucket text [not null, note: 'Tên kho riêng tư']
+ object_path text [not null, note: 'Đường dẫn đối tượng, duy nhất cùng bucket']
+ ten_tep_goc text [not null, note: 'Tên hiển thị']
+ mime_type text [not null, note: 'Loại tệp đã được máy chủ kiểm tra']
+ kich_thuoc_bytes bigint [not null, note: 'Kích thước dương, giới hạn cấu hình']
+ nguoi_tai_len_user_id uuid [not null, ref: > auth.users.id, note: 'Người tải']
+ trang_thai text [not null, note: 'cho_kiem_tra / hop_le / bi_tu_choi / da_go']
+ created_at timestamptz [not null, note: 'Thời điểm tạo, máy chủ đặt']
+ updated_at timestamptz [not null, note: 'Thời điểm cập nhật, máy chủ đặt']
+ created_by uuid [ref: > auth.users.id, note: 'Người tạo; trống nếu tác vụ hệ thống']
+ updated_by uuid [ref: > auth.users.id, note: 'Người cập nhật cuối']
+ row_version integer [not null, note: 'Bắt đầu 1, tăng khi cập nhật để chống ghi đè']
+ Note: 'Metadata tệp; nội dung tệp nằm trong kho lưu trữ riêng tư. Đúng một trong ba khóa cha phải có giá trị (CHECK num_nonnulls = 1). Cấm truy cập bucket công khai; tải/xem theo quyền của hồ sơ cha, liên kết xem có thời hạn. Không lưu URL ký có thời hạn như dữ liệu lâu dài. Không cho client đổi object_path để chiếm tệp người khác. vai_tro_tep khác minh_chung bắt buộc có giay_to_dinh_danh_id. Mỗi thẻ chỉ có một tệp hợp lệ đang sử dụng cho mỗi vai trò chân dung, mặt trước, mặt sau; tệp cũ chuyển da_go.'
+}
+
+Table THANH_VIEN_DU_AN {
+ id uuid [pk, note: 'Mã nội bộ, tự sinh']
+ auth_user_id uuid [not null, unique, ref: > auth.users.id, note: 'Liên kết tài khoản thành viên hiện có']
+ ten_hien_thi text [not null, note: 'Tên thành viên tự chỉnh']
+ vai_tro_nhom text [note: 'Vai trò học tập, không dùng để cấp quyền']
+ nhiem_vu text [note: 'Nhiệm vụ trong nhóm']
+ quyen_he_thong text [not null, note: 'quan_tri / bien_tap']
+ trang_thai text [not null, note: 'hoat_dong / tam_khoa']
+ created_at timestamptz [not null, note: 'Thời điểm tạo, máy chủ đặt']
+ updated_at timestamptz [not null, note: 'Thời điểm cập nhật, máy chủ đặt']
+ created_by uuid [ref: > auth.users.id, note: 'Người tạo; trống nếu tác vụ hệ thống']
+ updated_by uuid [ref: > auth.users.id, note: 'Người cập nhật cuối']
+ row_version integer [not null, note: 'Bắt đầu 1, tăng khi cập nhật để chống ghi đè']
+ Note: 'Danh sách quyền riêng, không dựa vào tên hiển thị, email phía trình duyệt hoặc quyền công dân. Khởi tạo đúng ba auth_user_id đã xác nhận; không tự thêm tài khoản mới khi đăng nhập. Thành viên tự sửa tên, vai trò học tập và nhiệm vụ; không tự sửa quyen_he_thong hoặc auth_user_id. quyen_he_thong, trạng thái và cấp quyền chỉ thay qua thao tác quản trị được kiểm soát.'
+}
+
+Table TAI_KHOAN_CONG_DAN {
+ id uuid [pk, note: 'Mã nội bộ, tự sinh']
+ cong_dan_id uuid [not null, unique, ref: > CONG_DAN.id, note: 'Một hồ sơ có tối đa một tài khoản']
+ auth_user_id uuid [not null, unique, ref: > auth.users.id, note: 'Tài khoản xác thực được máy chủ tạo']
+ so_dien_thoai_otp text [not null, note: 'Số được thành viên đăng ký; chuẩn E.164 khi gửi thật']
+ kenh_otp text [not null, note: 'telegram / mo_phong']
+ trang_thai text [not null, note: 'cho_kich_hoat / hoat_dong / da_khoa']
+ nguoi_cap_id uuid [not null, ref: > THANH_VIEN_DU_AN.id, note: 'Thành viên cấp']
+ ngay_cap timestamptz [not null, note: 'Ngày cấp']
+ nguoi_khoa_id uuid [ref: > THANH_VIEN_DU_AN.id, note: 'Thành viên khóa']
+ thoi_diem_khoa timestamptz [note: 'Thời điểm khóa']
+ ly_do_khoa text [note: 'Lý do khóa']
+ phien_ban_bao_mat integer [not null, note: 'Tăng khi khóa, đổi số OTP hoặc thu hồi phiên']
+ created_at timestamptz [not null, note: 'Thời điểm tạo, máy chủ đặt']
+ updated_at timestamptz [not null, note: 'Thời điểm cập nhật, máy chủ đặt']
+ created_by uuid [ref: > auth.users.id, note: 'Người tạo; trống nếu tác vụ hệ thống']
+ updated_by uuid [ref: > auth.users.id, note: 'Người cập nhật cuối']
+ row_version integer [not null, note: 'Bắt đầu 1, tăng khi cập nhật để chống ghi đè']
+ Note: 'Cấp sau khi có hồ sơ; dùng hệ thống xác thực để quản lý mật khẩu. Công dân không tự đăng ký, tự cấp lại quyền hoặc sửa số OTP. Số liên hệ thay đổi không tự đổi số OTP. Không dùng UNIQUE bắt buộc cho số điện thoại: đồ án có thể có người dùng chung số; chính sách này phải được công bố rõ. Không lưu mật khẩu tại đây, không dùng một mật khẩu chung; mọi thao tác cấp tài khoản diễn ra phía máy chủ. Không dùng cùng auth_user_id cho cả thành viên dự án và tài khoản công dân; kiểm tra liên bảng.'
+}
+
+Table THACH_THUC_OTP {
+ id uuid [pk, note: 'Mã nội bộ, tự sinh']
+ tai_khoan_id uuid [not null, ref: > TAI_KHOAN_CONG_DAN.id, note: 'Tài khoản cần xác thực']
+ phien_dang_nhap_id uuid [not null, note: 'Liên kết duy nhất với lần đăng nhập đã qua bước mật khẩu']
+ muc_dich text [not null, note: 'dang_nhap']
+ kenh text [not null, note: 'telegram / mo_phong']
+ provider_request_id text [note: 'Mã yêu cầu của nhà cung cấp']
+ ma_bam_otp text [note: 'HMAC với khóa máy chủ nếu tự sinh mã; không lưu mã rõ']
+ het_han_luc timestamptz [not null, note: 'Hết hạn']
+ duoc_gui_lai_luc timestamptz [not null, note: 'Thời điểm được cấp lại']
+ so_lan_sai integer [not null, note: 'Đếm lỗi nguyên tử phía máy chủ']
+ gioi_han_thu integer [not null, note: 'Giới hạn số lần thử']
+ trang_thai text [not null, note: 'cho_gui / da_gui / da_xac_thuc / het_han / da_huy / gui_loi']
+ da_su_dung_luc timestamptz [note: 'Chỉ dùng một lần']
+ phien_ban_bao_mat integer [not null, note: 'Khớp phiên bản tài khoản tại thời điểm cấp']
+ created_at timestamptz [not null, note: 'Thời điểm tạo, máy chủ đặt']
+ updated_at timestamptz [not null, note: 'Thời điểm cập nhật, máy chủ đặt']
+ created_by uuid [ref: > auth.users.id, note: 'Người tạo; trống nếu tác vụ hệ thống']
+ updated_by uuid [ref: > auth.users.id, note: 'Người cập nhật cuối']
+ row_version integer [not null, note: 'Bắt đầu 1, tăng khi cập nhật để chống ghi đè']
+ Note: 'Thông tin vận hành phía máy chủ; không xuất hiện trong trang quản lý dữ liệu công dân. Tối đa một thử thách còn dùng được cho cùng phiên và mục đích; gửi lại làm mất hiệu lực mã trước. Kiểm tra trạng thái tài khoản cả trước gửi và trước xác nhận; khóa tài khoản vô hiệu hóa thử thách và phiên đã cấp. Giới hạn gửi theo tài khoản, số đích và nguồn yêu cầu, gồm cả gửi lại; có hạn mức chi phí. Nếu nhà cung cấp xác minh mã thì dùng request_id, không cần tự lưu HMAC. Token của nhà cung cấp và khóa HMAC nằm trong Secrets; không nằm trong bảng công khai hoặc GitHub.'
+}
+
+Table PHIEN_XAC_THUC_CONG_DAN {
+ id uuid [pk, note: 'Mã nội bộ, tự sinh']
+ tai_khoan_id uuid [not null, ref: > TAI_KHOAN_CONG_DAN.id, note: 'Tài khoản']
+ thach_thuc_otp_id uuid [not null, unique, ref: > THACH_THUC_OTP.id, note: 'Thử thách đã xác minh, chỉ tạo một phiên']
+ auth_session_id uuid [not null, note: 'Gắn với đúng phiên đã qua mật khẩu']
+ token_hash text [not null, unique, note: 'Băm token ngẫu nhiên đủ mạnh; không lưu token rõ']
+ phien_ban_bao_mat integer [not null, note: 'Phiên bản tài khoản tại lúc cấp']
+ cap_luc timestamptz [not null, note: 'Thời điểm cấp']
+ het_han_luc timestamptz [not null, note: 'Hạn tuyệt đối']
+ hoat_dong_cuoi_luc timestamptz [not null, note: 'Phục vụ giới hạn thời gian không hoạt động']
+ thu_hoi_luc timestamptz [note: 'Có giá trị khi đăng xuất hoặc bị thu hồi']
+ ly_do_thu_hoi text [note: 'Lý do kết thúc']
+ created_at timestamptz [not null, note: 'Thời điểm tạo, máy chủ đặt']
+ updated_at timestamptz [not null, note: 'Thời điểm cập nhật, máy chủ đặt']
+ created_by uuid [ref: > auth.users.id, note: 'Người tạo; trống nếu tác vụ hệ thống']
+ updated_by uuid [ref: > auth.users.id, note: 'Người cập nhật cuối']
+ row_version integer [not null, note: 'Bắt đầu 1, tăng khi cập nhật để chống ghi đè']
+ Note: 'Phiên truy cập ứng dụng do máy chủ cấp sau OTP, không phải bản sao mật khẩu hoặc access token Auth. Chỉ máy chủ truy cập; token ngẫu nhiên không chứa số định danh hoặc dữ liệu cá nhân. Mọi API công dân kiểm tra phiên, Auth session, hạn dùng, trạng thái tài khoản và phiên bản bảo mật. Không tin cờ otp_verified do trình duyệt tự gửi; xác minh OTP và cấp phiên cần tiêu thụ thử thách nguyên tử. Chốt cách chuyển token/cookie và cấu hình CORS phù hợp GitHub Pages trước triển khai; không truyền token trong URL.'
+}
+
+Table NHAT_KY_THAO_TAC {
+ id uuid [pk, note: 'Mã nội bộ, tự sinh']
+ actor_user_id uuid [ref: > auth.users.id, note: 'Cho trống nếu tác vụ hệ thống']
+ actor_label text [not null, note: 'Nhãn vai trò tại thời điểm thực hiện']
+ hanh_dong text [not null, note: 'Loại thao tác']
+ doi_tuong_loai text [not null, note: 'Tên loại đối tượng']
+ doi_tuong_id uuid [note: 'Mã đối tượng; liên kết đa hình có kiểm tra tại máy chủ']
+ truoc_thay_doi jsonb [note: 'Chỉ các trường cho phép ghi nhật ký']
+ sau_thay_doi jsonb [note: 'Chỉ các trường cho phép ghi nhật ký']
+ request_id uuid [not null, note: 'Đối chiếu cùng một nghiệp vụ']
+ thoi_diem timestamptz [not null, note: 'Thời gian máy chủ']
+ Note: 'Dấu vết tạo/sửa hồ sơ, cấp/khóa tài khoản, nhập/xuất; chỉ máy chủ ghi. Không lưu mật khẩu, token, mã OTP hoặc bản sao tệp trong nhật ký. Chỉ thêm mới qua dịch vụ máy chủ; thành viên đọc theo quyền, công dân không đọc nhật ký nội bộ. Giữ lịch sử khi ngừng tài khoản; dùng actor_label để không mất ngữ cảnh.'
+}
+
+Table DOT_NHAP_DU_LIEU {
+ id uuid [pk, note: 'Mã nội bộ, tự sinh']
+ nguoi_nhap_id uuid [not null, ref: > THANH_VIEN_DU_AN.id, note: 'Thành viên phụ trách']
+ loai_du_lieu text [not null, note: 'cong_dan / ho_gia_dinh / cu_tru']
+ ten_tep text [not null, note: 'Tên file nguồn']
+ tep_nguon_path text [note: 'Bản lưu riêng tư nếu cần']
+ phien_ban_mau text [not null, note: 'Phiên bản định dạng import']
+ che_do text [not null, note: 'them_moi / cap_nhat']
+ trang_thai text [not null, note: 'dang_kiem_tra / can_sua / san_sang / dang_nhap / hoan_thanh / that_bai / da_huy']
+ idempotency_key uuid [not null, unique, note: 'Chống nhập lặp khi bấm lại hoặc thử lại']
+ bat_dau_luc timestamptz [not null, note: 'Thời điểm bắt đầu']
+ ket_thuc_luc timestamptz [note: 'Khi kết thúc']
+ created_at timestamptz [not null, note: 'Thời điểm tạo, máy chủ đặt']
+ updated_at timestamptz [not null, note: 'Thời điểm cập nhật, máy chủ đặt']
+ created_by uuid [ref: > auth.users.id, note: 'Người tạo; trống nếu tác vụ hệ thống']
+ updated_by uuid [ref: > auth.users.id, note: 'Người cập nhật cuối']
+ row_version integer [not null, note: 'Bắt đầu 1, tăng khi cập nhật để chống ghi đè']
+ Note: 'Quản lý xem trước và xác nhận nhập file vào bảng nghiệp vụ. Xem trước không thay đổi hồ sơ chính; kiểm tra trùng trước và kiểm tra lại lúc xác nhận nhập. Bản đầu dùng giao dịch tất cả hoặc không có gì cho một đợt đã hợp lệ, có giới hạn số dòng. Chỉ cập nhật theo khóa định danh đã xác nhận; không ghép người chỉ bằng họ tên. Tổng số dòng thành công/lỗi tính từ DONG_NHAP.'
+}
+
+Table DONG_NHAP {
+ id uuid [pk, note: 'Mã nội bộ, tự sinh']
+ dot_nhap_id uuid [not null, ref: > DOT_NHAP_DU_LIEU.id, note: 'Đợt nhập']
+ so_dong integer [not null, note: 'Số dòng trong file']
+ du_lieu_goc jsonb [not null, note: 'Dữ liệu để xem trước; chỉ giữ theo thời hạn quy định của đồ án']
+ du_lieu_chuan_hoa jsonb [note: 'Giá trị đã kiểm tra']
+ loi_kiem_tra jsonb [note: 'Danh sách lỗi theo tên trường']
+ trang_thai text [not null, note: 'hop_le / co_loi / da_nhap']
+ cong_dan_id uuid [ref: > CONG_DAN.id, note: 'Kết quả nếu nhập công dân']
+ ho_id uuid [ref: > HO_GIA_DINH.id, note: 'Kết quả nếu nhập hộ']
+ cu_tru_id uuid [ref: > CU_TRU.id, note: 'Kết quả nếu nhập cư trú']
+ created_at timestamptz [not null, note: 'Thời điểm tạo, máy chủ đặt']
+ updated_at timestamptz [not null, note: 'Thời điểm cập nhật, máy chủ đặt']
+ created_by uuid [ref: > auth.users.id, note: 'Người tạo; trống nếu tác vụ hệ thống']
+ updated_by uuid [ref: > auth.users.id, note: 'Người cập nhật cuối']
+ row_version integer [not null, note: 'Bắt đầu 1, tăng khi cập nhật để chống ghi đè']
+ Note: 'Báo lỗi đến từng dòng và liên kết kết quả sau khi xác nhận. UNIQUE(dot_nhap_id, so_dong). Trước nhập chưa có khóa kết quả. Sau nhập đúng một khóa kết quả, phù hợp loại_du_lieu của đợt nhập. Không lưu dữ liệu staging vô thời hạn; khi dọn staging vẫn giữ metadata và nhật ký cần thiết.'
+}
+

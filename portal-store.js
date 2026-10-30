@@ -13,12 +13,19 @@
     account: i === 2 || i === 8 ? 'locked' : i === 4 || i === 7 || i === 10 ? 'not-issued' : 'active',
     updatedAt: '2026-10-28T08:00:00+07:00'
   }));
+  function enrichRecord(r) {
+    const index=Number(String(r.id).replace('demo-',''))-1;
+    if(!/^demo-\d+$/.test(r.id)||index<0||index>=names.length||r.cccd!=='000000'+String(index+1).padStart(6,'0'))return r;
+    const original=seed()[index];
+    if(Object.hasOwn(r,'identityCard'))return r;
+    return {...original,...r,identityCard:{type:'cccd',number:original.cccd,fullName:original.name,dob:original.dob,gender:original.gender,nationality:'Việt Nam',issuedOn:'2025-09-01',expiresOn:'2035-09-01',issuer:'Cơ quan cấp minh họa',address:original.address+', '+original.ward,status:'active'}};
+  }
   let volatile = null, storageWarning = false;
   function read() {
     if (volatile) return structuredClone(volatile);
     try {
       const raw = localStorage.getItem(KEY);
-      if (!raw) return { records: seed(), events: [] };
+      if (!raw) return { records: seed().map(enrichRecord), events: [] };
       const data = JSON.parse(raw);
       if (!Array.isArray(data.records) || !Array.isArray(data.events) || data.records.length > 1000) throw new Error();
       const ids = new Set(), numbers = new Set();
@@ -27,10 +34,10 @@
         for (const key of ['name','dob','gender','phone','email','address','ward','occupation','updatedAt']) if (typeof r[key] !== 'string' || r[key].length > 500) throw new Error();
         ids.add(r.id); numbers.add(r.cccd);
       }
-      return data;
+      return {...data,records:data.records.map(enrichRecord)};
     } catch (_) {
       storageWarning = true;
-      return { records: seed(), events: [] };
+      return { records: seed().map(enrichRecord), events: [] };
     }
   }
   function save(data) {
@@ -54,7 +61,20 @@
     if (r.email && !/^[^\s@]+@example\.invalid$/.test(r.email)) throw new Error('Địa chỉ email minh họa phải sử dụng đuôi @example.invalid.');
     if (!['Phường Mẫu A','Phường Mẫu B','Phường Mẫu C'].includes(r.ward)) throw new Error('Vui lòng chọn khu vực trong danh sách.');
     if (!r.address || r.address.length > 200 || r.occupation.length > 100) throw new Error('Địa chỉ cần từ 1–200 ký tự; nghề nghiệp tối đa 100 ký tự.');
-    return { ...r, id: existing?.id || crypto.randomUUID(), account: existing?.account || 'not-issued', updatedAt: new Date().toISOString() };
+    for(const key of ['nationality','ethnicity','religion','hometown','birthplace','birthRegistration','maritalStatus','temporaryAddress','currentAddress','householdCode','householdHead','householdRelation']) {
+      if(Object.hasOwn(input,key)){r[key]=String(input[key]||'').trim();if(r[key].length>200)throw new Error('Thông tin bổ sung tối đa 200 ký tự mỗi trường.');}
+    }
+    if(Object.hasOwn(input,'cardIssuedOn')) {
+      const issuedOn=String(input.cardIssuedOn||'').trim(),expiresOn=String(input.cardExpiresOn||'').trim(),issuer=String(input.cardIssuer||'').trim(),status=String(input.cardStatus||'active');
+      if(issuedOn||expiresOn||issuer) {
+        const validDate=v=>/^\d{4}-\d{2}-\d{2}$/.test(v)&&Number.isFinite(+new Date(v+'T00:00:00Z'))&&new Date(v+'T00:00:00Z').toISOString().slice(0,10)===v;
+        if(!validDate(issuedOn)||!validDate(expiresOn)||!issuer||issuer.length>200||expiresOn<issuedOn||issuedOn>new Date().toISOString().slice(0,10))throw new Error('Thông tin thẻ cần ngày cấp hợp lệ, ngày hết hạn không trước ngày cấp và nơi cấp.');
+        if(!['active','expired','replaced','lost','revoked'].includes(status))throw new Error('Trạng thái thẻ không hợp lệ.');
+        const old=existing?.identityCard,changed=!old||old.issuedOn!==issuedOn||old.expiresOn!==expiresOn||old.issuer!==issuer||old.number!==r.cccd;
+        r.identityCard=changed?{type:'cccd',number:r.cccd,fullName:r.name,dob:r.dob,gender:r.gender,nationality:r.nationality||existing?.nationality||'',hometown:r.hometown||existing?.hometown||'',issuedOn,expiresOn,issuer,status,address:r.address+', '+r.ward}:{...old,status};
+      } else r.identityCard=null;
+    }
+    return { ...existing, ...r, id: existing?.id || crypto.randomUUID(), account: existing?.account || 'not-issued', updatedAt: new Date().toISOString() };
   }
   window.CitizenRepository = {
     mode: 'demo', password: 'demo123',

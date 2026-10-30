@@ -4,6 +4,14 @@ This is a coursework UI demonstration for the Nhóm 12 coursework. It does not g
 
 Entry: `portal.html`. Routes: `#/login`, `#/admin`, `#/profile`.
 
+The citizen profile now has four routes: `#/profile/personal`, `#/profile/card`, `#/profile/residence`, and `#/profile/requests`. All routes check the current citizen record and active account before rendering. Missing fields show “Chưa cập nhật”; requests are empty unless attached to that citizen's local record. The card view supports masked/revealed numbers, front/back views and validity states.
+
+The original fictional seed records receive fictional card snapshots on read, including for existing localStorage records. Edited profile values are retained. New records do not receive fabricated card metadata. Members may enter optional personal, residence, household and card fields through the record form. Updating profile values preserves the existing card snapshot; changing card issuance fields creates a replacement snapshot in this local adapter. Full multi-issue card history requires the planned backend.
+
+`database.html` is the member-facing design viewer for the 22-table schema. It uses the same verified report membership as the portal manager, removes the viewer on sign-out, and includes searchable table details, related foreign keys, zoom, and design exports. This is schema documentation, not a live database row browser. Design assets are static files in this public GitHub repository; the member check controls the page UI, not source-code confidentiality.
+
+`member-nav.js` adds a diagram link to the report, section and editor headers only for project members. Existing reports and member authentication use the same accounts and data.
+
 - The citizen tab demonstrates credentials followed by OTP and a read-only profile.
 - The member tab and manager route are available only after Supabase Auth validates the report session and the user owns one of the three project sections (phan1, phan2, phan3). Guests and citizen demo sessions cannot open the manager through the UI. Auth failures deny access; signing out closes manager dialogs. Mutations revalidate membership. The existing three member accounts and report login are unchanged.
 - The manager supports accent-insensitive search, account and area filters, pagination, create/edit, unique mock CCCD validation, account issue/lock/unlock and a local activity feed.

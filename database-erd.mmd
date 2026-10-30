@@ -1,0 +1,320 @@
+erDiagram
+  DON_VI_HC |o--o{ DON_VI_HC : don_vi_cha
+  CONG_DAN ||--o{ QUOC_TICH_CONG_DAN : cong_dan
+  CONG_DAN ||--o{ CU_TRU : cong_dan
+  DON_VI_HC ||--o{ CU_TRU : don_vi_hc
+  HO_SO_YEU_CAU |o--o{ CU_TRU : ho_so_nguon
+  DON_VI_HC ||--o{ HO_GIA_DINH : don_vi_hc
+  HO_GIA_DINH ||--o{ THANH_VIEN_HO : ho
+  CONG_DAN ||--o{ THANH_VIEN_HO : cong_dan
+  HO_SO_YEU_CAU |o--o{ THANH_VIEN_HO : ho_so_nguon
+  CONG_DAN ||--o{ THE_CAN_CUOC : cong_dan
+  THE_CAN_CUOC |o--o{ THE_CAN_CUOC : thay_the_giay_to
+  CONG_DAN ||--o{ QUAN_HE_NHAN_THAN : cong_dan
+  CONG_DAN |o--o{ QUAN_HE_NHAN_THAN : nguoi_lien_quan
+  CONG_DAN ||--o{ TINH_TRANG_HON_NHAN : cong_dan
+  CONG_DAN |o--o{ TINH_TRANG_HON_NHAN : vo_chong
+  GIAY_TO_HO_TICH |o--o{ TINH_TRANG_HON_NHAN : giay_to_can_cu
+  CONG_DAN ||--o{ GIAY_TO_HO_TICH : cong_dan
+  DON_VI_HC ||--o{ CAN_BO : don_vi_hc
+  THANH_VIEN_DU_AN |o--o| CAN_BO : thanh_vien_du_an
+  CONG_DAN ||--o{ HO_SO_YEU_CAU : cong_dan
+  DON_VI_HC ||--o{ HO_SO_YEU_CAU : don_vi_tiep_nhan
+  CAN_BO |o--o{ HO_SO_YEU_CAU : can_bo_phu_trach
+  HO_SO_YEU_CAU ||--o{ LICH_SU_XU_LY : ho_so
+  CAN_BO |o--o{ LICH_SU_XU_LY : can_bo
+  CONG_DAN ||--o{ BIEN_DONG : cong_dan
+  HO_SO_YEU_CAU |o--o{ BIEN_DONG : ho_so_nguon
+  CAN_BO |o--o{ BIEN_DONG : can_bo
+  HO_SO_YEU_CAU |o--o{ TEP_DINH_KEM : ho_so
+  GIAY_TO_HO_TICH |o--o{ TEP_DINH_KEM : giay_to_ho_tich
+  THE_CAN_CUOC |o--o{ TEP_DINH_KEM : giay_to_dinh_danh
+  CONG_DAN ||--o| TAI_KHOAN_CONG_DAN : cong_dan
+  THANH_VIEN_DU_AN ||--o{ TAI_KHOAN_CONG_DAN : nguoi_cap
+  THANH_VIEN_DU_AN |o--o{ TAI_KHOAN_CONG_DAN : nguoi_khoa
+  TAI_KHOAN_CONG_DAN ||--o{ THACH_THUC_OTP : tai_khoan
+  TAI_KHOAN_CONG_DAN ||--o{ PHIEN_XAC_THUC_CONG_DAN : tai_khoan
+  THACH_THUC_OTP ||--o| PHIEN_XAC_THUC_CONG_DAN : thach_thuc_otp
+  THANH_VIEN_DU_AN ||--o{ DOT_NHAP_DU_LIEU : nguoi_nhap
+  DOT_NHAP_DU_LIEU ||--o{ DONG_NHAP : dot_nhap
+  CONG_DAN |o--o{ DONG_NHAP : cong_dan
+  HO_GIA_DINH |o--o{ DONG_NHAP : ho
+  CU_TRU |o--o{ DONG_NHAP : cu_tru
+  AUTH_USER ||--o| THANH_VIEN_DU_AN : tai_khoan_du_an
+  AUTH_USER ||--o| TAI_KHOAN_CONG_DAN : tai_khoan_cong_dan
+  DON_VI_HC {
+    uuid id PK
+    text ma_don_vi
+    text ten_don_vi
+    text cap_hanh_chinh
+    uuid don_vi_cha_id FK
+    date hieu_luc_tu
+    date hieu_luc_den
+    text trang_thai
+  }
+  CONG_DAN {
+    uuid id PK
+    varchar so_dinh_danh
+    text ho_ten_khai_sinh
+    text ten_goi_khac
+    date ngay_sinh
+    smallint nam_sinh
+    text do_chinh_xac_ngay_sinh
+    text gioi_tinh
+    text noi_sinh
+    text noi_dang_ky_khai_sinh
+    text que_quan
+    text dan_toc
+    text ton_giao
+    text nghe_nghiep
+    text so_dien_thoai_lien_he
+    text email_lien_he
+    text tinh_trang_ca_nhan
+    date ngay_ghi_nhan_tinh_trang
+    text trang_thai_ho_so
+  }
+  QUOC_TICH_CONG_DAN {
+    uuid id PK
+    uuid cong_dan_id FK
+    text ma_quoc_gia
+    date tu_ngay
+    date den_ngay
+    text ghi_chu
+  }
+  CU_TRU {
+    uuid id PK
+    uuid cong_dan_id FK
+    text loai_cu_tru
+    uuid don_vi_hc_id FK
+    text dia_chi_chi_tiet
+    text dia_chi_day_du_tai_thoi_diem
+    date tu_ngay
+    date den_ngay
+    text trang_thai
+    uuid ho_so_nguon_id FK
+  }
+  HO_GIA_DINH {
+    uuid id PK
+    text ma_ho
+    text so_ho_so_cu_tru
+    uuid don_vi_hc_id FK
+    text dia_chi
+    date ngay_lap
+    text trang_thai
+    date ngay_giai_the
+  }
+  THANH_VIEN_HO {
+    uuid id PK
+    uuid ho_id FK
+    uuid cong_dan_id FK
+    text quan_he_voi_chu_ho
+    date tu_ngay
+    date den_ngay
+    text ly_do_thay_doi
+    uuid ho_so_nguon_id FK
+  }
+  THE_CAN_CUOC {
+    uuid id PK
+    uuid cong_dan_id FK
+    text loai_giay_to
+    text so_tren_giay_to
+    date ngay_cap
+    text noi_cap
+    date ngay_het_han
+    text trang_thai
+    uuid thay_the_giay_to_id FK
+    text phien_ban_mau
+    jsonb thong_tin_tren_the
+    text ly_do_cap
+    date ngay_thu_hoi
+    text ly_do_ngung_hieu_luc
+  }
+  QUAN_HE_NHAN_THAN {
+    uuid id PK
+    uuid cong_dan_id FK
+    uuid nguoi_lien_quan_id FK
+    text loai_quan_he
+    text ho_ten_ngoai_he_thong
+    varchar so_dinh_danh_ngoai_he_thong
+    text quoc_tich_ngoai_he_thong
+    date tu_ngay
+    date den_ngay
+    text can_cu
+  }
+  TINH_TRANG_HON_NHAN {
+    uuid id PK
+    uuid cong_dan_id FK
+    text tinh_trang
+    uuid vo_chong_id FK
+    text ho_ten_vo_chong_ngoai
+    varchar so_dinh_danh_vo_chong_ngoai
+    date tu_ngay
+    date den_ngay
+    uuid giay_to_can_cu_id FK
+  }
+  GIAY_TO_HO_TICH {
+    uuid id PK
+    uuid cong_dan_id FK
+    text loai_giay_to
+    text so_giay_to
+    text so_quyen
+    date ngay_cap
+    text co_quan_cap
+    text trang_thai
+    text ghi_chu
+  }
+  CAN_BO {
+    uuid id PK
+    text ma_can_bo
+    text ho_ten
+    text chuc_vu
+    uuid don_vi_hc_id FK
+    uuid thanh_vien_du_an_id FK
+    text trang_thai
+  }
+  HO_SO_YEU_CAU {
+    uuid id PK
+    text ma_tra_cuu
+    uuid cong_dan_id FK
+    uuid nguoi_nop_user_id FK
+    uuid don_vi_tiep_nhan_id FK
+    uuid can_bo_phu_trach_id FK
+    text loai_yeu_cau
+    text tieu_de
+    text noi_dung
+    jsonb thay_doi_de_nghi
+    text trang_thai
+    timestamptz ngay_nop
+    timestamptz han_xu_ly
+    timestamptz ngay_ket_thuc
+    text ket_qua
+    text ly_do_tu_choi
+  }
+  LICH_SU_XU_LY {
+    uuid id PK
+    uuid ho_so_id FK
+    uuid nguoi_thuc_hien_user_id FK
+    uuid can_bo_id FK
+    text hanh_dong
+    text trang_thai_truoc
+    text trang_thai_sau
+    text noi_dung
+    boolean hien_cho_cong_dan
+    timestamptz thoi_diem
+  }
+  BIEN_DONG {
+    uuid id PK
+    uuid cong_dan_id FK
+    uuid ho_so_nguon_id FK
+    uuid can_bo_id FK
+    uuid nguoi_ghi_nhan_user_id FK
+    text loai_bien_dong
+    date ngay_hieu_luc
+    jsonb du_lieu_truoc
+    jsonb du_lieu_sau
+    text ly_do
+    timestamptz thoi_diem_ghi_nhan
+  }
+  TEP_DINH_KEM {
+    uuid id PK
+    uuid ho_so_id FK
+    uuid giay_to_ho_tich_id FK
+    uuid giay_to_dinh_danh_id FK
+    text vai_tro_tep
+    text bucket
+    text object_path
+    text ten_tep_goc
+    text mime_type
+    bigint kich_thuoc_bytes
+    uuid nguoi_tai_len_user_id FK
+    text trang_thai
+  }
+  THANH_VIEN_DU_AN {
+    uuid id PK
+    uuid auth_user_id FK
+    text ten_hien_thi
+    text vai_tro_nhom
+    text nhiem_vu
+    text quyen_he_thong
+    text trang_thai
+  }
+  TAI_KHOAN_CONG_DAN {
+    uuid id PK
+    uuid cong_dan_id FK
+    uuid auth_user_id FK
+    text so_dien_thoai_otp
+    text kenh_otp
+    text trang_thai
+    uuid nguoi_cap_id FK
+    timestamptz ngay_cap
+    uuid nguoi_khoa_id FK
+    timestamptz thoi_diem_khoa
+    text ly_do_khoa
+    integer phien_ban_bao_mat
+  }
+  THACH_THUC_OTP {
+    uuid id PK
+    uuid tai_khoan_id FK
+    uuid phien_dang_nhap_id
+    text muc_dich
+    text kenh
+    text provider_request_id
+    text ma_bam_otp
+    timestamptz het_han_luc
+    timestamptz duoc_gui_lai_luc
+    integer so_lan_sai
+    integer gioi_han_thu
+    text trang_thai
+    timestamptz da_su_dung_luc
+    integer phien_ban_bao_mat
+  }
+  PHIEN_XAC_THUC_CONG_DAN {
+    uuid id PK
+    uuid tai_khoan_id FK
+    uuid thach_thuc_otp_id FK
+    uuid auth_session_id
+    text token_hash
+    integer phien_ban_bao_mat
+    timestamptz cap_luc
+    timestamptz het_han_luc
+    timestamptz hoat_dong_cuoi_luc
+    timestamptz thu_hoi_luc
+    text ly_do_thu_hoi
+  }
+  NHAT_KY_THAO_TAC {
+    uuid id PK
+    uuid actor_user_id FK
+    text actor_label
+    text hanh_dong
+    text doi_tuong_loai
+    uuid doi_tuong_id
+    jsonb truoc_thay_doi
+    jsonb sau_thay_doi
+    uuid request_id
+    timestamptz thoi_diem
+  }
+  DOT_NHAP_DU_LIEU {
+    uuid id PK
+    uuid nguoi_nhap_id FK
+    text loai_du_lieu
+    text ten_tep
+    text tep_nguon_path
+    text phien_ban_mau
+    text che_do
+    text trang_thai
+    uuid idempotency_key
+    timestamptz bat_dau_luc
+    timestamptz ket_thuc_luc
+  }
+  DONG_NHAP {
+    uuid id PK
+    uuid dot_nhap_id FK
+    integer so_dong
+    jsonb du_lieu_goc
+    jsonb du_lieu_chuan_hoa
+    jsonb loi_kiem_tra
+    text trang_thai
+    uuid cong_dan_id FK
+    uuid ho_id FK
+    uuid cu_tru_id FK
+  }
