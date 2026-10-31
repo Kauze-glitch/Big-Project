@@ -13,7 +13,7 @@ function setup(userId, opts={}) {
  const window={supabase:opts.noSDK?undefined:{createClient:()=>client},addEventListener:events.addEventListener.bind(events),dispatchEvent:events.dispatchEvent.bind(events)};
  const document={addEventListener(){},hidden:false};
  vm.runInNewContext(authSource,{window,document,Event,AbortController,setTimeout,clearTimeout});
- return {window,signal:event=>callback(event),resolveRows};
+ return {window,signal:(event,id)=>callback(event,id?{user:{id}}:null),resolveRows,setUser:id=>userId=id,setFailure:value=>opts.failure=value};
 }
 for(const id of ['one','two','three'])test('Allows project owner '+id,async()=>{const x=setup(id);assert.equal(x.window.PortalAuth.isMember(),false);await settle();assert.equal(x.window.PortalAuth.isMember(),true);});
 for(const [name,id,opts] of [['guest',null,{}],['unrelated authenticated user','outsider',{}],['Auth rejects cached user','one',{authError:Error('expired')}],['membership lookup fails','one',{failure:true}],['SDK fails to load','one',{noSDK:true}]])test('Denies '+name,async()=>{const x=setup(id,opts);await settle();assert.equal(x.window.PortalAuth.isMember(),false);});
@@ -29,3 +29,15 @@ function ui(member,route='#/login') {
 test('Citizen session does not expose member button or manager links',()=>{const x=ui(false);assert.doesNotMatch(x.root.innerHTML,/id="tab-member"/);assert.doesNotMatch(x.panel.innerHTML,/href="#\/admin"/);});
 test('Authorized member sees member tab; signout removes it',()=>{const x=ui(true);assert.match(x.root.innerHTML,/id="tab-member"/);x.logout();assert.doesNotMatch(x.root.innerHTML,/id="tab-member"/);assert.equal(x.el('record-dialog').closed,true);});
 test('Direct manager URL is blocked before any record listing',()=>{const x=ui(false,'#/admin');assert.match(x.root.innerHTML,/Khu vực dành cho thành viên dự án/);assert.doesNotMatch(x.root.innerHTML,/citizen-results/);});
+
+test('Same-account token refresh and sign-in keep forms mounted while checking permission again',async()=>{
+ const x=setup('one');await settle();let changes=0;x.window.addEventListener('portalauthchange',()=>changes++);
+ for(const event of ['TOKEN_REFRESHED','SIGNED_IN']){x.signal(event,'one');assert.equal(x.window.PortalAuth.isMember(),true);await new Promise(r=>setTimeout(r,10));assert.equal(x.window.PortalAuth.isMember(),true);}
+ assert.equal(changes,0);
+});
+test('Changing accounts revokes immediately and cannot retain previous membership',async()=>{
+ const x=setup('one');await settle();x.setUser('outsider');x.signal('SIGNED_IN','outsider');assert.equal(x.window.PortalAuth.isMember(),false);await new Promise(r=>setTimeout(r,10));assert.equal(x.window.PortalAuth.isMember(),false);
+});
+test('Refreshing the same token still revokes access when server validation fails',async()=>{
+ const x=setup('one');await settle();x.setFailure(true);x.signal('TOKEN_REFRESHED','one');await new Promise(r=>setTimeout(r,10));assert.equal(x.window.PortalAuth.isMember(),false);assert.equal(x.window.PortalAuth.status(),'unavailable');
+});

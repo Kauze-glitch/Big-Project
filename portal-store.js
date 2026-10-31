@@ -48,6 +48,7 @@
     data.events.unshift({ action, name: record.name, at: new Date().toISOString() });
     data.events = data.events.slice(0, 30);
   }
+  const today=()=>{const d=new Date();return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');};
   function normalize(input, existing, records) {
     const r = {};
     for (const key of ['name','cccd','dob','gender','phone','email','address','ward','occupation']) r[key] = String(input[key] || '').trim();
@@ -55,9 +56,10 @@
     if (!/^000\d{9}$/.test(r.cccd)) throw new Error('Số CCCD minh họa phải gồm 12 chữ số, bắt đầu bằng 000.');
     if (records.some(x => x.id !== existing?.id && x.cccd === r.cccd)) throw new Error('Số CCCD đã tồn tại trong danh sách hồ sơ.');
     const date = new Date(r.dob + 'T00:00:00Z');
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(r.dob) || !Number.isFinite(+date) || date.toISOString().slice(0, 10) !== r.dob || r.dob < '1900-01-01' || r.dob > new Date().toISOString().slice(0, 10)) throw new Error('Ngày sinh không hợp lệ. Vui lòng kiểm tra lại.');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(r.dob) || !Number.isFinite(+date) || date.toISOString().slice(0, 10) !== r.dob || r.dob < '1900-01-01' || r.dob > today()) throw new Error('Ngày sinh không hợp lệ. Vui lòng kiểm tra lại.');
     if (!['Nam','Nữ','Khác'].includes(r.gender)) throw new Error('Vui lòng chọn giới tính.');
     if (!/^000\d{7}$/.test(r.phone)) throw new Error('Số điện thoại minh họa phải gồm 10 chữ số, bắt đầu bằng 000.');
+    if (r.email.length>100) throw new Error('Địa chỉ email tối đa 100 ký tự.');
     if (r.email && !/^[^\s@]+@example\.invalid$/.test(r.email)) throw new Error('Địa chỉ email minh họa phải sử dụng đuôi @example.invalid.');
     if (!['Phường Mẫu A','Phường Mẫu B','Phường Mẫu C'].includes(r.ward)) throw new Error('Vui lòng chọn khu vực trong danh sách.');
     if (!r.address || r.address.length > 200 || r.occupation.length > 100) throw new Error('Địa chỉ cần từ 1–200 ký tự; nghề nghiệp tối đa 100 ký tự.');
@@ -68,7 +70,7 @@
       const issuedOn=String(input.cardIssuedOn||'').trim(),expiresOn=String(input.cardExpiresOn||'').trim(),issuer=String(input.cardIssuer||'').trim(),status=String(input.cardStatus||'active');
       if(issuedOn||expiresOn||issuer) {
         const validDate=v=>/^\d{4}-\d{2}-\d{2}$/.test(v)&&Number.isFinite(+new Date(v+'T00:00:00Z'))&&new Date(v+'T00:00:00Z').toISOString().slice(0,10)===v;
-        if(!validDate(issuedOn)||!validDate(expiresOn)||!issuer||issuer.length>200||expiresOn<issuedOn||issuedOn>new Date().toISOString().slice(0,10))throw new Error('Thông tin thẻ cần ngày cấp hợp lệ, ngày hết hạn không trước ngày cấp và nơi cấp.');
+        if(!validDate(issuedOn)||!validDate(expiresOn)||!issuer||issuer.length>200||expiresOn<issuedOn||issuedOn>today())throw new Error('Thông tin thẻ cần ngày cấp hợp lệ, ngày hết hạn không trước ngày cấp và nơi cấp.');
         if(!['active','expired','replaced','lost','revoked'].includes(status))throw new Error('Trạng thái thẻ không hợp lệ.');
         const old=existing?.identityCard,changed=!old||old.issuedOn!==issuedOn||old.expiresOn!==expiresOn||old.issuer!==issuer||old.number!==r.cccd;
         r.identityCard=changed?{type:'cccd',number:r.cccd,fullName:r.name,dob:r.dob,gender:r.gender,nationality:r.nationality||existing?.nationality||'',hometown:r.hometown||existing?.hometown||'',issuedOn,expiresOn,issuer,status,address:r.address+', '+r.ward}:{...old,status};
@@ -77,7 +79,7 @@
     return { ...existing, ...r, id: existing?.id || crypto.randomUUID(), account: existing?.account || 'not-issued', updatedAt: new Date().toISOString() };
   }
   window.CitizenRepository = {
-    mode: 'demo', password: 'demo123',
+    mode: 'demo', password: 'demo123', today,
     get storageWarning() { return storageWarning; },
     list: () => read().records,
     get: id => read().records.find(r => r.id === id) || null,

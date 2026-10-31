@@ -25,6 +25,7 @@
     else status('Trang của bạn · Chèn nhiều ảnh, sơ đồ và đoạn văn theo thứ tự tùy ý.');
     document.querySelectorAll('#editor-nav button').forEach(button=>{const section=A.sections.find(s=>s.slug===button.dataset.slug);button.classList.toggle('active',current?.slug===section?.slug);button.title=A.canEdit(section)?'Trang của bạn':'Trang của thành viên khác';if(section){button.querySelector('.nav-title').textContent=section.title||'Chưa đặt tiêu đề';button.querySelector('.section-status')?.replaceWith(A.progressBadge(section));}});
   }
+  function chooseLatest(slug){const section=A.sections.find(s=>s.slug===slug);if(section)return choose(section);A.toast('Phần này không còn tồn tại. Hãy tải lại mục lục.');}
   async function choose(section,restore=true){
     lastImport=null;if(importUndo)importUndo.hidden=true;
     const token=++epoch;window.dispatchEvent(new Event('editorcontextchange'));lastAI=null;if(aiUndo)aiUndo.hidden=true;await saveDraft();if(token!==epoch)return;
@@ -164,7 +165,7 @@
       await A.load();
       if(token!==epoch||A.user?.id!==userId)throw new Error('Tài khoản hoặc trang đã thay đổi. Bản nháp được giữ lại.');
       const fresh=A.sections.find(s=>s.slug===slug);if(!fresh||!A.canEdit(fresh))throw new Error('Không đọc được phiên bản mới nhất. Bản nháp được giữ lại.');
-      clearTimeout(draftTimer);await draftQueue;await A.drafts.delete(draftKey);localStorage.removeItem(`gocviet:draft:${userId}:${slug}`);
+      clearTimeout(draftTimer);await draftQueue;await A.drafts.delete(draftKey);try{localStorage.removeItem(`gocviet:draft:${userId}:${slug}`);}catch{}
       dirty=false;await choose(fresh,false);$('discard-dialog').close();
     }catch(error){A.toast(error.message||'Chưa bỏ được bản nháp. Hãy thử lại.');}
     finally{discarding=false;$('discard-confirm').disabled=false;$('discard-cancel').disabled=false;authUI();}
@@ -195,12 +196,12 @@
   document.addEventListener('visibilitychange',()=>{if(document.hidden)saveDraft();});window.addEventListener('pagehide',saveDraft);
   window.addEventListener('beforeunload',event=>{if(uploading||saving||(dirty&&persistedRevision!==revision)){saveDraft();event.preventDefault();event.returnValue='';}});
   document.addEventListener('keydown',event=>{if((event.ctrlKey||event.metaKey)&&event.key==='s'){event.preventDefault();$('save-btn').click();}});
-  async function init(){try{await A.load();$('editor-nav').replaceChildren();for(const [index,section] of A.sections.entries()){const button=A.navItem(section,index,'button');button.dataset.slug=section.slug;button.onclick=()=>choose(section);$('editor-nav').append(button);}const slug=new URLSearchParams(location.search).get('section');const initial=A.sections.find(s=>s.slug===slug)||A.sections.find(s=>A.canEdit(s))||A.sections[0];if(initial)await choose(initial);else status('Chưa có trang nội dung nào.');}catch(error){status(error.message,true);const retry=A.el('button','btn btn-quiet','Thử lại');retry.onclick=init;$('editor-status').append(retry);}}
+  async function init(){try{await A.load();$('editor-nav').replaceChildren();for(const [index,section] of A.sections.entries()){const button=A.navItem(section,index,'button');button.dataset.slug=section.slug;button.onclick=()=>chooseLatest(section.slug);$('editor-nav').append(button);}const slug=new URLSearchParams(location.search).get('section');const initial=A.sections.find(s=>s.slug===slug)||A.sections.find(s=>A.canEdit(s))||A.sections[0];if(initial)await choose(initial);else status('Chưa có trang nội dung nào.');}catch(error){status(error.message,true);const retry=A.el('button','btn btn-quiet','Thử lại');retry.onclick=init;$('editor-status').append(retry);}}
   // Rebuild only navigation so reordering never replaces unsaved editor blocks.
   window.addEventListener('sectionorderchange',()=>{
     $('editor-nav').replaceChildren();
     for(const [index,section] of A.sections.entries()){
-      const button=A.navItem(section,index,'button');button.dataset.slug=section.slug;button.onclick=()=>choose(section);$('editor-nav').append(button);
+      const button=A.navItem(section,index,'button');button.dataset.slug=section.slug;button.onclick=()=>chooseLatest(section.slug);$('editor-nav').append(button);
     }
     authUI();
   });

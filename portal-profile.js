@@ -8,7 +8,8 @@
   const details = rows => `<dl class="citizen-details">${rows.map(row => field(...row)).join('')}</dl>`;
   const portrait = '<svg viewBox="0 0 80 100" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="40" cy="29" r="17"/><path d="M10 90V77a30 30 0 0 1 60 0v13"/></svg>';
   const pages = { personal: 'Thông tin cá nhân', card: 'Căn cước / CCCD', residence: 'Thông tin cư trú', requests: 'Hồ sơ yêu cầu' };
-  function cardState(card, today = new Date().toISOString().slice(0, 10)) {
+  const localToday=()=>{const d=new Date();return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');};
+  function cardState(card, today = localToday()) {
     if (!card) return {label:'Chưa cập nhật', active:false};
     const status = {active:'Còn hiệu lực', expired:'Hết hạn', replaced:'Đã thay thế', lost:'Đã báo mất', revoked:'Đã thu hồi'};
     if (card.status !== 'active') return {label:status[card.status] || 'Chưa xác định', active:false};

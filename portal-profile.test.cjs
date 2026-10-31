@@ -3,15 +3,15 @@ const assert=require('node:assert/strict');
 const vm=require('node:vm');
 const fs=require('node:fs');
 const crypto=require('node:crypto');
-function repo(raw) {
+function repo(raw,DateImpl=Date) {
   const data=new Map(raw?[['nhom12-citizen-demo-v1',JSON.stringify(raw)]]:[]),window={};
-  vm.runInNewContext(fs.readFileSync('portal-store.js','utf8'),{window,localStorage:{getItem:k=>data.get(k)||null,setItem:(k,v)=>data.set(k,v)},structuredClone,crypto});
+  vm.runInNewContext(fs.readFileSync('portal-store.js','utf8'),{window,localStorage:{getItem:k=>data.get(k)||null,setItem:(k,v)=>data.set(k,v)},structuredClone,crypto,Date:DateImpl});
   return window.CitizenRepository;
 }
-function view() {
+function view(DateImpl=Date) {
   const window={},elements=new Map();
   const el=id=>{if(!elements.has(id))elements.set(id,{textContent:'',hidden:false,attrs:{'aria-pressed':'false'},getAttribute(k){return this.attrs[k];},setAttribute(k,v){this.attrs[k]=v;}});return elements.get(id);};
-  vm.runInNewContext(fs.readFileSync('portal-profile.js','utf8'),{window,document:{getElementById:el}});
+  vm.runInNewContext(fs.readFileSync('portal-profile.js','utf8'),{window,document:{getElementById:el},Date:DateImpl});
   return {api:window.CitizenProfile,el};
 }
 const fields = r => Object.fromEntries(['name','cccd','dob','gender','phone','email','address','ward','occupation'].map(k=>[k,r[k]]));
@@ -27,3 +27,25 @@ test('Card number is masked initially and toggles; the two sides switch correctl
 test('Untrusted fields and request content are escaped',()=>{const r=repo().get('demo-1');r.name='<img src=x onerror=alert(1)>';r.identityCard.fullName=r.name;r.requests=[{title:'<script>bad()</script>',description:'<img onerror=bad()>',history:[{title:'<svg onload=bad()>'}]}];const api=view().api;for(const page of ['personal','card','requests']){const html=api.html(r,page,false);assert.doesNotMatch(html,/<script>|<img|<svg onload/);assert.match(html,/&lt;/);}});
 test('Member gets management and diagram links; citizen gets neither',()=>{const {api}=view(),r=repo().get('demo-1');assert.match(api.html(r,'personal',true),/database\.html/);assert.doesNotMatch(api.html(r,'personal',false),/#\/admin|database\.html/);});
 test('Locked account remains blocked after profile upgrade',()=>{const R=repo();R.setAccount('demo-1','locked');assert.throws(()=>R.checkLogin('000000000001','demo123'),/khóa/);});
+
+class EarlyVietnamMorning extends Date {
+ constructor(...args){super(...(args.length?args:['2026-10-31T17:30:00Z']));this.nowValue=!args.length;}
+ getFullYear(){return this.nowValue?2026:super.getFullYear();}getMonth(){return this.nowValue?10:super.getMonth();}getDate(){return this.nowValue?1:super.getDate();}
+}
+test('Local calendar day allows today births and card issues after midnight in Vietnam',()=>{
+ const R=repo(undefined,EarlyVietnamMorning),old=R.get('demo-1');assert.equal(R.today(),'2026-11-01');
+ const r=R.save({...fields(old),dob:'2026-11-01',cardIssuedOn:'2026-11-01',cardExpiresOn:'2036-11-01',cardIssuer:'Cơ quan minh họa'},old.id);assert.equal(r.dob,'2026-11-01');
+ assert.throws(()=>R.save({...fields(r),dob:'2026-11-02'},r.id),/Ngày sinh/);
+});
+test('Card expires on the local day instead of remaining active until UTC midnight',()=>{
+ const api=view(EarlyVietnamMorning).api;assert.equal(api.cardState({status:'active',issuedOn:'2025-01-01',expiresOn:'2026-10-31'}).active,false);
+ assert.equal(api.cardState({status:'active',issuedOn:'2026-11-01',expiresOn:'2036-11-01'}).active,true);
+});
+test('Overlong email is rejected before it can invalidate all saved records',()=>{
+ const R=repo(),old=R.get('demo-1');assert.throws(()=>R.save({...fields(old),email:'a'.repeat(501)+'@example.invalid'},old.id),/100/);assert.equal(R.list().length,12);assert.equal(R.get(old.id).email,old.email);
+});
+test('Account issue-lock-unlock flow persists and duplicate or invalid dates never overwrite records',()=>{
+ const R=repo(),original=R.get('demo-1');assert.throws(()=>R.checkLogin('000000000005','demo123'),/chưa được cấp/);assert.throws(()=>R.checkLogin(original.cccd,'bad'),/không chính xác/);
+ assert.throws(()=>R.save(fields(original)),/đã tồn tại/);assert.throws(()=>R.save({...fields(original),dob:'2000-02-31'},original.id),/Ngày sinh/);
+ const fresh=R.save({...fields(original),cccd:'000000000099'});assert.equal(fresh.account,'not-issued');R.setAccount(fresh.id,'active');assert.equal(R.checkLogin(fresh.cccd,'demo123').id,fresh.id);R.setAccount(fresh.id,'locked');assert.throws(()=>R.checkLogin(fresh.cccd,'demo123'),/khóa/);R.setAccount(fresh.id,'active');assert.equal(R.checkLogin(fresh.cccd,'demo123').id,fresh.id);
+});
