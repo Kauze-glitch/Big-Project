@@ -45,5 +45,6 @@
   dialog.showModal();draw();if(file||legacy)preview();
  }
  dialog.addEventListener('cancel',event=>{if(busy)event.preventDefault();});dialog.addEventListener('close',()=>{epoch++;context=null;});
+ window.addEventListener('portalauthchange',()=>{if(!window.PortalAuth?.isMember()){epoch++;busy=false;if(dialog.open)dialog.close();}});
  window.PortalImport=Object.freeze({open:options=>mount(options),openLegacy:done=>mount({legacy:R.legacyRows(),done})});
 })();
