@@ -31,7 +31,7 @@
     } finally { clearTimeout(timeout); }
     return current === revision && member;
   }
-  window.PortalAuth = Object.freeze({isMember: () => member, status: () => status, refresh});
+  window.PortalAuth = Object.freeze({isMember: () => member, status: () => status, refresh, client: () => db, userId: () => verifiedUser});
   if (db) db.auth.onAuthStateChange((event, session) => {
     // Keep Auth calls outside its callback lock and reject stale in-flight results.
     ++revision;

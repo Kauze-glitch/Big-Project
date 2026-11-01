@@ -2,3 +2,8 @@
 # The function validates every bearer token with Auth /user and checks section
 # ownership before calling Gemini. The legacy-HS256 gateway is not used.
 verify_jwt = false
+
+[functions.citizen-portal]
+# Public start issues only an unverified Auth session. RLS requires the OTP-marked session_id.
+# Privileged actions verify the Auth bearer and existing project membership inside the function.
+verify_jwt = false

@@ -3,6 +3,7 @@
   const A=window.GocViet,$=A.$;
   let lastImport=null,importUndo=null,lastAI=null,aiUndo=null;
   let current=null,base=null,blocks=[],identity='',dirty=false,revision=0,persistedRevision=-1,epoch=0,saving=false,discarding=false,uploading=false,draftTimer,selection=null,activeId=null,dragId=null,fileIntent=null,lastRemoved=null,draftQueue=Promise.resolve();
+  const historyButton=A.el('button','btn btn-quiet','Lịch sử nội dung');historyButton.id='section-history';historyButton.type='button';document.querySelector('.editor-actionbar .action-group').prepend(historyButton);historyButton.onclick=()=>{if(current)window.SectionHistory.open(current,{canRestore:()=>!dirty&&!saving&&!uploading&&!discarding,restored:section=>choose(section,false)});};
   const key=()=>`v2:${identity}:${current?.slug}`;
   const owns=()=>A.canEdit(current);
   const status=(message,error=false)=>{$('editor-status').textContent=message;$('editor-status').classList.toggle('error-notice',error);};
@@ -15,6 +16,7 @@
   }
   function change(){lastAI=null;if(aiUndo)aiUndo.hidden=true;lastImport=null;if(importUndo)importUndo.hidden=true;dirty=true;revision++;counts();$('draft-status').textContent='Đang giữ bản nháp…';clearTimeout(draftTimer);draftTimer=setTimeout(saveDraft,450);}
   function authUI(){
+    if($('section-history'))$('section-history').disabled=!current||!A.isMember()||saving||uploading||discarding;
     if($('ai-edit-launch'))$('ai-edit-launch').disabled=!owns()||saving||uploading||discarding;
     $('progress-status').disabled=!owns()||saving||uploading||discarding;
     if($('import-word'))$('import-word').disabled=!owns()||saving||uploading||discarding;

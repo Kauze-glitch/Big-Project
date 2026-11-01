@@ -20,8 +20,8 @@ for(const [name,id,opts] of [['guest',null,{}],['unrelated authenticated user','
 test('Signout revokes access immediately',async()=>{const x=setup('one');await settle();x.signal('SIGNED_OUT');assert.equal(x.window.PortalAuth.isMember(),false);});
 test('Late membership response cannot restore signed-out access',async()=>{const x=setup('one',{defer:true});await settle();x.signal('SIGNED_OUT');x.resolveRows({data:[{owner_id:'one'}]});await settle();assert.equal(x.window.PortalAuth.isMember(),false);});
 function ui(member,route='#/login') {
- const elements=new Map(); const el=id=>{if(!elements.has(id))elements.set(id,{innerHTML:'',close(){this.closed=true;},classList:{add(){},remove(){}},focus(){},querySelectorAll:()=>[]});return elements.get(id);};
- const events=new EventTarget(); const window={CitizenRepository:{list(){throw Error('Unauthorized records read');}},PortalAuth:{isMember:()=>member,status:()=> 'ready'},addEventListener:events.addEventListener.bind(events),scrollTo(){}};
+ const elements=new Map(); const el=id=>{if(!elements.has(id))elements.set(id,{innerHTML:'',close(){this.closed=true;},classList:{add(){},remove(){}},focus(){},querySelectorAll:()=>[],querySelector:()=>el(id+'-child'),elements:{password:{}}});return elements.get(id);};
+ const events=new EventTarget(); const window={PortalTransfer:{fold:s=>s},PortalRequests:{},PortalAPI:{memberId:()=>member?'one':null},CitizenRepository:{pendingLogin:()=>null,list(){throw Error('Unauthorized records read');}},PortalAuth:{isMember:()=>member,status:()=> 'ready'},addEventListener:events.addEventListener.bind(events),scrollTo(){}};
  const document={getElementById:el,querySelector:el};
  vm.runInNewContext(uiSource,{window,document,location:{hash:route},sessionStorage:{getItem:()=> 'citizen-demo-id'},setTimeout,clearTimeout,setInterval,clearInterval});
  return {root:el('portal-app'),panel:el('login-panel'),el,logout(){member=false;events.dispatchEvent(new Event('portalauthchange'));}};

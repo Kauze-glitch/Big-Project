@@ -5,7 +5,7 @@ const fs=require('node:fs');
 function page(member=false) {
   const events=new EventTarget(),elements=new Map();let allowed=member;
   const el=id=>{if(!elements.has(id))elements.set(id,{innerHTML:'',value:'',style:{},textContent:'',classList:{toggle(){}},addEventListener(){},removeEventListener(){},setAttribute(){},scrollIntoView(){},contains:()=>true,querySelector:()=>el('svg')});return elements.get(id);};
-  const window={PortalAuth:{isMember:()=>allowed,status:()=> 'ready'},addEventListener:events.addEventListener.bind(events)};
+  const window={PortalAPI:{memberId:()=>allowed?'one':null},PortalLayouts:{connect:()=>()=>{}},PortalAuth:{isMember:()=>allowed,status:()=> 'ready'},addEventListener:events.addEventListener.bind(events)};
   const document={getElementById:el,querySelectorAll:()=>[]};
   vm.runInNewContext(fs.readFileSync('database-graph.js','utf8'),{window,document});
   vm.runInNewContext(fs.readFileSync('database.js','utf8'),{window,document});

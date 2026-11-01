@@ -1,0 +1,46 @@
+'use strict';
+(() => {
+ const API=window.PortalAPI,storageKey='nhom12-citizen-session-v2',Legacy=window.CitizenRepository;
+ let session=null,refreshTask=null,revision=0,memberOwner=null,memberTask=null,memberData={records:[],requests:[],events:[],units:[],staff:[]},own=null,pending=null;
+ const clone=value=>structuredClone(value);
+ try{const saved=JSON.parse(sessionStorage.getItem(storageKey)||'null');if(saved&&typeof saved.access_token==='string'&&typeof saved.refresh_token==='string'&&typeof saved.verifiedUntil==='string'&&Date.parse(saved.verifiedUntil)>Date.now())session=saved;}catch{}
+ function persist(){try{if(session)sessionStorage.setItem(storageKey,JSON.stringify(session));else sessionStorage.removeItem(storageKey);}catch{}}
+ function clearCitizen(){revision++;session=null;pending=null;own=null;persist();}
+ async function token(){
+  if(!session||Date.parse(session.verifiedUntil)<=Date.now()){clearCitizen();throw API.problem('SESSION_EXPIRED');}
+  if(Number(session.expires_at)*1000>Date.now()+60000)return session.access_token;
+  if(refreshTask)return refreshTask;const current=session,epoch=revision;
+  refreshTask=(async()=>{try{const data=await API.json('/auth/v1/token?grant_type=refresh_token',{refresh_token:current.refresh_token});if(epoch!==revision||session!==current)throw API.problem('SESSION_CHANGED');if(typeof data.access_token!=='string'||typeof data.refresh_token!=='string')throw API.problem('SESSION_EXPIRED');session={...current,access_token:data.access_token,refresh_token:data.refresh_token,expires_at:data.expires_at||Math.floor(Date.now()/1000)+(data.expires_in||3600)};persist();return session.access_token;}catch(error){if(epoch===revision)clearCitizen();throw error;}finally{refreshTask=null;}})();return refreshTask;
+ }
+ async function citizenRpc(name,args={}){try{return await API.json('/rest/v1/rpc/'+name,args,await token());}catch(error){if(['SESSION_EXPIRED','CITIZEN_SESSION_REQUIRED'].includes(error.portalCode))clearCitizen();throw error;}}
+ const readyMember=()=>window.PortalAuth?.isMember()===true;
+ function checkMember(){const id=API.memberId();if(!readyMember()||!id)throw API.problem('MEMBER_REQUIRED');if(memberOwner!==id){memberOwner=id;memberData={records:[],requests:[],events:[],units:[],staff:[]};}return id;}
+ function updateRecord(record){if(record?.id){const index=memberData.records.findIndex(r=>r.id===record.id);if(index<0)memberData.records.unshift(record);else memberData.records[index]=record;if(own?.record?.id===record.id)own.record=record;}return clone(record);}
+ function updateRequest(request,member){const list=member?memberData.requests:(own?.requests||[]),index=list.findIndex(r=>r.id===request.id);if(index<0)list.unshift(request);else list[index]=request;return clone(request);}
+ const Repository={
+  mode:'cloud',get storageWarning(){return false;},today(){const d=new Date();return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');},
+  configured:()=>API.json('/rest/v1/rpc/cd_portal_status',{}),hasCitizenSession:()=>!!session&&Date.parse(session.verifiedUntil)>Date.now(),
+  async loadMember(){const owner=checkMember();if(memberTask?.owner===owner)return memberTask.promise;const task={owner,promise:null};task.promise=(async()=>{const data=await API.memberRpc('cd_member_bundle');if(owner!==API.memberId()||!readyMember())throw API.problem('SESSION_CHANGED');memberOwner=owner;memberData=data;return clone(data);})().finally(()=>{if(memberTask===task)memberTask=null;});memberTask=task;return task.promise;},
+  list(){checkMember();return clone(memberData.records);},get(id){if(readyMember()&&memberOwner===API.memberId())return clone(memberData.records.find(r=>r.id===id)||null);return own?.record?.id===id?clone(own.record):null;},
+  events(){checkMember();return clone(memberData.events);},units(){checkMember();return clone(memberData.units);},staff(){checkMember();return clone(memberData.staff);},requests(member=false){if(member)checkMember();return clone(member?memberData.requests:own?.requests||[]);},
+  async save(data,id=null,reason='Cập nhật hồ sơ',expectedVersion=undefined){checkMember();const existing=id?memberData.records.find(r=>r.id===id):null;if(id&&!existing)throw API.problem('RECORD_NOT_FOUND');return updateRecord(await API.memberRpc('cd_save_record',{p_data:{...data,...(id?{id}:{})},p_expected_version:expectedVersion===undefined?(existing?.rowVersion||null):expectedVersion,p_reason:reason}));},
+  async setAccount(id,next,reason,expectedVersion=undefined){checkMember();const r=memberData.records.find(x=>x.id===id);if(!r)throw API.problem('CITIZEN_NOT_FOUND');return updateRecord(await API.memberRpc('cd_account_state',{p_citizen:id,p_expected_version:expectedVersion??r.accountVersion,p_next:next,p_reason:reason}));},
+  async issueAccount(id,password,reset=false,operation=crypto.randomUUID(),expectedVersion=undefined){checkMember();const r=memberData.records.find(x=>x.id===id);if(!r)throw API.problem('CITIZEN_NOT_FOUND');const result=await API.memberEdge({action:reset?'reset-password':'issue',citizenId:id,password,expectedVersion:expectedVersion??r.accountVersion,operation});return updateRecord(result.record);},
+  async beginLogin(cccd,password){clearCitizen();const epoch=revision;const result=await API.json('/functions/v1/citizen-portal',{action:'start',cccd,password});if(epoch!==revision)throw API.problem('SESSION_CHANGED');pending={...result,cccd};return clone({...result,preAuth:undefined});},
+  pendingLogin:()=>pending?clone({...pending,preAuth:undefined}):null,
+  async resendOtp(){const state=pending;if(!state?.preAuth?.access_token)throw API.problem('SESSION_EXPIRED');const result=await API.json('/functions/v1/citizen-portal',{action:'resend',cccd:state.cccd},state.preAuth.access_token);if(pending!==state)throw API.problem('SESSION_CHANGED');pending={...state,...result,preAuth:state.preAuth};return clone({...pending,preAuth:undefined});},
+  async verifyOtp(code){const state=pending;if(!state?.preAuth)throw API.problem('SESSION_EXPIRED');const result=await API.json('/functions/v1/citizen-portal',{action:'verify',challengeId:state.challengeId,code},state.preAuth.access_token);if(pending!==state)throw API.problem('SESSION_CHANGED');session={...state.preAuth,verifiedUntil:result.verifiedUntil,citizenId:result.citizenId};pending=null;persist();return Repository.loadProfile();},
+  async cancelLogin(){const old=pending;pending=null;revision++;if(old?.preAuth?.access_token)try{await API.json('/auth/v1/logout?scope=local',undefined,old.preAuth.access_token);}catch{}},
+  async loadProfile(){const epoch=revision;const data=await citizenRpc('cd_citizen_bundle');if(epoch!==revision)throw API.problem('SESSION_CHANGED');own=data;return clone({...data.record,requests:data.requests});},
+  async logout(){const old=session;try{if(old){await citizenRpc('cd_citizen_logout');await API.json('/auth/v1/logout?scope=local',undefined,old.access_token);}}finally{clearCitizen();}},
+  async saveRequest(data,submit=true,member=false,idempotency=crypto.randomUUID()){const call=member?API.memberRpc:citizenRpc;if(member)checkMember();const result=await call('cd_save_request',{p_data:data,p_expected_version:data.id?data.rowVersion:null,p_submit:submit,p_idempotency:data.id?null:idempotency});return updateRequest(result,member);},
+  async processRequest(request,next,note,{staffId=null,applyChanges=false,citizenVersion=null,publicNote=true,member=true}={}){if(member)checkMember();const result=await(member?API.memberRpc:citizenRpc)('cd_process_request',{p_id:request.id,p_expected_version:request.rowVersion,p_next:next,p_note:note,p_staff_id:staffId,p_apply_changes:applyChanges,p_expected_citizen_version:citizenVersion,p_public_note:publicNote});return updateRequest(result,member);},
+  history:id=>API.memberRpc('cd_record_history',{p_id:id}),
+  async restoreRecord(id,revisionId,version,reason){checkMember();return updateRecord(await API.memberRpc('cd_restore_record',{p_id:id,p_revision:revisionId,p_expected_version:version,p_reason:reason}));},
+  previewImport:(rows,mode)=>API.memberRpc('cd_import_preview',{p_rows:rows,p_mode:mode}),commitImport:(rows,mode,filename,idempotency,partial)=>API.memberRpc('cd_import_commit',{p_rows:rows,p_mode:mode,p_filename:filename,p_idempotency:idempotency,p_allow_partial:partial}),importBatches:()=>API.memberRpc('cd_import_batches'),
+  legacyRows(){checkMember();try{if(!localStorage.getItem('nhom12-citizen-demo-v1'))return [];return Legacy.list().map(r=>{const {id,account,updatedAt,identityCard,requests,...data}=r;return {...data,...(identityCard?{cardIssuedOn:identityCard.issuedOn,cardExpiresOn:identityCard.expiresOn,cardIssuer:identityCard.issuer,cardStatus:identityCard.status}:{})};});}catch{return [];}},
+  clearMember(){memberOwner=null;memberTask=null;memberData={records:[],requests:[],events:[],units:[],staff:[]};}
+ };
+ window.LegacyCitizenRepository=Legacy;window.CitizenRepository=Object.freeze(Repository);
+ window.addEventListener('portalauthchange',()=>{if(!readyMember()||memberOwner!==API.memberId())Repository.clearMember();});
+})();
