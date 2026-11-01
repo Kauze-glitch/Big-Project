@@ -15,4 +15,4 @@ for(let i=1;i<=3;i++)await db.query('insert into public.sections(slug,title,cont
 for(const file of fs.readdirSync(new URL('../supabase/',import.meta.url)).filter(f=>/^20261101_\d+_/.test(f)).sort())await db.exec(fs.readFileSync(new URL('../supabase/'+file,import.meta.url),'utf8'));
 return db;}
 export async function asUser(db,user,session,fn){return db.transaction(async tx=>{await tx.query("select set_config('request.jwt.claims',$1,true)",[JSON.stringify({sub:user,session_id:session})]);await tx.exec('set local role '+(user?'authenticated':'anon'));return fn(tx);});}
-export const record=(overrides={})=>({name:'Công dân Minh Họa',cccd:'000000000001',dob:'2002-08-15',gender:'Nam',phone:'0000000001',email:'congdan1@example.invalid',address:'12 đường Minh Họa',ward:'Phường Mẫu A',occupation:'Sinh viên',...overrides});
+export const record=(overrides={})=>({name:'Công dân Minh Họa',cccd:'000000000001',dob:'2002-08-15',gender:'Nam',phone:'0000000001',email:'congdan1@example.invalid',address:'12 đường Minh Họa',provinceCode:'HA_NOI',ward:'Phường Mẫu A',occupation:'Sinh viên',...overrides});

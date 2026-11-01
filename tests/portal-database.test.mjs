@@ -26,11 +26,39 @@ test('Invalid identity, duplicate identity and invalid dates leave the original 
  const c=await save();await assert.rejects(save({cccd:c.cccd}),/DUPLICATE_IDENTIFIER/);await assert.rejects(save({cccd:'123456789012'}),/FICTIONAL_IDENTIFIER/);await assert.rejects(save({dob:'2026-02-31'}),/INVALID_BIRTH_DATE/);await assert.rejects(save({email:'a@real.com'}),/FICTIONAL_EMAIL/);
 });
 test('Changing household head retains both role intervals and conflicts with stale edits to the previous head',async()=>{
- const a=await save({householdCode:'HO-TEST-HEAD',householdRelation:'chu_ho'}),b=await save({householdCode:'HO-TEST-HEAD',householdRelation:'con'});
- await member('select cd_save_record($1,$2,$3) doc',[JSON.stringify({...b,householdRelation:'chu_ho'}),b.rowVersion,'Phân công chủ hộ mới']);
+ let a=await save();a=await member('select cd_save_record($1,$2) doc',[JSON.stringify({...a,householdCode:'HO-TEST-HEAD',householdRelation:'chu_ho',householdHeadId:a.id}),a.rowVersion]);const b=await save({householdCode:'HO-TEST-HEAD',householdRelation:'con',householdHeadId:a.id});
+ await member('select cd_save_record($1,$2,$3) doc',[JSON.stringify({...b,householdRelation:'chu_ho',householdHeadId:b.id,householdHeadCccd:b.cccd,householdHeadVersion:b.rowVersion}),b.rowVersion,'Phân công chủ hộ mới']);
  const doc=await member('select cd_member_bundle() doc'),oldHead=doc.records.find(c=>c.id===a.id);assert.equal(oldHead.householdRelation,'khac');assert(oldHead.rowVersion>a.rowVersion);
  const intervals=await db.query('select quan_he_voi_chu_ho,den_ngay from cd_thanh_vien_ho where cong_dan_id=$1',[a.id]);assert.equal(intervals.rows.length,2);assert(intervals.rows.some(r=>r.quan_he_voi_chu_ho==='chu_ho'&&r.den_ngay));
- await assert.rejects(member('select cd_save_record($1,$2) doc',[JSON.stringify({...a,occupation:'Bản cũ'}),a.rowVersion]),/RECORD_CONFLICT/);
+ await assert.rejects(member('select cd_save_record($1,$2) doc',[JSON.stringify({...a,occupation:'Bản cũ'}),a.rowVersion]),/(RECORD|HOUSEHOLD_HEAD)_CONFLICT/);
+});
+test('A household head must already exist; names and an unsaved self ID cannot create a head implicitly',async()=>{
+ await assert.rejects(save({householdCode:'HO-NO-HEAD',householdHead:'Người chưa tồn tại'}),/HOUSEHOLD_HEAD_NOT_FOUND/);
+ const id=randomUUID();await assert.rejects(save({id,householdCode:'HO-UNSAVED',householdHeadId:id,householdRelation:'chu_ho'}),/HOUSEHOLD_HEAD_NOT_FOUND/);
+ const head=await save(),child=await save({householdCode:'HO-LINK-EXISTS',householdHeadId:head.id,householdRelation:'con'});
+ assert.equal(child.householdHeadId,head.id);assert.equal(child.householdHead,head.name);assert.equal(child.householdHeadCccd,head.cccd);
+ const loaded=(await member('select cd_member_bundle() doc')).records.find(r=>r.id===head.id);assert.equal(loaded.householdRelation,'chu_ho');assert.equal(loaded.householdCode,child.householdCode);
+ const renamed=await member('select cd_save_record($1,$2) doc',[JSON.stringify({...loaded,name:'Chủ hộ đổi tên'}),loaded.rowVersion]);assert.equal(renamed.name,'Chủ hộ đổi tên');
+ assert.equal((await member('select cd_member_bundle() doc')).records.find(r=>r.id===child.id).householdHead,'Chủ hộ đổi tên');
+ await assert.rejects(save({householdCode:'HO-OTHER',householdHeadId:head.id}),/HOUSEHOLD_HEAD_OTHER_HOUSE/);
+});
+test('Province selection is mandatory and each residence uses a separate catalog FK; obsolete data is never guessed',async()=>{
+ const catalog=await db.query('select code,name from cd_tinh_thanh_cu');assert.equal(catalog.rows.length,63);assert(catalog.rows.some(p=>p.name==='Hà Giang'));assert(catalog.rows.some(p=>p.name==='Bình Dương'));assert(catalog.rows.some(p=>p.name==='Thừa Thiên Huế'));
+ await assert.rejects(save({provinceCode:''}),/PROVINCE_REQUIRED/);await assert.rejects(save({provinceCode:'MARS'}),/PROVINCE_REQUIRED/);
+ await assert.rejects(save({temporaryAddress:'Một nơi tạm trú'}),/PROVINCE_REQUIRED/);
+ const c=await save({provinceCode:'BAC_GIANG',temporaryAddress:'Địa chỉ tạm trú',temporaryProvinceCode:'BINH_DUONG',currentAddress:'Nơi ở hiện tại',currentProvinceCode:'HA_GIANG'});
+ assert.equal(c.provinceName,'Bắc Giang');assert.equal(c.temporaryProvinceName,'Bình Dương');assert.equal(c.currentProvinceName,'Hà Giang');
+ const rows=(await db.query('select loai_cu_tru,tinh_thanh_code from cd_cu_tru where cong_dan_id=$1 and den_ngay is null',[c.id])).rows;assert.equal(rows.length,3);assert.equal(rows.find(r=>r.loai_cu_tru==='tam_tru').tinh_thanh_code,'BINH_DUONG');
+ await assert.rejects(db.query("update cd_cu_tru set tinh_thanh_code='UNKNOWN' where cong_dan_id=$1",[c.id]),/foreign key/);
+});
+test('Import validates old-province catalog and only joins households with an already registered head',async()=>{
+ const orphan=record({cccd:'000000008801',phone:'0000008801',householdCode:'HO-NOT-CREATED',householdHeadCccd:'000000008800'});
+ const preview=await member('select cd_import_preview($1) doc',[JSON.stringify([{row:2,data:orphan}])]);assert.equal(preview[0].error,'HOUSEHOLD_IMPORT_MANAGE_FIRST');
+ const noProvince=await member('select cd_import_preview($1) doc',[JSON.stringify([{row:2,data:record({provinceCode:'NOT_A_PROVINCE'})}])]);assert.match(noProvince[0].error,/PROVINCE_REQUIRED/);
+ const head=await save();const headWithHouse=await member('select cd_save_record($1,$2) doc',[JSON.stringify({...head,householdCode:'HO-IMPORT-READY',householdHeadId:head.id,householdRelation:'chu_ho'}),head.rowVersion]);
+ const data=record({cccd:'000000008802',phone:'0000008802',householdCode:'HO-IMPORT-READY',householdHeadCccd:head.cccd,householdRelation:'con'}),checked=(await member('select cd_import_preview($1) doc',[JSON.stringify([{row:2,data}])]))[0];assert.equal(checked.error,null);
+ const imported=await member('select cd_import_commit($1,$2,$3,$4) doc',[JSON.stringify([{row:2,data:checked.data}]),'create','household.csv',randomUUID()]);assert.equal(imported.created,1);
+ assert.equal((await member('select cd_member_bundle() doc')).records.find(r=>r.cccd===data.cccd).householdHeadId,headWithHouse.id);
 });
 test('Residence and card changes retain historical rows; restoring a record creates an audit revision',async()=>{
  let c=await save({cardIssuedOn:'2025-09-01',cardExpiresOn:'2035-09-01',cardIssuer:'Cơ quan minh họa',cardStatus:'active'});const original=c;const history=await member('select cd_record_history($1) doc',[c.id]);
