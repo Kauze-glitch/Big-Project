@@ -41,7 +41,7 @@
     const address = [r.address,r.ward].filter(Boolean).join(', ');
     return `<div class="citizen-residence-grid">${box('Nơi thường trú',`<p class="citizen-address">${text(address)}</p>`)}${box('Nơi tạm trú',`<p class="citizen-address">${text(r.temporaryAddress)}</p>`)}</div>` +
       box('Nơi ở hiện tại',details([['Địa chỉ',r.currentAddress || address,true],['Cập nhật gần nhất',r.updatedAt ? new Date(r.updatedAt).toLocaleDateString('vi-VN') : '',true]])) +
-      box('Hộ gia đình',details([['Mã hộ',r.householdCode],['Chủ hộ',r.householdHead],['Quan hệ với chủ hộ',r.householdRelation],['Đơn vị quản lý',r.ward]])) +
+      box('Hộ gia đình',details([['Mã hộ',r.householdCode],['Chủ hộ',r.householdHead],['Quan hệ với chủ hộ',({chu_ho:'Chủ hộ',vo_chong:'Vợ / chồng',con:'Con',cha_me:'Cha / mẹ',khac:'Khác'})[r.householdRelation]||r.householdRelation],['Đơn vị quản lý',r.ward]])) +
       '<div class="citizen-guidance"><strong>Lịch sử cư trú</strong><p>Lịch sử chuyển hộ và thay đổi nơi cư trú sẽ được hiển thị sau khi các nghiệp vụ tương ứng được ghi nhận.</p></div>';
   }
   function requests(r) {

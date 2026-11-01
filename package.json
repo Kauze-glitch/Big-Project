@@ -1,0 +1,14 @@
+{
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.3.16",
+    "esbuild": "^0.28.2",
+    "jsdom": "^28.1.0",
+    "read-excel-file": "^9.3.14",
+    "write-excel-file": "^4.1.1"
+  },
+  "scripts": {
+    "test": "node --test database-graph.test.cjs database-page.test.cjs portal-auth.test.cjs portal-profile.test.cjs editor-navigation.test.cjs tests/*.test.mjs",
+    "build:excel": "node scripts/build-portal-excel.mjs",
+    "qa:portal": "node tests/portal-integration-server.mjs"
+  }
+}
