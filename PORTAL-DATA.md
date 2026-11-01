@@ -34,3 +34,13 @@ Máy chủ QA tùy chọn: `node tests/portal-integration-server.mjs` (dữ li�
 Đây là bộ chức năng phục vụ demo môn học: chưa gửi OTP thật, chưa tải tệp đính kèm công dân, chưa mở nhập CCCD thật hoặc thay thế nghiệp vụ dịch vụ công. 22 bảng nghiệp vụ đã có nền cấu trúc; giao diện v1 tập trung hồ sơ, cư trú/hộ, căn cước, tài khoản và yêu cầu. Các danh mục được kiểm soát, không cho trình duyệt tự tạo bảng SQL.
 
 Nếu mất kết nối, web báo lỗi và giữ bản kéo/bản nháp phù hợp; không âm thầm chuyển hồ sơ sang kho cục bộ. Thành viên bấm **Tải mới** để lấy thay đổi đã lưu từ thiết bị khác. Không có đồng bộ realtime mỗi ký tự.
+
+## Chủ hộ và tỉnh/thành cư trú (bản dữ liệu v2)
+
+Chủ hộ được chọn từ công dân đã lưu, liên kết bằng ID/CCCD, không tạo bằng tên tự do. Muốn một người mới làm chủ hộ, lưu hồ sơ của họ trước rồi mở lại để chọn. Người đang ở hộ khác phải hoàn tất chuyển hộ trước; thay đổi chủ hộ giữ lịch sử các vai trò cũ.
+
+Cư trú sử dụng danh mục 63 tỉnh/thành theo mốc 31/12/2024; dữ liệu tham chiếu ở provinces-vn-2024.json. Mã trong tệp là định danh nội bộ, không phải mã hành chính nhà nước. Có danh sách chọn riêng cho thường trú, tạm trú và nơi ở hiện tại. Mỗi địa chỉ có nội dung thì bắt buộc chọn tỉnh/thành tương ứng, kiểm tra cả ở máy chủ. Hồ sơ cũ không bị gán tỉnh tự động; cần chọn đúng khi cập nhật.
+
+Chạy thêm migration supabase/20261101_07_household_provinces.sql trước khi cập nhật giao diện. Công cụ tái tạo: node scripts/build-residence-migration.mjs. Nhập file chỉ thêm thành viên vào hộ đã có chủ hộ; lập hộ/đổi chủ hộ trên giao diện quản lý trước để tránh tự tạo quan hệ từ những người chưa tồn tại.
+
+Nguồn đối chiếu danh mục cũ: https://danhmuchanhchinh.nso.gov.vn/Tinh_tk_new.aspx và danh sách tỉnh/thành trước sắp xếp tại https://sonoivu.hatinh.gov.vn/snv/plugin_upload/preview/documents/507/2969/tvVanBanGoc_08_VBHN_BNV.pdf .

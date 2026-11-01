@@ -1,0 +1,6 @@
+{
+  "snapshot": "2024-12-31",
+  "description": "63 tỉnh/thành Việt Nam trước sắp xếp năm 2025. Mã là định danh nội bộ của đồ án, không phải mã hành chính nhà nước.",
+  "sources": ["https://danhmuchanhchinh.nso.gov.vn/Tinh_tk_new.aspx", "https://sonoivu.hatinh.gov.vn/snv/plugin_upload/preview/documents/507/2969/tvVanBanGoc_08_VBHN_BNV.pdf"],
+  "names": ["Hà Nội","Hà Giang","Cao Bằng","Bắc Kạn","Tuyên Quang","Lào Cai","Điện Biên","Lai Châu","Sơn La","Yên Bái","Hòa Bình","Thái Nguyên","Lạng Sơn","Quảng Ninh","Bắc Giang","Bắc Ninh","Phú Thọ","Vĩnh Phúc","Hải Dương","Hải Phòng","Hưng Yên","Thái Bình","Hà Nam","Nam Định","Ninh Bình","Thanh Hóa","Nghệ An","Hà Tĩnh","Quảng Bình","Quảng Trị","Thừa Thiên Huế","Đà Nẵng","Quảng Nam","Quảng Ngãi","Bình Định","Phú Yên","Khánh Hòa","Ninh Thuận","Bình Thuận","Kon Tum","Gia Lai","Đắk Lắk","Đắk Nông","Lâm Đồng","Bình Phước","Tây Ninh","Bình Dương","Đồng Nai","Bà Rịa - Vũng Tàu","Hồ Chí Minh","Long An","Tiền Giang","Bến Tre","Trà Vinh","Vĩnh Long","Đồng Tháp","An Giang","Kiên Giang","Cần Thơ","Hậu Giang","Sóc Trăng","Bạc Liêu","Cà Mau"]
+}
