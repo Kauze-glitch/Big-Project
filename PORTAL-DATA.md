@@ -70,3 +70,7 @@ Không có tích hợp với dữ liệu hành chính quốc gia hay VNeID. Các
 - Quản trị viên xem danh mục bảng/tệp cần sao lưu, chỉ gồm số dòng/fingerprint/đường dẫn, không đọc nội dung hồ sơ qua danh mục này. Công cụ sao lưu PostgreSQL + Storage và thử phục hồi chỉ vào Supabase localhost dùng một lần nằm ở scripts/backup-portal.mjs; hướng dẫn ở BACKUP-RESTORE.md. Chưa có thông tin kết nối riêng hoặc môi trường khôi phục thì không tuyên bố đã tạo/thử một backup sản xuất.
 
 Kiểm thử bổ sung: các vai trò không được vượt quyền; chặn mất quản trị cuối; OTP Telegram với nhà cung cấp giả lập; thu hồi phiên sau đổi mật khẩu; lỗi gửi không lộ mã; lọc/thống kê/CSV/bản in; cấu hình số OTP qua UI; checksum, gói chưa hoàn chỉnh và chặn khôi phục vào production. Các bài thử không gửi tin Telegram thật và không thay đổi tài khoản sản xuất.
+
+## Chỉnh sửa nhập số Telegram (03/11/2026)
+
+Sau migration phiên bản 4, chạy thêm supabase/migrations/20261102174930_normalize_telegram_phone.sql. Giao diện và RPC cùng chuẩn hóa số Việt Nam dạng 09…, +849… và +8409… có thừa số 0; bỏ khoảng trắng/dấu định dạng, không tự điền chữ số bị thiếu. Không đổi các số đã lưu trong migration. Phân biệt thiếu token, token bị nhà cung cấp từ chối và số nhận không hợp lệ; có nút kiểm tra lại cấu hình ngay trong form, giữ nội dung đang nhập khi lỗi. Token không xuất hiện trong trạng thái trả về. Nhóm đã xác nhận nhận OTP Telegram thật; các bài thử tự động vẫn dùng nhà cung cấp giả lập.

@@ -16,7 +16,7 @@ export async function setup(options={}){
   if(u.pathname==='/rest/v1/sections'){let rows=(await db.query('select * from sections order by slug')).rows;const owner=u.searchParams.get('owner_id');if(owner?.startsWith('eq.'))rows=rows.filter(r=>r.owner_id===owner.slice(3));return json(200,rows);}
   return json(404,{message:'Not found'});
  }
- const context=vm.createContext({crypto:webcrypto,TextEncoder,TextDecoder,Response,Request,AbortController,atob,setTimeout,clearTimeout,fetch:async(url,init)=>String(url).startsWith('https://gatewayapi.telegram.org/')&&options.gateway?options.gateway(new Request(url,init)):api(new Request(url,init)),Deno:{env:{get:name=>({...options.env,SUPABASE_URL:'http://qa.local',SUPABASE_ANON_KEY:'qa-public',SUPABASE_SERVICE_ROLE_KEY:'qa-service-only'}[name])},serve:fn=>{handler=fn;}}});vm.runInContext(fs.readFileSync(new URL('../supabase/functions/citizen-portal/index.ts',import.meta.url),'utf8'),context);
+ const context=vm.createContext({crypto:webcrypto,URL,TextEncoder,TextDecoder,Response,Request,AbortController,atob,setTimeout,clearTimeout,fetch:async(url,init)=>String(url).startsWith('https://gatewayapi.telegram.org/')&&options.gateway?options.gateway(new Request(url,init)):api(new Request(url,init)),Deno:{env:{get:name=>({...options.env,SUPABASE_URL:'http://qa.local',SUPABASE_ANON_KEY:'qa-public',SUPABASE_SERVICE_ROLE_KEY:'qa-service-only'}[name])},serve:fn=>{handler=fn;}}});vm.runInContext(fs.readFileSync(new URL('../supabase/functions/citizen-portal/index.ts',import.meta.url),'utf8'),context);
  return {db,api,users,sign,handler};
 }
 export async function startPreview(port=8776){

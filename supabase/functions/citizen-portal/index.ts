@@ -1,6 +1,7 @@
 // Supabase Edge Function. No citizen password, Auth token or OTP is logged or stored in report content.
 // verify_jwt=false is required for the public first step; every privileged action validates Auth itself.
 const env = name => Deno.env.get(name) || '';
+const telegramToken = () => env('TELEGRAM_GATEWAY_TOKEN').trim();
 function configuredKey(name,legacy) { try { return JSON.parse(env(name)).default || env(legacy); } catch { return env(legacy); } }
 const cors = {'Access-Control-Allow-Origin':'https://kauze-glitch.github.io','Access-Control-Allow-Headers':'authorization,apikey,content-type,x-client-info','Access-Control-Allow-Methods':'POST,OPTIONS','Cache-Control':'no-store','Content-Type':'application/json'};
 const response = (status,body) => new Response(JSON.stringify(body),{status,headers:cors});
@@ -35,8 +36,9 @@ async function handle(req) {
  async function rate(key,limit,seconds) {if(!await rpc('cd_rate_limit',{p_key:key,p_limit:limit,p_window_seconds:seconds}))throw new PortalError('TOO_MANY_REQUESTS',429);}
  async function issueChallenge(account,user,session,preAuth) {
   if(account.status!=='active')throw new PortalError('ACCOUNT_LOCKED',403);
-  const telegram=account.otpChannel==='telegram',gatewayToken=env('TELEGRAM_GATEWAY_TOKEN');
-  if(telegram&&(!gatewayToken||!/^\+[1-9][0-9]{6,14}$/.test(account.otpPhone||'')))throw new PortalError('TELEGRAM_NOT_CONFIGURED',503);
+  const telegram=account.otpChannel==='telegram',gatewayToken=telegramToken(),phone=account.otpPhone||'';
+  if(telegram&&!gatewayToken)throw new PortalError('TELEGRAM_TOKEN_MISSING',503);
+  if(telegram&&(!/^\+[1-9][0-9]{6,14}$/.test(phone)||(phone.startsWith('+84')&&!/^\+84[1-9][0-9]{8,9}$/.test(phone))))throw new PortalError('TELEGRAM_PHONE_INVALID',400);
   if(telegram)await rate('portal:telegram:daily',Math.max(1,Math.min(100,Number(env('TELEGRAM_DAILY_LIMIT'))||20)),86400);
   const challenge=crypto.randomUUID(),code=otpCode(),hashed=await digest(serviceKey,'otp:'+challenge+':'+session+':'+code);
   const data=await rpc('cd_issue_challenge',{p_account:account.accountId,p_auth_user:user.id,p_auth_session:session,p_challenge:challenge,p_otp_hash:hashed});
@@ -44,7 +46,7 @@ async function handle(req) {
    let delivered=false,providerId=null;
    try{
     const sent=await fetch('https://gatewayapi.telegram.org/sendVerificationMessage',{method:'POST',signal:controller.signal,headers:{authorization:'Bearer '+gatewayToken,'Content-Type':'application/json'},body:JSON.stringify({phone_number:account.otpPhone,code,ttl:120,payload:challenge})});
-    const result=await sent.json();if(!sent.ok||!result.ok){const reason=String(result.error||'');throw new PortalError(/BALANCE|FUNDS/.test(reason)?'TELEGRAM_INSUFFICIENT_BALANCE':/PHONE|USER|NUMBER/.test(reason)?'TELEGRAM_UNAVAILABLE':'TELEGRAM_SEND_FAILED',503);}
+    const result=await sent.json();if(!sent.ok||!result.ok){const reason=String(result.error||'');throw new PortalError(/ACCESS_TOKEN|TOKEN_INVALID|UNAUTHORIZED/.test(reason)?'TELEGRAM_TOKEN_INVALID':/BALANCE|FUNDS/.test(reason)?'TELEGRAM_INSUFFICIENT_BALANCE':/PHONE|USER|NUMBER/.test(reason)?'TELEGRAM_UNAVAILABLE':'TELEGRAM_SEND_FAILED',503);}
     if(typeof result.result?.request_id!=='string'||!result.result.request_id)throw new PortalError('TELEGRAM_SEND_FAILED',503);providerId=result.result.request_id;delivered=true;
    }catch(error){if(error instanceof PortalError)throw error;throw new PortalError('TELEGRAM_SEND_FAILED',503);}
    finally{await rpc('cd_challenge_delivery_result',{p_challenge:challenge,p_provider_request:providerId,p_success:delivered}).catch(()=>{});}
@@ -101,7 +103,7 @@ async function handle(req) {
   }
   if(!await rpc('cd_is_member',{},token))throw new PortalError('MEMBER_REQUIRED',403);
   const permissions=await rpc('cd_member_permissions',{},token);if(!permissions?.capabilities?.includes('accounts.manage'))throw new PortalError('PERMISSION_DENIED',403);
-  if(action==='telegram-status')return response(200,{configured:!!env('TELEGRAM_GATEWAY_TOKEN'),dailyLimit:Math.max(1,Math.min(100,Number(env('TELEGRAM_DAILY_LIMIT'))||20))});
+  if(action==='telegram-status')return response(200,{configured:!!telegramToken(),secretName:'TELEGRAM_GATEWAY_TOKEN',projectRef:new URL(url).hostname.split('.')[0],configurationVersion:'20261103-otp2',dailyLimit:Math.max(1,Math.min(100,Number(env('TELEGRAM_DAILY_LIMIT'))||20))});
   await rate('portal:issue:'+user.id,30,600);
   if(!uuid(data.citizenId)||!uuid(data.operation)||!Number.isInteger(data.expectedVersion)||data.expectedVersion<0||typeof data.password!=='string'||data.password.length<10||data.password.length>72||!/[A-Za-z]/.test(data.password)||!/[0-9]/.test(data.password))throw new PortalError('PASSWORD_POLICY');
   const account=await rpc('cd_account_prepare',{p_citizen:data.citizenId,p_actor:user.id,p_expected_version:data.expectedVersion,p_operation:data.operation,p_reset:action==='reset-password'});
