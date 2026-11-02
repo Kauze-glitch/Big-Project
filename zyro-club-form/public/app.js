@@ -12,6 +12,7 @@ const submitButton = document.querySelector("[data-submit]");
 const status = document.querySelector("[data-form-status]");
 const goal = document.querySelector("#goal");
 const count = document.querySelector("[data-count]");
+const registrationEndpoint = "https://grhdawkxnrkgkahegnnd.supabase.co/functions/v1/zyro-api/registrations";
 
 document.documentElement.classList.add("js");
 
@@ -119,7 +120,7 @@ form.addEventListener("submit", async (event) => {
     position: value("position"), level: value("level"), goal: value("goal"),
   };
   try {
-    const response = await fetch("/api/registrations", {
+    const response = await fetch(registrationEndpoint, {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
     });
     const body = await response.json().catch(() => ({}));
@@ -141,3 +142,4 @@ form.addEventListener("submit", async (event) => {
 });
 
 renderStep(0, false);
+
