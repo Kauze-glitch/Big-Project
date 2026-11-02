@@ -1,0 +1,159 @@
+/* Shared interface finish. Scoped to page shells; authored documents retain their formatting. */
+@media screen {
+body[data-interface]{--ink:#263e31;--muted:#576956;--line:#d3ddca;--accent:#405f3d;--accent-ink:#fff;--soft:#e7eddf;--surface:#fffef9;--bg:#f3f4ea}
+body[data-interface] :is(button,a,input,select,textarea,summary):focus-visible{outline:3px solid #a57a28;outline-offset:3px}
+body[data-interface] :is(button,a){touch-action:manipulation}
+body[data-interface] button{cursor:pointer}body[data-interface] button:disabled{cursor:not-allowed}
+body[data-interface] :is(h1,h2,h3){overflow-wrap:anywhere}
+body[data-interface] :is(dialog,.ai-messages){overscroll-behavior:contain}
+body[data-interface] input::placeholder,body[data-interface] textarea::placeholder{color:#71816c;opacity:1}
+body[data-interface] :is(.btn,.download,.relation){min-height:42px;font-size:13px;line-height:1.5;border-radius:8px}
+body[data-interface] .btn{padding:10px 15px}
+body[data-interface] .btn-quiet{background:#fffef9;border-color:#c8d4bd;color:#30482e}
+body[data-interface] .btn-quiet:hover{background:#e7efde;border-color:#98ad87}
+body[data-interface] .btn:not(.btn-quiet):hover{background:#2f4c2c}
+body[data-interface] :is(.btn,.download,.relation,.section-nav a){transition:background-color .16s ease,color .16s ease,border-color .16s ease}
+/* Report and editor shell */
+body[data-interface=project],body[data-interface=editor]{background:#f3f4ea;background-image:radial-gradient(ellipse at 90% 0,#e3ead980,transparent 60%);background-attachment:scroll}
+body[data-interface] .sidebar{padding:38px 20px 24px;background:#e9eedf;border-color:#ced9c1}
+body[data-interface] .sidebar .brand{gap:11px;font-size:25px;letter-spacing:-.6px}
+body[data-interface] .sidebar .brand small{font-size:8px;letter-spacing:.8px;line-height:1.7;max-width:175px}
+body[data-interface] .sidebar .brand-mark{width:44px;height:44px;border-radius:12px;font-size:25px;flex-shrink:0}
+body[data-interface] .sidebar-label{margin:28px 10px 13px;font-size:10px;letter-spacing:1.2px;color:#52664b}
+body[data-interface] .section-nav{gap:7px;scrollbar-width:thin}
+body[data-interface] .section-nav :is(a,button){padding:13px 12px;font-size:14px;min-height:48px;border-radius:8px;line-height:1.5}
+body[data-interface] .nav-title{white-space:normal;overflow-wrap:anywhere}
+body[data-interface] .nav-number{font-size:11px;opacity:.8}
+body[data-interface] .overview-link{margin-top:28px;min-height:46px;font-size:13px;padding:12px}
+body[data-interface] .sidebar-note{padding:16px 10px;font-size:11px;line-height:1.7}
+body[data-interface] .sidebar-note p{font-size:18px;margin-top:10px}
+body[data-interface] .workspace-link{font-size:13px;min-height:44px;padding:15px 8px 0}
+body[data-interface] .sidebar-bottom{padding-top:18px}
+body[data-interface] .topbar{height:auto;min-height:76px;padding:16px 30px;gap:14px;background:#f6f7efef;backdrop-filter:blur(10px);flex-wrap:wrap}
+body[data-interface] .breadcrumb{font-size:12px;min-width:0}
+body[data-interface] .header-actions{gap:8px;flex-wrap:wrap}
+body[data-interface] .header-actions .btn{font-size:12px;min-height:40px;padding:9px 12px}
+body[data-interface] .project-main{max-width:1440px;padding:48px 48px 72px}
+body[data-interface] .project-hero{padding:12px 0 42px}
+body[data-interface] .project-hero h1{font-size:clamp(38px,4.3vw,66px);line-height:1.35;letter-spacing:-1.5px;max-width:1050px;margin-top:26px}
+body[data-interface] .project-badge{font-size:10px;padding:7px 12px;background:#eef3e4}
+body[data-interface] .team-section{margin-top:34px}
+body[data-interface] .team-heading h2{font-size:26px;line-height:1.4}
+body[data-interface] .team-heading>span{font-size:10px;letter-spacing:1px}
+body[data-interface] .team-grid{gap:16px}
+body[data-interface] .member-card{padding:24px;background:#fffef9;border-radius:12px;min-height:238px;border-color:#ced9c2;box-shadow:none}
+body[data-interface] .member-card h3{font-size:21px;line-height:1.55;letter-spacing:-.3px}
+body[data-interface] .member-top{margin-bottom:22px}
+body[data-interface] .member-avatar{width:44px;height:44px;font-size:17px}
+body[data-interface] .member-role{font-size:11px;padding:5px 9px}
+body[data-interface] .member-task{font-size:13px;line-height:1.8;margin-top:16px}
+body[data-interface] .profile-edit{font-size:13px;min-height:42px;text-underline-offset:4px}
+body[data-interface] .chapter-page{background:#fffef9;border:1px solid #d1dcc6;border-radius:14px;padding:38px 42px;box-shadow:0 8px 30px #34452b05}
+body[data-interface] .chapter-title{font-size:clamp(32px,3.6vw,52px);line-height:1.4;margin-block:24px}
+body[data-interface] .chapter-byline{font-size:13px;padding-block:18px;margin-bottom:30px}
+body[data-interface] .chapter-back{font-size:13px;padding-block:8px}
+body[data-interface] .chapter-content .section-body{line-height:1.9;color:#354c3b}
+body[data-interface] .chapter-navigation{flex-wrap:wrap;gap:12px;padding-top:22px;margin-top:32px}
+body[data-interface] .chapter-navigation a{min-height:44px;font-size:14px;padding:11px 15px;border:1px solid #cbd9bd;border-radius:8px;background:#f1f5e9;line-height:1.6}
+body[data-interface] .floral-frame{opacity:.48;pointer-events:none}
+body[data-interface] .floral-frame span{pointer-events:none}
+/* Editor controls; no change to stored text styles or canvas coordinates. */
+body[data-interface=editor] .editor-main{max-width:1500px;padding:32px 30px 64px}
+body[data-interface=editor] .editor-heading{margin-bottom:24px}
+body[data-interface=editor] .editor-heading h1{font-size:32px;line-height:1.4;letter-spacing:-.7px;margin-top:10px}
+body[data-interface=editor] .editor-actionbar{padding:15px 18px;border:1px solid #cdd8c1;background:#eef3e7;border-radius:10px;gap:14px;flex-wrap:wrap}
+body[data-interface=editor] #draft-status{font-size:12px;line-height:1.7;max-width:100%}
+body[data-interface=editor] .document-editor{background:#fffefb;border-radius:12px;border-color:#ccd8bf}
+body[data-interface=editor] .field-label{font-size:11px;letter-spacing:1px}
+body[data-interface=editor] .title-input{font-size:30px;line-height:1.5}
+body[data-interface=editor] .compose-toolbar{border-color:#cad7bd;box-shadow:0 4px 12px #233b2c09}
+body[data-interface=editor] .ribbon-quick{gap:7px;align-items:end;flex-wrap:wrap}
+body[data-interface=editor] .ribbon-quick label{font-size:12px}
+body[data-interface=editor] .ribbon-more{max-height:260px;overflow:auto;overscroll-behavior:contain;scrollbar-width:thin}
+body[data-interface=editor] :is(.format-toolbar button,.ribbon-group select){min-height:40px}
+body[data-interface=editor] .compose-tip{font-size:12px;line-height:1.8;padding:16px 24px;background:#f7f9f2}
+body[data-interface=editor] .block-bar{min-height:43px;padding:7px 10px;gap:8px}
+body[data-interface=editor] .block-label{font-size:10px;letter-spacing:1px}
+body[data-interface=editor] .block-action{min-width:34px;min-height:34px;font-size:13px}
+body[data-interface=editor] .insert-gap .block-action{font-size:12px}
+body[data-interface=editor] .insert-toolbar{padding:12px 20px;gap:8px;flex-wrap:wrap}
+body[data-interface=editor] .insert-toolbar .btn{font-size:12px;min-height:40px}
+body[data-interface=editor] .writing-footer{font-size:12px;padding:16px 22px}
+body[data-interface=editor] .editor-footnote{font-size:12px;line-height:1.8}
+/* AI assistant and presentation */
+body[data-interface] .ai-panel{border-color:#b8cbb0;box-shadow:0 20px 70px #20382726;border-radius:16px}
+body[data-interface] .ai-header{background:#edf3e6;border-bottom:1px solid #cbd9bd;padding:16px}
+body[data-interface] :is(.ai-close,.ai-expand){min-width:40px;min-height:40px}
+body[data-interface] .ai-text{font-size:15px;line-height:1.8;overflow-wrap:anywhere;color:#2b4031}
+body[data-interface] .ai-message.ai-user .ai-text{color:inherit}
+body[data-interface] .ai-notice{font-size:12px;line-height:1.6}
+body[data-interface] .ai-suggestions button{min-height:40px;line-height:1.6}
+body[data-interface] .ai-form textarea{font-size:15px;line-height:1.7}
+body[data-interface] .ai-reset{min-height:36px;font-size:12px}
+body[data-interface] .presentation-header,body[data-interface] .presentation-footer{gap:12px;flex-wrap:wrap}
+body[data-interface] .presentation-title{line-height:1.4;overflow-wrap:anywhere}
+body[data-interface] .presentation-picker{max-width:100%;overflow:auto;scrollbar-width:thin}
+/* Database documentation shell; ERD nodes retain their palette and position. */
+body[data-interface=database]{background:#f2f5ec;color:#263e31}
+body[data-interface=database] #database-root>header{padding:38px 5vw 28px;background:#e7eedf}
+body[data-interface=database] header h1{font-size:clamp(30px,3.8vw,46px);line-height:1.4;letter-spacing:-1px}
+body[data-interface=database] header p{max-width:800px;font-size:14px;line-height:1.85}
+body[data-interface=database] #database-root>nav{display:flex;flex-wrap:wrap;gap:8px;padding:14px 5vw;background:#fffef9;border-block:1px solid #cddac0;position:static}
+body[data-interface=database] #database-root>nav a{padding:9px 12px;border:1px solid #d3dec7;border-radius:7px;font-size:13px;min-height:40px;text-decoration:none;line-height:1.6}
+body[data-interface=database] #database-root>nav a:hover{background:#e7efdf}
+body[data-interface=database] main>section{scroll-margin-top:24px}
+body[data-interface=database] .list{border-radius:10px;background:#f0f4e9;padding:18px}
+body[data-interface=database] .table-button{min-height:48px;font-size:13px;padding:12px;line-height:1.6}
+body[data-interface=database] .detail{background:#fffefb;border-radius:12px;padding:26px;min-width:0}
+body[data-interface=database] :is(.callout,.card){line-height:1.8;font-size:13px}
+body[data-interface=database] .erd-toolbar{gap:12px;align-items:center}
+body[data-interface=database] .erd-tools{gap:7px;flex-wrap:wrap}
+body[data-interface=database] .erd-tools button{min-height:40px}
+/* Export options only. Do not restyle report-paper: exported content stays independent. */
+body[data-interface=report]{background:#f0f4e9}
+body[data-interface=report] .report-header{background:#e9efdf;border-color:#cbd8be;padding-block:26px}
+body[data-interface=report] .report-options{border-radius:12px;border-color:#c9d8bb;box-shadow:0 5px 20px #263c3505}
+body[data-interface=report] .report-options>p{font-size:13px;line-height:1.85}
+body[data-interface=report] :is(.report-check label,.section-choice){padding-block:12px;min-height:44px}
+body[data-interface=report] #report-status{background:#eaf1e1;padding:12px;border-radius:8px}
+body[data-interface=report] .preview-heading{padding-block:5px 10px;border-bottom:1px solid #cdd9c2}
+body[data-interface=report] .preview-help{line-height:1.8}
+.site-menu-toggle{display:none}
+@media(max-width:1100px){body[data-interface] .project-main{padding:30px 26px 60px}body[data-interface] .topbar{padding:14px 24px}body[data-interface] .breadcrumb{display:none}body[data-interface] .team-grid{grid-template-columns:1fr}body[data-interface] .member-card{min-height:0}body[data-interface] .chapter-page{padding:28px}}
+@media(max-width:760px){
+ body[data-interface] .sidebar{position:static;padding:20px 16px 14px;gap:12px}
+ body[data-interface] .sidebar .brand{font-size:23px}.site-menu-toggle{display:flex;align-items:center;justify-content:space-between;min-height:44px;border:1px solid #bfcfb2;background:#f7faef;color:#304b2d;border-radius:8px;padding:10px 12px;font:600 13px var(--font-ui,system-ui);width:100%;text-align:left}
+ body[data-interface] .sidebar.menu-enhanced:not(.menu-open) :is(.section-nav,.overview-link,.sidebar-bottom){display:none}
+ body[data-interface] .sidebar.menu-enhanced .section-nav{display:grid;grid-template-columns:1fr;max-height:45dvh;overflow:auto;padding:0}
+ body[data-interface] .sidebar.menu-enhanced:not(.menu-open) .section-nav{display:none}
+ body[data-interface] .sidebar .overview-link{position:static;margin:0;font-size:13px;min-height:44px;align-self:stretch}
+ body[data-interface] .sidebar-bottom{position:static;display:block}.sidebar .sidebar-note{display:none}
+ body[data-interface] .section-nav :is(a,button){width:100%;max-width:none;min-height:44px;font-size:14px}
+ body[data-interface] .topbar{position:static;padding:12px 16px;min-height:60px;justify-content:flex-start}
+ body[data-interface] .header-actions{justify-content:flex-start;width:100%;gap:7px}
+ body[data-interface] .header-actions .btn{font-size:12px;min-height:40px;padding:9px 11px}
+ body[data-interface] .project-main{padding:24px 16px 70px}
+ body[data-interface] .project-hero h1{font-size:34px;line-height:1.45;letter-spacing:-.9px}
+ body[data-interface] .team-heading{flex-wrap:wrap;gap:8px}body[data-interface] .team-heading h2{font-size:24px}
+ body[data-interface] .member-card{padding:22px}body[data-interface] .member-card h3{font-size:22px}
+ body[data-interface] .chapter-page{padding:23px 18px;border-radius:10px}body[data-interface] .chapter-title{font-size:32px;line-height:1.4}
+ body[data-interface] .chapter-byline{gap:14px;align-items:stretch}body[data-interface] .chapter-navigation a{max-width:100%}
+ body[data-interface] .floral-frame{opacity:.3}
+ body[data-interface=editor] .editor-main{padding:24px 14px 60px}body[data-interface=editor] .editor-heading h1{font-size:27px}
+ body[data-interface=editor] .editor-actionbar{padding:14px;align-items:stretch}body[data-interface=editor] .editor-actionbar .action-group{gap:8px}
+ body[data-interface=editor] .editor-actionbar .btn{font-size:12px;min-height:44px;flex:1 1 auto}
+ body[data-interface=editor] .ribbon-quick{gap:6px}body[data-interface=editor] .ribbon-quick button{min-height:44px;min-width:40px}
+ body[data-interface=editor] .ribbon-more{max-height:48dvh;overflow:auto}body[data-interface=editor] .compose-toolbar{position:static}
+ body[data-interface=editor] .compose-tip{padding:14px 16px}body[data-interface=editor] .insert-toolbar{padding:12px;gap:7px}
+ body[data-interface=editor] .block-action{min-height:40px}body[data-interface=editor] .title-input{font-size:25px}
+ body[data-interface=editor] .block-label{letter-spacing:.4px}body[data-interface=editor] .insert-gap{flex-wrap:wrap}
+ body[data-interface] .ai-panel{border-radius:12px}body[data-interface] .ai-form textarea{font-size:16px}
+ body[data-interface] .presentation-header .btn,body[data-interface] .presentation-footer .btn{min-height:44px;font-size:12px}
+ body[data-interface=database] #database-root>header{padding:26px 20px}body[data-interface=database] #database-root>nav{padding:12px 16px;gap:7px}
+ body[data-interface=database] #database-root>nav a{flex:1 1 135px;font-size:12px}
+ body[data-interface=database] .layout{grid-template-columns:1fr}body[data-interface=database] .list{position:static;max-height:300px;overflow:auto}
+ body[data-interface=database] .detail{padding:20px 16px}body[data-interface=database] .erd-tools button{min-height:44px}
+ body[data-interface=report] .report-layout{padding:16px}body[data-interface=report] .report-header{padding:20px 18px}
+}
+@media(prefers-reduced-motion:reduce){body[data-interface] *,body[data-interface] *::before,body[data-interface] *::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+}
