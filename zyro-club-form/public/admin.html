@@ -73,16 +73,53 @@
         </div>
 
         <div class="registration-toolbar">
-          <input type="search" data-search placeholder="Tìm tên Zalo…">
-          <span data-registration-status></span>
+          <div class="registration-search">
+            <input type="search" data-search placeholder="Tìm tên Zalo…" autocomplete="off">
+            <span data-registration-status></span>
+          </div>
+          <div class="registration-controls">
+            <label>
+              <span>Sắp xếp</span>
+              <select data-sort>
+                <option value="newest">Mới nhất</option>
+                <option value="oldest">Cũ nhất</option>
+              </select>
+            </label>
+            <label>
+              <span>Hiển thị</span>
+              <select data-page-size>
+                <option value="25">25 / trang</option>
+                <option value="50">50 / trang</option>
+                <option value="100">100 / trang</option>
+              </select>
+            </label>
+          </div>
         </div>
 
-        <div class="registration-table" data-ui>
-          <div class="registration-head" aria-hidden="true">
+        <div class="bulk-bar" data-bulk-bar hidden>
+          <strong><span data-selected-count>0</span> đã chọn</strong>
+          <div>
+            <button class="bulk-button bulk-approve" type="button" data-bulk-status="approved">Duyệt</button>
+            <button class="bulk-button bulk-reject" type="button" data-bulk-status="rejected">Từ chối</button>
+            <button class="bulk-button" type="button" data-clear-selection>Bỏ chọn</button>
+          </div>
+        </div>
+
+        <div class="registration-table">
+          <div class="registration-head">
+            <label class="select-cell">
+              <input type="checkbox" data-select-page aria-label="Chọn tất cả trên trang">
+            </label>
             <span>Thành viên</span><span>Thông tin</span><span>Mong muốn</span><span>Ngày gửi</span><span>Trạng thái</span>
           </div>
           <div data-registration-list></div>
         </div>
+
+        <nav class="pagination" aria-label="Phân trang đăng ký">
+          <button class="secondary-button" type="button" data-page-prev>← Trước</button>
+          <span data-page-info>Trang 1 / 1</span>
+          <button class="secondary-button" type="button" data-page-next>Sau →</button>
+        </nav>
       </section>
 
       <section class="screen" data-screen="settings" hidden>
@@ -178,6 +215,47 @@
       </section>
     </main>
   </div>
+
+  <div class="detail-backdrop" data-detail-backdrop hidden></div>
+  <aside class="detail-drawer" data-detail-drawer hidden role="dialog" aria-modal="true" aria-labelledby="detail-title">
+    <header class="detail-header">
+      <div>
+        <span class="detail-label">Chi tiết đăng ký</span>
+        <h2 id="detail-title" data-detail-name></h2>
+        <p data-detail-date></p>
+      </div>
+      <button class="drawer-close" type="button" data-detail-close aria-label="Đóng">×</button>
+    </header>
+
+    <div class="detail-body">
+      <section class="detail-section">
+        <h3>Thông tin người chơi</h3>
+        <dl class="detail-grid">
+          <div><dt>Thời gian</dt><dd data-detail-duration></dd></div>
+          <div><dt>Giới tính</dt><dd data-detail-gender></dd></div>
+          <div><dt>Vị trí</dt><dd data-detail-position></dd></div>
+          <div><dt>Trình độ</dt><dd data-detail-level></dd></div>
+        </dl>
+      </section>
+
+      <section class="detail-section">
+        <div class="detail-section-title">
+          <h3>Mong muốn khi tham gia</h3>
+          <span data-detail-goal-count>0 ký tự</span>
+        </div>
+        <p class="detail-goal" data-detail-goal></p>
+      </section>
+    </div>
+
+    <footer class="detail-actions">
+      <select data-detail-status aria-label="Trạng thái đăng ký">
+        <option value="new">Chờ duyệt</option>
+        <option value="approved">Đã duyệt</option>
+        <option value="rejected">Từ chối</option>
+      </select>
+      <button class="primary-button" type="button" data-detail-approve>Duyệt thành viên</button>
+    </footer>
+  </aside>
 
   <script src="/admin.js" type="module"></script>
 </body>
