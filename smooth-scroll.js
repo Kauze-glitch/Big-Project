@@ -29,7 +29,15 @@
   }
   function scrollHost(element,delta){
     if(!(element instanceof Element))return window;
-    if(element.closest('input,textarea,select,[contenteditable]:not([contenteditable="false"])'))return null;
+    if(element.closest('input,textarea,[contenteditable]:not([contenteditable="false"])'))return null;
+    const select=element.closest('select');
+    // A closed filter (even still focused after a choice) belongs to the page's
+    // wheel flow. Only an open picker/listbox retains native option scrolling.
+    if(select){
+      if(select.multiple||select.size>1)return null;
+      try{if(select.matches(':open'))return null;}
+      catch{if(document.activeElement===select)return null;}
+    }
     const modal=element.closest('dialog,[role="dialog"]');
     for(let node=element;node&&node!==document.body&&node!==document.documentElement;node=node.parentElement){
       const css=getComputedStyle(node),overflow=css.overflowY||css.overflow;
