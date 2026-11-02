@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#dc1928">
+  <meta name="description" content="Đăng ký tham gia ZYRO Volleyball Club — sân chơi bóng chuyền vui vẻ, thân thiện với người mới.">
+  <title>ZYRO Volleyball Club — Đăng ký thành viên</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700&family=Barlow:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="hero" id="top">
+    <nav class="nav" aria-label="Điều hướng chính">
+      <a class="wordmark" href="#top" aria-label="ZYRO Volleyball Club">ZYRO</a>
+      <a class="nav-link" href="#signup">Đăng ký</a>
+    </nav>
+    <div class="hero-grid">
+      <div class="hero-copy">
+        <p>Newbie-first. Chơi vui. Học cùng nhau. Không đặt nặng thắng thua.</p>
+        <a class="button button-dark" href="#signup">Bắt đầu đăng ký</a>
+      </div>
+      <div class="hero-title-wrap" aria-label="Vào sân. Chơi vui.">
+        <h1 class="hero-title"><span>VÀO SÂN.</span><span>CHƠI VUI.</span></h1>
+        <div class="match-strip">
+          <strong>T7 + CN</strong>
+          <span>18:30 — 21:30</span>
+        </div>
+        <div class="court-art" aria-hidden="true">
+          <span class="court-line court-line-a"></span>
+          <span class="court-line court-line-b"></span>
+          <span class="court-line court-line-c"></span>
+          <span class="ball-mark">ZY</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="manifesto" aria-labelledby="manifesto-title">
+      <h2 id="manifesto-title">CHƠI LÂU DÀI.</h2>
+      <p>Người mới được chào đón. Đồng đội đánh lỗi thì góp ý. Đội hình chưa cân thì cùng xoay. Vào sân để tìm niềm vui, không để thể hiện cái tôi.</p>
+    </section>
+
+    <div class="photo-strip" role="group" aria-label="Không khí bóng chuyền">
+      <figure class="photo-frame photo-a">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/0/0f/Volleyball_match_at_Kabale_University_Student_Sports_Gala_2026.png" width="1376" height="768" alt="Một trận bóng chuyền cộng đồng ngoài trời với nhiều người đứng quanh sân" loading="lazy" decoding="async">
+      </figure>
+      <figure class="photo-frame photo-b">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/4/49/USMC-100724-M-2664B-141.jpg" width="1920" height="1280" alt="Người chơi bật nhảy đập bóng qua lưới trong nhà thi đấu" loading="lazy" decoding="async">
+      </figure>
+      <figure class="photo-frame photo-c">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/0/0f/Volleyball_match_at_Kabale_University_Student_Sports_Gala_2026.png" width="1376" height="768" alt="Nhóm người chơi và khán giả quanh một sân bóng chuyền cộng đồng" loading="lazy" decoding="async">
+      </figure>
+      <figure class="photo-frame photo-d">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/4/49/USMC-100724-M-2664B-141.jpg" width="1920" height="1280" alt="Pha bóng sát lưới trong một trận bóng chuyền trong nhà" loading="lazy" decoding="async">
+      </figure>
+    </div>
+
+    <section class="signup-section" id="signup" aria-labelledby="signup-title">
+      <div class="signup-heading">
+        <h2 id="signup-title">4 CHẠM LÀ XONG.</h2>
+        <p>Mất khoảng 1 phút. Thông tin chỉ dùng để Trưởng/Phó nhóm kiểm tra trước khi duyệt.</p>
+      </div>
+
+      <div class="coupon" data-form-shell>
+        <aside class="coupon-side">
+          <div>
+            <h3>ĐIỀN NHANH.</h3>
+          </div>
+          <div class="court-progress" aria-label="Tiến độ biểu mẫu">
+            <span class="court-progress-line"></span>
+            <button type="button" class="progress-dot is-active" data-progress="0" aria-label="Câu 1" tabindex="-1">1</button>
+            <button type="button" class="progress-dot" data-progress="1" aria-label="Câu 2" tabindex="-1">2</button>
+            <button type="button" class="progress-dot" data-progress="2" aria-label="Câu 3" tabindex="-1">3</button>
+            <button type="button" class="progress-dot" data-progress="3" aria-label="Câu 4" tabindex="-1">4</button>
+            <span class="progress-ball" data-progress-ball aria-hidden="true">●</span>
+          </div>
+          <p class="progress-copy"><strong data-step-label>1 / 4</strong><span data-step-title>Tên Zalo</span></p>
+        </aside>
+
+        <form class="join-form" id="join-form" novalidate>
+          <div class="form-status" data-form-status aria-live="polite"></div>
+
+          <fieldset class="form-step is-active" data-step="0">
+            <legend>1. Tên Zalo của bạn?</legend>
+            <p class="helper">Nhập đúng tên bạn đang dùng trên Zalo để tụi mình đối chiếu khi duyệt.</p>
+            <label class="field-label" for="zaloName">Tên Zalo</label>
+            <input id="zaloName" name="zaloName" type="text" autocomplete="name" maxlength="80" placeholder="Ví dụ: Thanh Long">
+            <p class="field-error" data-error-for="zaloName"></p>
+          </fieldset>
+
+          <fieldset class="form-step" data-step="1">
+            <legend>2. Bạn dự định tham gia trong bao lâu?</legend>
+            <p class="helper">ZYRO ưu tiên những bạn muốn sinh hoạt và chơi cùng nhóm lâu dài.</p>
+            <div class="choice-stack" role="radiogroup" aria-label="Thời gian dự định tham gia">
+              <label class="choice"><input type="radio" name="duration" value="long"><span><strong>Lâu dài</strong><small>Muốn sinh hoạt cùng nhóm thường xuyên</small></span></label>
+              <label class="choice"><input type="radio" name="duration" value="unsure"><span><strong>Muốn trải nghiệm trước</strong><small>Chưa xác định, muốn thử vài buổi</small></span></label>
+              <label class="choice"><input type="radio" name="duration" value="short"><span><strong>Ngắn hạn</strong><small>Chủ yếu tham gia giao lưu một vài buổi</small></span></label>
+            </div>
+            <p class="field-error" data-error-for="duration"></p>
+          </fieldset>
+
+          <fieldset class="form-step" data-step="2">
+            <legend>3. Vị trí và trình độ hiện tại?</legend>
+            <p class="helper">Chọn 3 ý. Tụi mình dùng thông tin này để xếp đội hình phù hợp, không phải để phân cấp người chơi.</p>
+            <div class="selector-group">
+              <span class="field-label">Giới tính</span>
+              <div class="segmented">
+                <label><input type="radio" name="gender" value="male"><span>Nam</span></label>
+                <label><input type="radio" name="gender" value="female"><span>Nữ</span></label>
+              </div>
+              <p class="field-error" data-error-for="gender"></p>
+            </div>
+            <div class="selector-group">
+              <span class="field-label">Vị trí chơi</span>
+              <div class="segmented segmented-wrap">
+                <label><input type="radio" name="position" value="attacker"><span>Công</span></label>
+                <label><input type="radio" name="position" value="defender"><span>Thủ</span></label>
+                <label><input type="radio" name="position" value="setter"><span>Chuyền 2</span></label>
+                <label><input type="radio" name="position" value="allrounder"><span>Toàn diện</span></label>
+              </div>
+              <p class="field-error" data-error-for="position"></p>
+            </div>
+            <div class="selector-group">
+              <span class="field-label">Trình độ</span>
+              <div class="segmented segmented-wrap">
+                <label><input type="radio" name="level" value="newbie"><span>Người mới</span></label>
+                <label><input type="radio" name="level" value="intermediate"><span>Trung bình</span></label>
+                <label><input type="radio" name="level" value="good"><span>Tốt</span></label>
+              </div>
+              <p class="field-error" data-error-for="level"></p>
+            </div>
+          </fieldset>
+
+          <fieldset class="form-step" data-step="3">
+            <legend>4. Mong muốn của bạn khi tham gia một trận đấu?</legend>
+            <p class="helper">Ví dụ: chơi vui, học kỹ thuật, vận động, làm quen bạn mới, được góp ý để tiến bộ...</p>
+            <label class="field-label" for="goal">Chia sẻ ngắn</label>
+            <textarea id="goal" name="goal" rows="5" maxlength="500" placeholder="Mình muốn..."></textarea>
+            <div class="textarea-meta"><p class="field-error" data-error-for="goal"></p><span data-count>0 / 500</span></div>
+          </fieldset>
+
+          <div class="form-actions" data-form-actions>
+            <button class="button button-ghost" type="button" data-back hidden>Quay lại</button>
+            <button class="button button-dark" type="button" data-next>Tiếp tục</button>
+            <button class="button button-dark" type="submit" data-submit hidden>Gửi đăng ký</button>
+          </div>
+        </form>
+
+        <section class="success-panel" data-success hidden tabindex="-1" aria-labelledby="success-title">
+          <p class="success-mark" aria-hidden="true">✓</p>
+          <h3 id="success-title">ĐÃ NHẬN ĐĂNG KÝ.</h3>
+          <p>Bước cuối: chủ động nhắn Zalo cho một trong hai admin và ghi <strong>“Mình đã hoàn thành form đăng ký ZYRO”</strong> để tụi mình check nhanh nhé.</p>
+          <div class="admin-links">
+            <a class="admin-link" href="https://zalo.me/0836000190" target="_blank" rel="noreferrer"><span>Anh Nguyễn</span><strong>0836 000 190</strong></a>
+            <a class="admin-link" href="https://zalo.me/0364964897" target="_blank" rel="noreferrer"><span>Long</span><strong>0364 964 897</strong></a>
+          </div>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-top">
+      <div><h2>HẸN TRÊN SÂN.</h2><p>T7 + CN · 18:30 — 21:30</p></div>
+      <div class="footer-contacts"><a href="tel:0836000190">Nguyễn · 0836 000 190</a><a href="tel:0364964897">Long · 0364 964 897</a></div>
+    </div>
+    <p class="credits">Pictures: <a href="https://commons.wikimedia.org/wiki/File:Volleyball_match_at_Kabale_University_Student_Sports_Gala_2026.png">“Volleyball match at Kabale University Student Sports Gala 2026”</a> by Elivis256, <a href="https://creativecommons.org/publicdomain/zero/1.0/deed.en">CC0</a>, via Wikimedia Commons; <a href="https://commons.wikimedia.org/wiki/File:USMC-100724-M-2664B-141.jpg">“USMC-100724-M-2664B-141”</a>, <a href="https://creativecommons.org/publicdomain/mark/1.0/">public domain</a>, via Wikimedia Commons.</p>
+    <p class="footer-word">ZYRO</p>
+  </footer>
+
+  <script src="/app.js" type="module"></script>
+</body>
+</html>
