@@ -12,7 +12,8 @@ create table public.sections(slug text primary key,title text,content text,owner
 `);
 for(const [label,id] of Object.entries(ids).filter(([label])=>!label.startsWith('session')))await db.query('insert into auth.users(id,email,raw_user_meta_data) values($1,$2,$3)',[id,label+'@example.invalid',JSON.stringify({display_name:label})]);
 for(let i=1;i<=3;i++)await db.query('insert into public.sections(slug,title,content,owner_id) values($1,$2,$3,$4)',['phan'+i,'Phần '+i,'Nội dung '+i,ids['member'+i]]);
-for(const file of fs.readdirSync(new URL('../supabase/',import.meta.url)).filter(f=>/^20261101_\d+_/.test(f)).sort())await db.exec(fs.readFileSync(new URL('../supabase/'+file,import.meta.url),'utf8'));
+await db.exec(`create schema storage;create table storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]);create table storage.objects(id uuid primary key default gen_random_uuid(),bucket_id text,name text,metadata jsonb);alter table storage.objects enable row level security;grant usage on schema storage to authenticated;grant select,insert on storage.objects to authenticated;`);
+for(const file of fs.readdirSync(new URL('../supabase/',import.meta.url)).filter(f=>/^2026110[12]_\d+_/.test(f)).sort())await db.exec(fs.readFileSync(new URL('../supabase/'+file,import.meta.url),'utf8'));
 return db;}
 export async function asUser(db,user,session,fn){return db.transaction(async tx=>{await tx.query("select set_config('request.jwt.claims',$1,true)",[JSON.stringify({sub:user,session_id:session})]);await tx.exec('set local role '+(user?'authenticated':'anon'));return fn(tx);});}
 export const record=(overrides={})=>({name:'Công dân Minh Họa',cccd:'000000000001',dob:'2002-08-15',gender:'Nam',phone:'0000000001',email:'congdan1@example.invalid',address:'12 đường Minh Họa',provinceCode:'HA_NOI',ward:'Phường Mẫu A',occupation:'Sinh viên',...overrides});

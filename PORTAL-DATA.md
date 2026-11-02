@@ -31,7 +31,7 @@ Máy chủ QA tùy chọn: `node tests/portal-integration-server.mjs` (dữ li�
 
 ## Giới hạn có chủ đích
 
-Đây là bộ chức năng phục vụ demo môn học: chưa gửi OTP thật, chưa tải tệp đính kèm công dân, chưa mở nhập CCCD thật hoặc thay thế nghiệp vụ dịch vụ công. 22 bảng nghiệp vụ đã có nền cấu trúc; giao diện v1 tập trung hồ sơ, cư trú/hộ, căn cước, tài khoản và yêu cầu. Các danh mục được kiểm soát, không cho trình duyệt tự tạo bảng SQL.
+Đây là bộ chức năng phục vụ demo môn học: chưa gửi OTP thật, chưa mở nhập CCCD thật hoặc thay thế nghiệp vụ dịch vụ công. 22 bảng nghiệp vụ đã có nền cấu trúc; giao diện v1 tập trung hồ sơ, cư trú/hộ, căn cước, tài khoản và yêu cầu. Các danh mục được kiểm soát, không cho trình duyệt tự tạo bảng SQL.
 
 Nếu mất kết nối, web báo lỗi và giữ bản kéo/bản nháp phù hợp; không âm thầm chuyển hồ sơ sang kho cục bộ. Thành viên bấm **Tải mới** để lấy thay đổi đã lưu từ thiết bị khác. Không có đồng bộ realtime mỗi ký tự.
 
@@ -44,3 +44,15 @@ Cư trú sử dụng danh mục 63 tỉnh/thành theo mốc 31/12/2024; dữ li�
 Chạy thêm migration supabase/20261101_07_household_provinces.sql trước khi cập nhật giao diện. Công cụ tái tạo: node scripts/build-residence-migration.mjs. Nhập file chỉ thêm thành viên vào hộ đã có chủ hộ; lập hộ/đổi chủ hộ trên giao diện quản lý trước để tránh tự tạo quan hệ từ những người chưa tồn tại.
 
 Nguồn đối chiếu danh mục cũ: https://danhmuchanhchinh.nso.gov.vn/Tinh_tk_new.aspx và danh sách tỉnh/thành trước sắp xếp tại https://sonoivu.hatinh.gov.vn/snv/plugin_upload/preview/documents/507/2969/tvVanBanGoc_08_VBHN_BNV.pdf .
+
+## Nghiệp vụ phiên bản 3 (02/11/2026)
+
+Chạy migration 08 (nghiệp vụ) và 09 (Storage) sau 01–07. Migration 09 tạo bucket riêng tư cd-documents, PDF/PNG/JPEG/WebP tối đa 2 MB, 5 tệp mỗi giấy tờ. Không có bucket công khai hay quyền xóa tệp cho trình duyệt. Upload hai bước: cấp đường dẫn qua RPC, upload bằng phiên thành viên, xác nhận kích thước/MIME từ Storage. Công dân sau OTP chỉ được tải tệp giấy tờ của chính mình.
+
+Menu thành viên có Hộ gia đình, Cư trú và biến động, Giấy tờ hành chính, Thống kê dân cư. Lập hộ yêu cầu công dân đã tồn tại; chuyển hộ và đổi chủ hộ kiểm tra phiên bản, không bỏ lại hộ còn người mà không có chủ hộ. Tách thành viên cuối đánh dấu hộ đã kết thúc, không xóa lịch sử hoặc tái sử dụng mã hộ. Chuyển hộ không tự thay đổi địa chỉ thường trú. Hiệu lực thao tác hộ là ngày hiện tại.
+
+Cư trú cho nhập ngày hiệu lực đến hiện tại, không trước lần đăng ký đang có; tạm trú bắt buộc có hạn. Gia hạn ghi lần mới, kết thúc lần cũ. Hạn đăng ký khác ngày kết thúc lịch sử. Tình trạng hết hạn được tính theo ngày Việt Nam, không cần cron. Dữ liệu tạm trú cũ thiếu hạn giữ nguyên để thành viên bổ sung. Form hồ sơ và nhập/xuất Excel/CSV có thêm ngày bắt đầu/hết hạn tạm trú.
+
+Công dân có mục Giấy tờ của tôi và lịch sử cư trú/hộ của chính mình. Thành viên nhập/sửa/thu hồi giấy tờ có lý do và kiểm tra phiên bản. Số liệu thống kê tính mỗi người một lần theo tỉnh thường trú; hộ dùng mã duy nhất trong mỗi tỉnh, tạm trú báo riêng theo địa bàn tạm trú. CSV thống kê không chứa định danh/mật khẩu; đây là báo cáo dân cư, khác tệp báo cáo đề tài PDF/Word.
+
+OTP vẫn mô phỏng; không có tích hợp với dữ liệu hành chính quốc gia hay VNeID.

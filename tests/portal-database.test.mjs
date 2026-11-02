@@ -46,7 +46,7 @@ test('Province selection is mandatory and each residence uses a separate catalog
  const catalog=await db.query('select code,name from cd_tinh_thanh_cu');assert.equal(catalog.rows.length,63);assert(catalog.rows.some(p=>p.name==='Hà Giang'));assert(catalog.rows.some(p=>p.name==='Bình Dương'));assert(catalog.rows.some(p=>p.name==='Thừa Thiên Huế'));
  await assert.rejects(save({provinceCode:''}),/PROVINCE_REQUIRED/);await assert.rejects(save({provinceCode:'MARS'}),/PROVINCE_REQUIRED/);
  await assert.rejects(save({temporaryAddress:'Một nơi tạm trú'}),/PROVINCE_REQUIRED/);
- const c=await save({provinceCode:'BAC_GIANG',temporaryAddress:'Địa chỉ tạm trú',temporaryProvinceCode:'BINH_DUONG',currentAddress:'Nơi ở hiện tại',currentProvinceCode:'HA_GIANG'});
+ const c=await save({provinceCode:'BAC_GIANG',temporaryAddress:'Địa chỉ tạm trú',temporaryFrom:new Date().toISOString().slice(0,10),temporaryUntil:'2099-12-31',temporaryProvinceCode:'BINH_DUONG',currentAddress:'Nơi ở hiện tại',currentProvinceCode:'HA_GIANG'});
  assert.equal(c.provinceName,'Bắc Giang');assert.equal(c.temporaryProvinceName,'Bình Dương');assert.equal(c.currentProvinceName,'Hà Giang');
  const rows=(await db.query('select loai_cu_tru,tinh_thanh_code from cd_cu_tru where cong_dan_id=$1 and den_ngay is null',[c.id])).rows;assert.equal(rows.length,3);assert.equal(rows.find(r=>r.loai_cu_tru==='tam_tru').tinh_thanh_code,'BINH_DUONG');
  await assert.rejects(db.query("update cd_cu_tru set tinh_thanh_code='UNKNOWN' where cong_dan_id=$1",[c.id]),/foreign key/);

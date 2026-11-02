@@ -10,6 +10,8 @@
   province('provinceCode','address','Tỉnh/thành thường trú (trước sáp nhập)',true);
   province('temporaryProvinceCode','temporaryAddress','Tỉnh/thành tạm trú (trước sáp nhập)',false);
   province('currentProvinceCode','currentAddress','Tỉnh/thành nơi ở hiện tại (trước sáp nhập)',false);
+  const temp=find('temporaryAddress');
+  for(const [key,title,value] of [['temporaryFrom','Ngày bắt đầu tạm trú',record.temporaryRegistration?.from||repository.today()],['temporaryUntil','Ngày hết hạn tạm trú',record.temporaryRegistration?.until||'']]){const label=document.createElement('label');label.className='field';label.innerHTML='<span>'+title+'</span><input type="date" name="'+key+'" value="'+esc(value)+'">';temp.closest('label').after(label);const input=label.querySelector('input');const update=()=>{input.required=!!temp.value.trim()&&(!record.temporaryAddress||!!record.temporaryRegistration?.until);};temp.addEventListener('input',update);update();}
   find('address').closest('label').querySelector('span').textContent='Địa chỉ thường trú chi tiết *';
   const ward=find('ward');if(ward){const hidden=document.createElement('input');hidden.type='hidden';hidden.name='ward';hidden.value=record.ward||repository.units()[0]?.name||'';ward.closest('label').replaceWith(hidden);}
   const code=find('householdCode'),relation=find('householdRelation');if(!code||!relation)return;

@@ -6,7 +6,7 @@
   const sections=[
    ['identity','01','Thông tin định danh','Thông tin bắt buộc để tạo hồ sơ công dân.',['name','cccd','dob','gender']],
    ['contact','02','Liên hệ','Số điện thoại dùng để liên hệ với công dân.',['phone','email','occupation']],
-   ['residence','03','Địa chỉ cư trú','Chọn tỉnh/thành theo danh mục trước sáp nhập, sau đó nhập địa chỉ chi tiết.',['provinceCode','address','temporaryProvinceCode','temporaryAddress','currentProvinceCode','currentAddress']],
+   ['residence','03','Địa chỉ cư trú','Chọn tỉnh/thành theo danh mục trước sáp nhập, sau đó nhập địa chỉ chi tiết.',['provinceCode','address','temporaryProvinceCode','temporaryAddress','temporaryFrom','temporaryUntil','currentProvinceCode','currentAddress']],
    ['household','04','Hộ gia đình','Chỉ chọn chủ hộ từ hồ sơ công dân đã được lưu. Có thể bổ sung mục này sau.',['householdCode','householdHeadId','householdRelation']]
   ];
   const links=document.createElement('nav');links.className='record-jumps';links.setAttribute('aria-label','Các mục trong hồ sơ');
