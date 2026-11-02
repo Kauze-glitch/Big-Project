@@ -2,3 +2,6 @@
 .env.*
 supabase/functions/.env
 node_modules/
+.cache/
+backups/
+supabase/.temp/

@@ -1,6 +1,6 @@
 // Isolated, in-memory QA server. It never connects to production Supabase or Auth.
 import http from 'node:http';import fs from 'node:fs';import path from 'node:path';import vm from 'node:vm';import {webcrypto,randomUUID} from 'node:crypto';import {fileURLToPath} from 'node:url';import {database,ids,record,asUser} from './portal-db-harness.mjs';
-export async function setup(){
+export async function setup(options={}){
  const db=await database(),users=new Map(),tokens=new Map(),refreshTokens=new Map();let handler;
  for(let i=1;i<=3;i++)users.set(ids['member'+i],{id:ids['member'+i],email:`member${i}@example.invalid`,password:'TestMember123',app_metadata:{},user_metadata:{display_name:'Thành viên QA '+i}});
  async function sign(user,sessionId=randomUUID()){await db.query('insert into auth.sessions(id,user_id) values($1,$2) on conflict do nothing',[sessionId,user.id]);const access_token=['qa',Buffer.from(JSON.stringify({sub:user.id,session_id:sessionId,exp:Math.floor(Date.now()/1000)+3600,role:'authenticated'})).toString('base64url'),'qa-signature'].join('.'),refresh_token=randomUUID(),session={access_token,refresh_token,expires_in:3600,expires_at:Math.floor(Date.now()/1000)+3600,token_type:'bearer',user:{...user,password:undefined}};tokens.set(access_token,{user,sessionId});refreshTokens.set(refresh_token,{user,sessionId});return session;}
@@ -16,7 +16,7 @@ export async function setup(){
   if(u.pathname==='/rest/v1/sections'){let rows=(await db.query('select * from sections order by slug')).rows;const owner=u.searchParams.get('owner_id');if(owner?.startsWith('eq.'))rows=rows.filter(r=>r.owner_id===owner.slice(3));return json(200,rows);}
   return json(404,{message:'Not found'});
  }
- const context=vm.createContext({crypto:webcrypto,TextEncoder,TextDecoder,Response,Request,AbortController,atob,setTimeout,clearTimeout,fetch:async(url,options)=>api(new Request(url,options)),Deno:{env:{get:name=>({SUPABASE_URL:'http://qa.local',SUPABASE_ANON_KEY:'qa-public',SUPABASE_SERVICE_ROLE_KEY:'qa-service-only'}[name])},serve:fn=>{handler=fn;}}});vm.runInContext(fs.readFileSync(new URL('../supabase/functions/citizen-portal/index.ts',import.meta.url),'utf8'),context);
+ const context=vm.createContext({crypto:webcrypto,TextEncoder,TextDecoder,Response,Request,AbortController,atob,setTimeout,clearTimeout,fetch:async(url,init)=>String(url).startsWith('https://gatewayapi.telegram.org/')&&options.gateway?options.gateway(new Request(url,init)):api(new Request(url,init)),Deno:{env:{get:name=>({...options.env,SUPABASE_URL:'http://qa.local',SUPABASE_ANON_KEY:'qa-public',SUPABASE_SERVICE_ROLE_KEY:'qa-service-only'}[name])},serve:fn=>{handler=fn;}}});vm.runInContext(fs.readFileSync(new URL('../supabase/functions/citizen-portal/index.ts',import.meta.url),'utf8'),context);
  return {db,api,users,sign,handler};
 }
 export async function startPreview(port=8776){

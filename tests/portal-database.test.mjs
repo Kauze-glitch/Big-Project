@@ -127,5 +127,5 @@ test('Service-only provisioning cannot target a project account',async()=>{
  const c=await save(),operation=randomUUID(),a=await service('select cd_account_prepare($1,$2,0,$3,false) doc',[c.id,ids.member1,operation]);await assert.rejects(service('select cd_account_finish($1,$2,$3,$4) doc',[a.id,ids.member1,operation,ids.member1]),/PROJECT_ACCOUNT_PROTECTED/);
 });
 test('Additive migrations can be rerun without deleting citizen data',async()=>{
- const before=(await db.query('select count(*)::int n from cd_cong_dan')).rows[0].n;for(const file of fs.readdirSync('supabase').filter(f=>/^20261101_\d+_/.test(f)).sort())await db.exec(fs.readFileSync('supabase/'+file,'utf8'));assert.equal((await db.query('select count(*)::int n from cd_cong_dan')).rows[0].n,before);
+ const before=(await db.query('select count(*)::int n from cd_cong_dan')).rows[0].n;for(const file of fs.readdirSync('supabase').filter(f=>/^20261101_\d+_/.test(f)).sort())await db.exec(fs.readFileSync('supabase/'+file,'utf8'));for(const file of fs.readdirSync('supabase/migrations').filter(f=>/^\d+_.*\.sql$/.test(f)).sort())await db.exec(fs.readFileSync('supabase/migrations/'+file,'utf8'));assert.equal((await db.query('select count(*)::int n from cd_cong_dan')).rows[0].n,before);assert.equal((await member('select cd_member_permissions() doc')).role,'admin');
 });

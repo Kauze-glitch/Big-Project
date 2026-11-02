@@ -16,7 +16,7 @@ async function body(req) {
  for(;;){const item=await reader.read();if(item.done)break;size+=item.value.byteLength;if(size>14000){await reader.cancel();throw new PortalError('INVALID_INPUT');}text+=decoder.decode(item.value,{stream:true});}
  try {const data=JSON.parse(text+decoder.decode());if(!data||Array.isArray(data)||typeof data!=='object')throw 0;return data;}catch{throw new PortalError('INVALID_INPUT');}
 }
-function safeCode(message,fallback='PORTAL_REQUEST_FAILED') {const names=['MEMBER_REQUIRED','ACCOUNT_CONFLICT','ACCOUNT_ALREADY_ISSUED','ACCOUNT_NOT_ISSUED','ACCOUNT_PROVISIONING_BUSY','ACCOUNT_OPERATION_EXPIRED','PROJECT_ACCOUNT_PROTECTED','ACCOUNT_IDENTITY_MISMATCH','CITIZEN_NOT_FOUND','ACCOUNT_LOCKED','OTP_COOLDOWN','SESSION_RESTART_REQUIRED','INVALID_CREDENTIALS'];return names.find(n=>String(message).includes(n))||fallback;}
+function safeCode(message,fallback='PORTAL_REQUEST_FAILED') {const names=['PERMISSION_DENIED','CITIZEN_SESSION_REQUIRED','MEMBER_REQUIRED','ACCOUNT_CONFLICT','ACCOUNT_ALREADY_ISSUED','ACCOUNT_NOT_ISSUED','ACCOUNT_PROVISIONING_BUSY','ACCOUNT_OPERATION_EXPIRED','PROJECT_ACCOUNT_PROTECTED','ACCOUNT_IDENTITY_MISMATCH','CITIZEN_NOT_FOUND','ACCOUNT_LOCKED','OTP_COOLDOWN','SESSION_RESTART_REQUIRED','INVALID_CREDENTIALS'];return names.find(n=>String(message).includes(n))||fallback;}
 async function handle(req) {
  if(req.method==='OPTIONS')return new Response(null,{status:204,headers:cors});
  if(req.method!=='POST')return response(405,{error:'METHOD_NOT_ALLOWED'});
@@ -35,14 +35,27 @@ async function handle(req) {
  async function rate(key,limit,seconds) {if(!await rpc('cd_rate_limit',{p_key:key,p_limit:limit,p_window_seconds:seconds}))throw new PortalError('TOO_MANY_REQUESTS',429);}
  async function issueChallenge(account,user,session,preAuth) {
   if(account.status!=='active')throw new PortalError('ACCOUNT_LOCKED',403);
+  const telegram=account.otpChannel==='telegram',gatewayToken=env('TELEGRAM_GATEWAY_TOKEN');
+  if(telegram&&(!gatewayToken||!/^\+[1-9][0-9]{6,14}$/.test(account.otpPhone||'')))throw new PortalError('TELEGRAM_NOT_CONFIGURED',503);
+  if(telegram)await rate('portal:telegram:daily',Math.max(1,Math.min(100,Number(env('TELEGRAM_DAILY_LIMIT'))||20)),86400);
   const challenge=crypto.randomUUID(),code=otpCode(),hashed=await digest(serviceKey,'otp:'+challenge+':'+session+':'+code);
   const data=await rpc('cd_issue_challenge',{p_account:account.accountId,p_auth_user:user.id,p_auth_session:session,p_challenge:challenge,p_otp_hash:hashed});
-  // This release is explicitly a fictional-data coursework flow. No message is sent or charged.
+  if(telegram){
+   let delivered=false,providerId=null;
+   try{
+    const sent=await fetch('https://gatewayapi.telegram.org/sendVerificationMessage',{method:'POST',signal:controller.signal,headers:{authorization:'Bearer '+gatewayToken,'Content-Type':'application/json'},body:JSON.stringify({phone_number:account.otpPhone,code,ttl:120,payload:challenge})});
+    const result=await sent.json();if(!sent.ok||!result.ok){const reason=String(result.error||'');throw new PortalError(/BALANCE|FUNDS/.test(reason)?'TELEGRAM_INSUFFICIENT_BALANCE':/PHONE|USER|NUMBER/.test(reason)?'TELEGRAM_UNAVAILABLE':'TELEGRAM_SEND_FAILED',503);}
+    if(typeof result.result?.request_id!=='string'||!result.result.request_id)throw new PortalError('TELEGRAM_SEND_FAILED',503);providerId=result.result.request_id;delivered=true;
+   }catch(error){if(error instanceof PortalError)throw error;throw new PortalError('TELEGRAM_SEND_FAILED',503);}
+   finally{await rpc('cd_challenge_delivery_result',{p_challenge:challenge,p_provider_request:providerId,p_success:delivered}).catch(()=>{});}
+   // Never expose the real code or silently fall back to demo mode.
+   return {...data,otpMode:'telegram',preAuth};
+  }
   return { ...data,otpMode:'demo',demoCode:code,preAuth };
  }
  try {
   const data=await body(req),action=data.action;
-  if(!['start','resend','verify','issue','reset-password'].includes(action))throw new PortalError('INVALID_ACTION');
+  if(!['start','resend','verify','issue','reset-password','change-password','telegram-status'].includes(action))throw new PortalError('INVALID_ACTION');
   const ip=req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()||req.headers.get('cf-connecting-ip')||'unknown';
   await rate('portal:ip:'+await digest(serviceKey,ip),60,600);
   if(action==='start') {
@@ -54,9 +67,27 @@ async function handle(req) {
    if(session.user?.id!==account.authUserId||!session.access_token||!session.refresh_token)throw new PortalError('INVALID_CREDENTIALS',401);
    const c=claims(session.access_token,session.user);
    const preAuth={access_token:session.access_token,refresh_token:session.refresh_token,expires_at:session.expires_at||Math.floor(Date.now()/1000)+(session.expires_in||3600)};
-   return response(200,await issueChallenge(account,session.user,c.session_id,preAuth));
+   try{return response(200,await issueChallenge(account,session.user,c.session_id,preAuth));}catch(error){await request('/auth/v1/logout?scope=local',{method:'POST',headers:{apikey:publicKey,authorization:'Bearer '+session.access_token}}).catch(()=>{});throw error;}
   }
   const bearer=req.headers.get('authorization')||'',token=/^Bearer (\S+)$/i.exec(bearer)?.[1],user=await authUser(token),c=claims(token,user);
+  if(action==='change-password'){
+   await rate('portal:password:'+user.id,8,3600);
+   if(typeof data.currentPassword!=='string'||!data.currentPassword||data.currentPassword.length>100||typeof data.password!=='string'||data.password.length<10||data.password.length>72||!/[A-Za-z]/.test(data.password)||!/[0-9]/.test(data.password))throw new PortalError('PASSWORD_POLICY');
+   if(data.currentPassword===data.password)throw new PortalError('PASSWORD_UNCHANGED');
+   const context=await rpc('cd_citizen_security_context',{},token);
+   if(!uuid(context?.accountId)||!context.email)throw new PortalError('CITIZEN_SESSION_REQUIRED',403);
+   const proof=await request('/auth/v1/token?grant_type=password',{method:'POST',headers:{apikey:publicKey,'Content-Type':'application/json'},body:JSON.stringify({email:context.email,password:data.currentPassword})});
+   if(!proof.ok)throw new PortalError('PASSWORD_CURRENT_INVALID',401);const proofSession=await proof.json();
+   try{
+    if(proofSession.user?.id!==user.id)throw new PortalError('PROJECT_ACCOUNT_PROTECTED',403);
+    const operation=crypto.randomUUID(),prepared=await rpc('cd_citizen_password_prepare',{p_operation:operation,p_expected_version:context.version},token);let success=false;
+    try{const changed=await request('/auth/v1/admin/users/'+user.id,{method:'PUT',headers:{apikey:serviceKey,authorization:'Bearer '+serviceKey,'Content-Type':'application/json'},body:JSON.stringify({password:data.password})});if(!changed.ok)throw new PortalError('PASSWORD_CHANGE_FAILED',503,{requiresRelogin:true});success=true;}
+    catch(error){if(error instanceof PortalError)throw error;throw new PortalError('PASSWORD_CHANGE_FAILED',503,{requiresRelogin:true});}
+    finally{await rpc('cd_citizen_password_finish',{p_account:prepared.accountId,p_user:user.id,p_operation:operation,p_success:success}).catch(()=>{});}
+    await request('/auth/v1/logout?scope=global',{method:'POST',headers:{apikey:publicKey,authorization:'Bearer '+token}}).catch(()=>{});
+    return response(200,{ok:true,requiresRelogin:true});
+   }finally{if(proofSession.access_token)await request('/auth/v1/logout?scope=local',{method:'POST',headers:{apikey:publicKey,authorization:'Bearer '+proofSession.access_token}}).catch(()=>{});}
+  }
   if(action==='resend'||action==='verify') {
    await rate('portal:verify:'+user.id,40,600);
    if(action==='resend') {
@@ -69,6 +100,8 @@ async function handle(req) {
    if(!result?.ok)return response(400,{error:result?.error||'OTP_INVALID',remaining:result?.remaining});return response(200,result);
   }
   if(!await rpc('cd_is_member',{},token))throw new PortalError('MEMBER_REQUIRED',403);
+  const permissions=await rpc('cd_member_permissions',{},token);if(!permissions?.capabilities?.includes('accounts.manage'))throw new PortalError('PERMISSION_DENIED',403);
+  if(action==='telegram-status')return response(200,{configured:!!env('TELEGRAM_GATEWAY_TOKEN'),dailyLimit:Math.max(1,Math.min(100,Number(env('TELEGRAM_DAILY_LIMIT'))||20))});
   await rate('portal:issue:'+user.id,30,600);
   if(!uuid(data.citizenId)||!uuid(data.operation)||!Number.isInteger(data.expectedVersion)||data.expectedVersion<0||typeof data.password!=='string'||data.password.length<10||data.password.length>72||!/[A-Za-z]/.test(data.password)||!/[0-9]/.test(data.password))throw new PortalError('PASSWORD_POLICY');
   const account=await rpc('cd_account_prepare',{p_citizen:data.citizenId,p_actor:user.id,p_expected_version:data.expectedVersion,p_operation:data.operation,p_reset:action==='reset-password'});

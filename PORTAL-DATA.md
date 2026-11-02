@@ -55,4 +55,18 @@ Cư trú cho nhập ngày hiệu lực đến hiện tại, không trước lầ
 
 Công dân có mục Giấy tờ của tôi và lịch sử cư trú/hộ của chính mình. Thành viên nhập/sửa/thu hồi giấy tờ có lý do và kiểm tra phiên bản. Số liệu thống kê tính mỗi người một lần theo tỉnh thường trú; hộ dùng mã duy nhất trong mỗi tỉnh, tạm trú báo riêng theo địa bàn tạm trú. CSV thống kê không chứa định danh/mật khẩu; đây là báo cáo dân cư, khác tệp báo cáo đề tài PDF/Word.
 
-OTP vẫn mô phỏng; không có tích hợp với dữ liệu hành chính quốc gia hay VNeID.
+Không có tích hợp với dữ liệu hành chính quốc gia hay VNeID. Các thay đổi tiếp theo xem phiên bản 4 dưới đây.
+
+## Nghiệp vụ phiên bản 4 (03/11/2026)
+
+Áp dụng `supabase/migrations/20261102164415_portal_completion.sql` sau 01–09, rồi deploy lại Edge Function citizen-portal. Đây là migration được tạo bằng Supabase CLI. Công cụ tái tạo phần định nghĩa kế thừa: `node scripts/build-completion-migration.mjs`.
+
+- Phân quyền nghiệp vụ lưu ở business_role, tách khỏi vai trò học tập/quyền biên soạn báo cáo. Bốn vai trò: admin, intake, processor, approver. Các tài khoản hiện tại giữ quyền đang có qua giá trị admin mặc định; người quản trị phân công tại **Phân quyền và bảo mật**. Mọi thao tác ghi đều kiểm tra capability tại RPC, bao gồm bước cấp tài khoản trên Edge; không chỉ ẩn nút. Không tự nâng quyền từ user_metadata. Chặn sửa phiên bản cũ và hạ quyền quản trị cuối cùng.
+- Tiếp nhận, xử lý và phê duyệt yêu cầu có quyền riêng. Người phê duyệt có thể áp dụng thay đổi từ yêu cầu đã kiểm tra dù không có quyền sửa hồ sơ trực tiếp. Giao diện ẩn thao tác theo quyền, cả khi bảng hoặc bảng chi tiết được dựng lại sau tải bất đồng bộ.
+- Công dân sau OTP có mục **Bảo mật tài khoản**: nhập mật khẩu hiện tại, mật khẩu mới và xác nhận. Máy chủ kiểm tra mật khẩu cũ, bảo vệ ba tài khoản dự án, thu hồi phiên xác thực cũ trước khi gọi Auth để tránh khoảng trống khi timeout; sau thay đổi phải đăng nhập/OTP lại. Quên mật khẩu được hướng dẫn liên hệ người phụ trách, không có mật khẩu dùng chung.
+- OTP theo từng tài khoản: mặc định demo, tùy chọn Telegram sau khi thành viên lưu số quốc tế riêng. Telegram số thật chỉ dùng cho nhận mã; các trường CCCD/điện thoại liên hệ trong hồ sơ vẫn giữ dữ liệu minh họa. Token chỉ đặt trong TELEGRAM_GATEWAY_TOKEN ở Supabase Secrets. Mặc định giới hạn 20 lần gửi mỗi 24 giờ trên toàn dự án, điều chỉnh bằng TELEGRAM_DAILY_LIMIT (1–100). Không gọi checkSendAbility trước để tránh một lần tính phí dư. Không trả OTP thật về trình duyệt, không ghi log, không tự đổi sang demo khi gửi thất bại. OTP 2 phút, gửi lại sau 30 giây, tối đa 5 lần sai. Cấu hình số nhận sẽ thu hồi phiên/challenge cũ. Xem TELEGRAM-OTP.md.
+- Thống kê có bộ lọc tỉnh thường trú, giới tính, nhóm tuổi; có biểu đồ, CSV tổng hợp và xem bản in/lưu PDF trong cùng tab. Tuổi được tính theo ngày sinh tại ngày thống kê; ngày chưa rõ được thống kê riêng. Không xuất tên/CCCD trong báo cáo thống kê. Đây là số liệu hiện tại, chưa có báo cáo hồi cứu theo mốc quá khứ.
+- Tra cứu hành chính gọi RPC dùng danh mục 63 tỉnh/thành tại mốc 31/12/2024, luôn trả simulation=true và ghi rõ nguồn nội bộ. Không gọi hoặc giả nhận kết nối dữ liệu quốc gia.
+- Quản trị viên xem danh mục bảng/tệp cần sao lưu, chỉ gồm số dòng/fingerprint/đường dẫn, không đọc nội dung hồ sơ qua danh mục này. Công cụ sao lưu PostgreSQL + Storage và thử phục hồi chỉ vào Supabase localhost dùng một lần nằm ở scripts/backup-portal.mjs; hướng dẫn ở BACKUP-RESTORE.md. Chưa có thông tin kết nối riêng hoặc môi trường khôi phục thì không tuyên bố đã tạo/thử một backup sản xuất.
+
+Kiểm thử bổ sung: các vai trò không được vượt quyền; chặn mất quản trị cuối; OTP Telegram với nhà cung cấp giả lập; thu hồi phiên sau đổi mật khẩu; lỗi gửi không lộ mã; lọc/thống kê/CSV/bản in; cấu hình số OTP qua UI; checksum, gói chưa hoàn chỉnh và chặn khôi phục vào production. Các bài thử không gửi tin Telegram thật và không thay đổi tài khoản sản xuất.
