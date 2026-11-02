@@ -16,7 +16,7 @@ const registrationEndpoint = "https://grhdawkxnrkgkahegnnd.supabase.co/functions
 
 document.documentElement.classList.add("js");
 
-const revealTargets = document.querySelectorAll(".manifesto h2, .manifesto p, .photo-frame, .signup-heading, .coupon, .footer-top");
+const revealTargets = document.querySelectorAll(".hero-copy, .hero-brand, .club-principles article, .signup-intro, .form-shell");
 revealTargets.forEach((element) => element.setAttribute("data-reveal", ""));
 if ("IntersectionObserver" in window) {
   const revealObserver = new IntersectionObserver((entries, observer) => {
