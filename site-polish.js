@@ -1,8 +1,7 @@
 'use strict';
 (() => {
  function syncMotionPreference(){let enabled=true;try{enabled=localStorage.getItem('nhom12-motion')!=='off';}catch{}document.documentElement.dataset.motion=enabled?'on':'off';}
- syncMotionPreference();
- window.addEventListener('storage',event=>{if(event.key==='nhom12-motion'||event.key===null)syncMotionPreference();});
+ if(!window.Nhom12Motion){syncMotionPreference();window.addEventListener('storage',event=>{if(event.key==='nhom12-motion'||event.key===null)syncMotionPreference();});}
  function floralFrame(surface){
   if(!document.body.hasAttribute('data-interface'))return;
   if([...surface.children].some(child=>child.classList.contains('floral-frame')))return;

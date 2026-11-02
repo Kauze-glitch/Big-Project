@@ -29,7 +29,7 @@
   }
   window.addEventListener('wheel',event=>{
     let enabled=true;
-    try{enabled=localStorage.getItem('nhom12-motion')!=='off';}catch{}
+    try{enabled=window.Nhom12Motion?window.Nhom12Motion.enabled():localStorage.getItem('nhom12-motion')!=='off';}catch{}
     if(!enabled||event.defaultPrevented||!event.cancelable||event.ctrlKey||event.metaKey||event.shiftKey||Math.abs(event.deltaX)>Math.abs(event.deltaY)||nativeArea(event.target)){
       stop();return;
     }

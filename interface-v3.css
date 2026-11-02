@@ -28,16 +28,9 @@
  body[data-interface] .btn.secondary:hover,body[data-interface] .btn.btn-quiet:hover,body[data-interface] .btn.ghost:hover{background:#e6eddf;color:#284a37;border-color:#a9bd9e}
  body[data-interface] .btn.danger:hover{background:#f8e7df;color:#81382c;border-color:#cfa697}
 
- /* Form dialogs retain native focus, cancel, close and cleanup semantics.
-    Modern browsers keep display/overlay during a short closing transition;
-    removed dialogs and older browsers close immediately, without JS delays. */
- body[data-interface] dialog[open]:not(.presentation-dialog):not(#pdf-dialog):not(.statistics-print-dialog){animation:interface-dialog-enter 180ms var(--ui-ease) both;transform-origin:center}
- @keyframes interface-dialog-enter{from{opacity:0;transform:translateY(6px) scale(.985)}to{opacity:1;transform:translateY(0) scale(1)}}
- @supports (transition-behavior:allow-discrete){
-  body[data-interface] dialog:not(.presentation-dialog):not(#pdf-dialog):not(.statistics-print-dialog){animation:none;opacity:0;transform:translateY(4px) scale(.99);transition:opacity 120ms ease-out,transform 120ms var(--ui-ease),display 120ms allow-discrete,overlay 120ms allow-discrete}
-  body[data-interface] dialog[open]:not(.presentation-dialog):not(#pdf-dialog):not(.statistics-print-dialog){animation:none;opacity:1;transform:translateY(0) scale(1);transition-duration:180ms}
-  @starting-style{body[data-interface] dialog[open]:not(.presentation-dialog):not(#pdf-dialog):not(.statistics-print-dialog){opacity:0;transform:translateY(6px) scale(.985)}}
- }
+ /* A shared JS engine handles entry consistently, including browsers without
+    discrete display transitions. Native dialog close/cancel/cleanup stays instant. */
+ html[data-motion-engine=js] body[data-interface] .arrive{animation:none!important}
  html[data-motion=off] body[data-interface] :is(dialog,.arrive){animation:none!important;transition:none!important}
 
  /* The same artwork belongs to every page shell, including top-layer slides.
@@ -164,6 +157,6 @@
   body[data-interface=portal] #record-dialog :is(.field input,.field select,.field textarea){font-size:16px}
   body[data-interface=report] .report-options{padding:20px}
  }
- @media(prefers-reduced-motion:reduce){body[data-interface] .arrive,body[data-interface] .btn,body[data-interface] .row-actions button{animation:none!important;transition:none!important;transform:none!important}}
+ @media(prefers-reduced-motion:reduce){html:not([data-motion-preference=on]) body[data-interface] .arrive,html:not([data-motion-preference=on]) body[data-interface] .btn,html:not([data-motion-preference=on]) body[data-interface] .row-actions button{animation:none!important;transition:none!important;transform:none!important}}
 }
 @media print{body[data-interface] .floral-frame{display:none!important}}
