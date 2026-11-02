@@ -47,7 +47,7 @@
     const template=document.createElement('template');template.innerHTML=result.html;
     const blocks=[],warnings=new Set(result.warnings);let html='',imageCount=0;
     const flush=()=>{const clean=A.sanitize(html);if(A.elText(clean).trim()||/<(?:table|hr)\b/.test(clean))blocks.push(A.textBlock(clean));html='';};
-    for(const node of template.content.childNodes){
+    for(const node of [...template.content.childNodes]){
       signal.throwIfAborted();
       if(node.nodeType===3){const p=A.el('p','',node.textContent);html+=p.outerHTML;continue;}
       if(node.nodeType!==1)continue;
@@ -64,7 +64,7 @@
         let image;
         if(raw.type==='image/gif'){
           const bitmap=await createImageBitmap(blob),canvas=document.createElement('canvas');
-          const ratio=Math.min(1,1600/bitmap.width,1600/bitmap.height);canvas.width=Math.max(1,Math.round(bitmap.width*ratio));canvas.height=Math.max(1,Math.round(bitmap.height*ratio));
+          const ratio=Math.min(1,2560/bitmap.width,2560/bitmap.height);canvas.width=Math.max(1,Math.round(bitmap.width*ratio));canvas.height=Math.max(1,Math.round(bitmap.height*ratio));
           canvas.getContext('2d').drawImage(bitmap,0,0,canvas.width,canvas.height);bitmap.close();
           const png=await new Promise(resolve=>canvas.toBlob(resolve,'image/png'));
           if(!png)throw new Error('Không chuyển được ảnh GIF trong tài liệu.');

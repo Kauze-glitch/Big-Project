@@ -27,6 +27,7 @@
       this.properties();
     }
     render(){
+      this.heightInput.querySelector('[data-custom]')?.remove();if(![...this.heightInput.options].some(o=>Number(o.value)===this.board.height)){const option=A.el('option','',this.board.height+' px');option.value=this.board.height;option.dataset.custom='true';this.heightInput.append(option);}this.heightInput.value=this.board.height;
       this.canvas.style.height=this.board.height+'px';this.svg.style.height=this.board.height+'px';this.svg.setAttribute('viewBox',`0 0 960 ${this.board.height}`);this.items.replaceChildren();this.edges();
       for(const image of this.board.images){const el=A.el('div','board-image');el.tabIndex=0;el.setAttribute('role','button');el.setAttribute('aria-label','Ảnh: '+(image.alt||'Minh họa'));el.dataset.id=image.id;const img=A.el('img');img.src=image.src;img.alt=image.alt;img.draggable=false;const handle=A.el('button','image-resize','↘');handle.type='button';handle.setAttribute('aria-label','Đổi kích thước ảnh');el.append(img,handle);this.position(el,image);this.bindMove(el,image,'image');this.bindResize(handle,el,image);this.items.append(el);}
       for(const node of this.board.nodes){const el=A.nodeElement(node,true);this.bindMove(el,node,'node');this.items.append(el);}
@@ -62,7 +63,7 @@
       }else{
         const input=field('Mô tả ảnh','text',item.alt,el=>{item.alt=el.value;const image=[...this.items.children].find(n=>n.dataset.id===item.id);image.querySelector('img').alt=item.alt;image.setAttribute('aria-label','Ảnh: '+item.alt);this.changed();});input.maxLength=180;
         const width=field('Chiều rộng ảnh','range',Math.round(item.w),el=>{const ratio=item.h/item.w;item.w=clamp(Number(el.value),60,Math.min(960-item.x,(this.board.height-item.y)/ratio));item.h=item.w*ratio;this.position([...this.items.children].find(n=>n.dataset.id===item.id),item);this.changed();});width.min=60;width.max=Math.min(960-item.x,(this.board.height-item.y)/(item.h/item.w));width.step=1;width.value=Math.round(item.w);
-        this.props.append(this.button('Căn trái',()=>{item.x=0;this.render();this.changed();}),this.button('Căn giữa',()=>{item.x=(960-item.w)/2;this.render();this.changed();}),this.button('Căn phải',()=>{item.x=960-item.w;this.render();this.changed();}));
+        this.props.append(this.button('Vừa chiều rộng',()=>{const ratio=item.h/item.w;item.w=Math.min(880,1520/ratio);item.h=item.w*ratio;item.x=(960-item.w)/2;item.y=40;this.board.height=Math.max(this.board.height,Math.ceil(item.h+80));this.heightInput.value=this.board.height;this.render();this.changed();}),this.button('Căn trái',()=>{item.x=0;this.render();this.changed();}),this.button('Căn giữa',()=>{item.x=(960-item.w)/2;this.render();this.changed();}),this.button('Căn phải',()=>{item.x=960-item.w;this.render();this.changed();}));
       }
     }
   }

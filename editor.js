@@ -67,7 +67,7 @@
         const area=A.el('div','writing-area');area.contentEditable='true';area.setAttribute('role','textbox');area.setAttribute('aria-multiline','true');area.setAttribute('aria-label','Nội dung khối '+(index+1));area.dataset.placeholder='Viết nội dung tại đây…';area.innerHTML=block.html;
         area.addEventListener('focus',()=>{activeId=block.id;});area.addEventListener('input',event=>{A.normalizeTyping(area,event);block.html=A.sanitize(area.innerHTML);change();});
         area.addEventListener('compositionend',event=>{A.normalizeTyping(area,{inputType:'insertText',data:event.data});block.html=A.sanitize(area.innerHTML);change();});
-        area.addEventListener('paste',event=>{event.preventDefault();const images=[...event.clipboardData.files].filter(f=>f.type.startsWith('image/'));if(images.length)processImages(images,captureIntent());else{const html=event.clipboardData.getData('text/html');document.execCommand(html?'insertHTML':'insertText',false,html?A.sanitize(html):event.clipboardData.getData('text/plain'));block.html=A.sanitize(area.innerHTML);change();}});
+        area.addEventListener('paste',event=>{event.preventDefault();if(!owns()||saving||uploading||discarding)return;const data=A.captureClipboard(event.clipboardData);if(A.clipboardHasImages(data)){const sel=getSelection();if(!sel.rangeCount)return;pasteWord(data,block.id,area,sel.getRangeAt(0).cloneRange());}else{document.execCommand(data.html?'insertHTML':'insertText',false,data.html?A.sanitize(data.html):data.text);block.html=A.sanitize(area.innerHTML);change();}});
         area.addEventListener('dragover',event=>{if(event.dataTransfer.types.includes('Files'))event.preventDefault();});area.addEventListener('drop',event=>{event.preventDefault();if(event.dataTransfer.files.length)processImages([...event.dataTransfer.files],{index:blocks.findIndex(b=>b.id===block.id)+1});});wrap.append(area);
       }else{
         wrap.addEventListener('pointerdown',()=>{activeId=block.id;selection=null;});const host=A.el('div','board-editor');wrap.append(host);new A.BoardEditor(host,block.board,change,()=>requestImages({boardId:block.id}));
@@ -91,6 +91,19 @@
     const added=[...$('content-blocks').querySelectorAll('.content-block')].find(el=>el.dataset.id===block.id);added?.scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth',block:'center'});if(block.type==='text')added?.querySelector('.writing-area').focus();
   }
   function requestImages(intent){if(!owns()||uploading)return;fileIntent={...intent,epoch};$('image-file').value='';$('image-file').click();}
+  async function pasteWord(data,blockId,area,range){
+    const token=epoch,version=revision,user=identity,original=area.innerHTML;uploading=true;authUI();status('Đang đọc văn bản và ảnh từ Word…');
+    try{
+      const result=await A.prepareClipboard(data);
+      if(token!==epoch||version!==revision||user!==A.user?.id||!owns()||!area.isConnected||area.innerHTML!==original)throw new Error('Nội dung hoặc tài khoản đã thay đổi. Hãy đặt lại con trỏ và dán lại.');
+      const next=A.spliceClipboard(blocks,result.blocks,blockId,area,range);
+      if(next.length>118||A.encode(next,A.decode(current.content).author).length>4500000)throw new Error('Trang vượt dung lượng cho phép. Hãy dán từng phần hoặc giảm kích thước ảnh.');
+      const previous=structuredClone(blocks),afterId=next[next.findIndex(b=>b.id===blockId)+result.blocks.length+1]?.id;blocks=next;selection=null;activeId=null;lastRemoved=null;$('undo-remove').hidden=true;renderBlocks();change();lastImport=previous;importUndo.hidden=false;saveDraft();
+      const tail=[...$('content-blocks').querySelectorAll('.content-block')].find(el=>el.dataset.id===afterId)?.querySelector('.writing-area');
+      if(tail){tail.focus();const caret=document.createRange();caret.selectNodeContents(tail);caret.collapse(true);const sel=getSelection();sel.removeAllRanges();sel.addRange(caret);selection={blockId:afterId,range:caret.cloneRange()};activeId=afterId;}
+      A.toast('Đã dán văn bản và '+result.imageCount+' ảnh vào bản nháp.'+(result.warnings.length?' '+result.warnings.join(' '):''));
+    }catch(error){A.toast(error.message||'Chưa dán được nội dung. Hãy thử nhập file .docx.');}finally{uploading=false;authUI();}
+  }
   async function processImages(files,intent){
     if(!owns()||uploading)return;const token=intent.epoch??epoch;uploading=true;authUI();status('Đang tối ưu ảnh…');
     try{
@@ -100,7 +113,8 @@
       let block=intent.boardId?blocks.find(b=>b.id===intent.boardId):null;
       if(intent.boardId&&!block)throw new Error('Bảng đã được xóa. Hãy chọn vị trí khác.');
       if(!block)block=A.visualBlock();if(block.board.images.length+images.length>30)throw new Error('Mỗi bảng hỗ trợ tối đa 30 ảnh.');
-      images.forEach((image,i)=>{image.x=Math.min(960-image.w,40+i*35);image.y=Math.min(block.board.height-image.h,40+i*35);block.board.images.push(image);});
+      block.board.height=Math.min(1600,Math.max(block.board.height,...images.map(image=>image.h+80)));
+      images.forEach((image,i)=>{image.x=Math.max(0,Math.min(960-image.w,40+i*35));image.y=Math.max(0,Math.min(block.board.height-image.h,40+i*35));block.board.images.push(image);});
       if(intent.boardId){renderBlocks();change();}else insert(block,intent);A.toast('Đã thêm ảnh. Kéo ảnh để bố trí và kéo góc ảnh để đổi kích thước.');
     }catch(error){A.toast(error.message);}finally{uploading=false;authUI();}
   }
@@ -115,11 +129,11 @@
     if(!area||!selection.range.startContainer.isConnected||!area.contains(selection.range.endContainer))return null;
     return {area,range:selection.range.cloneRange(),commit(){block.html=A.sanitize(area.innerHTML);const sel=getSelection();if(sel.rangeCount&&area.contains(sel.anchorNode)&&area.contains(sel.focusNode))selection={blockId:block.id,range:sel.getRangeAt(0).cloneRange()};change();}};
   });
-  importUndo=A.el('button','btn btn-quiet','↶ Hoàn tác nhập Word');importUndo.type='button';importUndo.hidden=true;
+  importUndo=A.el('button','btn btn-quiet','↶ Hoàn tác nhập / dán Word');importUndo.type='button';importUndo.hidden=true;
   document.querySelector('.editor-actionbar .action-group').prepend(importUndo);
   importUndo.onclick=()=>{
     if(!lastImport||!owns()||saving||uploading||discarding)return;
-    blocks=lastImport;lastImport=null;selection=null;activeId=null;renderBlocks();change();A.toast('Đã khôi phục nội dung trước khi nhập Word.');
+    blocks=lastImport;lastImport=null;selection=null;activeId=null;renderBlocks();change();A.toast('Đã khôi phục nội dung trước khi nhập / dán Word.');
   };
   A.initWordImport({
     allowed:()=>owns()&&!saving&&!uploading&&!discarding,

@@ -70,8 +70,8 @@
     const lines=[];for(const paragraph of String(text).split('\n')){let line='';for(const char of paragraph){if(ctx.measureText(line+char).width>width&&line){lines.push(line.trimEnd());line=char.trimStart();}else line+=char;}lines.push(line);}return lines;
   }
   R.boardImage=async input=>{
-    const board=A.cleanBoard(input),canvas=document.createElement('canvas');canvas.width=1920;canvas.height=board.height*2;
-    const ctx=canvas.getContext('2d');ctx.scale(2,2);ctx.fillStyle='#ffffff';ctx.fillRect(0,0,960,board.height);
+    const board=A.cleanBoard(input),bounds=A.boardBounds(board),canvas=document.createElement('canvas');canvas.width=Math.ceil(bounds.w*2);canvas.height=Math.ceil(bounds.h*2);
+    const ctx=canvas.getContext('2d');ctx.scale(2,2);ctx.translate(-bounds.x,-bounds.y);ctx.fillStyle='#ffffff';ctx.fillRect(bounds.x,bounds.y,bounds.w,bounds.h);
     for(const edge of board.edges){const a=board.nodes.find(n=>n.id===edge.from),b=board.nodes.find(n=>n.id===edge.to);if(!a||!b)continue;const dx=b.x-a.x,dy=b.y-a.y;if(!dx&&!dy)continue;const t=1/Math.max(Math.abs(dx)/88,Math.abs(dy)/40),x1=a.x+88+dx*t,y1=a.y+40+dy*t,x2=b.x+88-dx*t,y2=b.y+40-dy*t;ctx.strokeStyle='#70896d';ctx.lineWidth=1.7;ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();const angle=Math.atan2(y2-y1,x2-x1);ctx.fillStyle='#70896d';ctx.beginPath();ctx.moveTo(x2,y2);ctx.lineTo(x2-10*Math.cos(angle-.45),y2-10*Math.sin(angle-.45));ctx.lineTo(x2-10*Math.cos(angle+.45),y2-10*Math.sin(angle+.45));ctx.fill();}
     for(const item of board.images){const image=new Image();image.src=item.src;try{await image.decode();}catch{throw new Error('Có ảnh không đọc được. Hãy sửa hoặc thay ảnh đó rồi xuất lại.');}const scale=Math.min(item.w/image.naturalWidth,item.h/image.naturalHeight),w=image.naturalWidth*scale,h=image.naturalHeight*scale;ctx.drawImage(image,item.x+(item.w-w)/2,item.y+(item.h-h)/2,w,h);}
     for(const node of board.nodes){
@@ -79,7 +79,7 @@
       let size=16,lines;do{ctx.font=`${size}px Arial`;lines=wrapText(ctx,node.text||'Ý tưởng',156);if(lines.length*size*1.2<=64)break;size--;}while(size>8);
       ctx.fillStyle='#263c35';ctx.textAlign='center';ctx.textBaseline='middle';const lineHeight=size*1.2,start=node.y+40-(lines.length-1)*lineHeight/2;lines.forEach((line,i)=>ctx.fillText(line,node.x+88,start+i*lineHeight,156));
     }
-    const src=canvas.toDataURL('image/png');canvas.width=canvas.height=0;return {type:'image',src,width:960,height:board.height};
+    const src=canvas.toDataURL('image/png');canvas.width=canvas.height=0;return {type:'image',src,width:bounds.w,height:bounds.h};
   };
   R.prepare=async(sections,onProgress=()=>{})=>{
     const result=[];

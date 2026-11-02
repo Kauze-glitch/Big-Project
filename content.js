@@ -49,14 +49,32 @@
       return {...published,title,blocks,isDraft:true};
     }catch{return published;}
   };
+  A.boardBounds=board=>{
+    if(board.images.length!==1||board.nodes.length)return {x:0,y:0,w:960,h:board.height};
+    const image=board.images[0],x=Math.max(0,image.x-8),y=Math.max(0,image.y-8);
+    return {x,y,w:Math.min(960,image.x+image.w+8)-x,h:Math.min(board.height,image.y+image.h+8)-y};
+  };
   A.renderBoard=(board)=>{
-    const frame=A.el('div','visual-reader'),canvas=A.el('div','visual-canvas'),svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+    const frame=A.el('div','visual-reader'),viewport=A.el('div','visual-window'),canvas=A.el('div','visual-canvas'),svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
     canvas.style.height=board.height+'px';svg.id='edges-'+A.uid();svg.classList.add('diagram-edges');svg.style.height=board.height+'px';svg.setAttribute('viewBox',`0 0 960 ${board.height}`);canvas.append(svg);A.drawEdges(svg,board);
     for(const item of board.images){const img=A.el('img','board-image-read');img.src=item.src;img.alt=item.alt||'Ảnh minh họa';img.loading='lazy';Object.assign(img.style,{left:item.x+'px',top:item.y+'px',width:item.w+'px',height:item.h+'px'});canvas.append(img);}
     for(const node of board.nodes)canvas.append(A.nodeElement(node));
-    frame.append(canvas);
-    let ro=new ResizeObserver(()=>{if(!frame.isConnected){ro.disconnect();return;}const scale=frame.clientWidth/960;canvas.style.transform=`scale(${scale})`;frame.style.height=board.height*scale+'px';});ro.observe(frame);
-    frame.cleanup=()=>ro.disconnect();return frame;
+    const bounds=A.boardBounds(board),tools=A.el('div','visual-controls'),zoom=A.el('button','btn btn-quiet','Phóng to ảnh / sơ đồ');zoom.type='button';tools.append(A.el('span','','Ảnh / sơ đồ · Bấm phóng to để đọc chi tiết'),zoom);viewport.append(canvas);frame.append(tools,viewport);
+    const size=()=>{const scale=viewport.clientWidth/bounds.w;canvas.style.transform=`translate(${-bounds.x*scale}px,${-bounds.y*scale}px) scale(${scale})`;viewport.style.height=bounds.h*scale+'px';};
+    let dialog=null;zoom.onclick=()=>{
+      if(dialog?.open)return;
+      dialog=A.el('dialog','visual-zoom-dialog');
+      const head=A.el('div','visual-zoom-head'),stage=A.el('div','visual-zoom-stage'),space=A.el('div','visual-zoom-space'),copy=canvas.cloneNode(true),label=A.el('span','',''),edges=copy.querySelector('svg');let factor=1;
+      edges.id='zoom-'+A.uid();A.drawEdges(edges,board);for(const image of copy.querySelectorAll('img'))image.loading='eager';
+      const set=n=>{factor=Math.max(.2,Math.min(4,n));copy.style.transform=`translate(${-bounds.x*factor}px,${-bounds.y*factor}px) scale(${factor})`;space.style.width=bounds.w*factor+'px';space.style.height=bounds.h*factor+'px';label.textContent=Math.round(factor*100)+'%';};
+      for(const [text,action] of [['−',()=>set(factor/1.25)],['+',()=>set(factor*1.25)],['100%',()=>set(1)],['Vừa chiều rộng',()=>set((stage.clientWidth-32)/bounds.w)],['Đóng',()=>dialog.close()]]){
+        const b=A.el('button','btn btn-quiet',text);b.type='button';b.setAttribute('aria-label',text==='−'?'Thu nhỏ':text==='+'?'Phóng to':text);b.onclick=action;head.append(b);
+      }
+      head.append(label);copy.style.position='absolute';space.append(copy);stage.append(space);dialog.append(head,stage);dialog.setAttribute('aria-label','Xem ảnh và sơ đồ phóng to');document.body.append(dialog);
+      dialog.addEventListener('close',()=>{dialog.remove();dialog=null;zoom.focus();},{once:true});dialog.showModal();set(Math.max(1,(stage.clientWidth-32)/bounds.w));
+    };
+    let ro=new ResizeObserver(()=>{if(!frame.isConnected){ro.disconnect();return;}size();});ro.observe(frame);
+    frame.cleanup=()=>{ro.disconnect();dialog?.close();};return frame;
   };
   A.renderBlocks=(parent,blocks)=>{
     for(const block of blocks){
@@ -69,10 +87,10 @@
     if(file.size>15*1024*1024)throw new Error('Ảnh quá lớn. Hãy chọn ảnh dưới 15 MB.');
     const url=URL.createObjectURL(file),img=new Image();
     try{
-      img.src=url;await img.decode();const ratio=Math.min(1,1600/img.naturalWidth,1600/img.naturalHeight),canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(img.naturalWidth*ratio));canvas.height=Math.max(1,Math.round(img.naturalHeight*ratio));
+      img.src=url;await img.decode();const ratio=Math.min(1,2560/img.naturalWidth,2560/img.naturalHeight),canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(img.naturalWidth*ratio));canvas.height=Math.max(1,Math.round(img.naturalHeight*ratio));
       canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
-      const src=canvas.toDataURL('image/webp',.82);if(!A.safeImage(src))throw new Error('Ảnh quá lớn sau khi tối ưu. Hãy chọn ảnh nhỏ hơn.');
-      const scale=Math.min(400/canvas.width,340/canvas.height,1);
+      let src=canvas.toDataURL(file.type==='image/png'?'image/png':'image/webp',.94);if(!A.safeImage(src))src=canvas.toDataURL('image/webp',.9);if(!A.safeImage(src))throw new Error('Ảnh quá lớn sau khi tối ưu. Hãy chọn ảnh nhỏ hơn.');
+      const scale=Math.min(880/canvas.width,1400/canvas.height,1);
       return {id:A.uid(),src,alt:file.name.replace(/\.[^.]+$/,''),x:40,y:40,w:Math.round(canvas.width*scale),h:Math.round(canvas.height*scale)};
     }finally{URL.revokeObjectURL(url);}
   };
