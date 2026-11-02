@@ -20,6 +20,8 @@
  const Repository={
   mode:'cloud',get storageWarning(){return false;},today(){const d=new Date();return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');},
   configured:()=>API.json('/rest/v1/rpc/cd_portal_status',{}),hasCitizenSession:()=>!!session&&Date.parse(session.verifiedUntil)>Date.now(),
+  // UI continuity key only; all authorization still uses the existing RPC/session checks.
+  viewIdentity:()=>session&&Date.parse(session.verifiedUntil)>Date.now()&&session.citizenId?'citizen:'+session.citizenId:null,
   async loadMember(){const owner=checkMember();if(memberTask?.owner===owner)return memberTask.promise;const task={owner,promise:null};task.promise=(async()=>{const data=await API.memberRpc('cd_member_bundle');if(owner!==API.memberId()||!readyMember())throw API.problem('SESSION_CHANGED');memberOwner=owner;memberData=data;return clone(data);})().finally(()=>{if(memberTask===task)memberTask=null;});memberTask=task;return task.promise;},
   list(){checkMember();return clone(memberData.records);},get(id){if(readyMember()&&memberOwner===API.memberId())return clone(memberData.records.find(r=>r.id===id)||null);return own?.record?.id===id?clone(own.record):null;},
   events(){checkMember();return clone(memberData.events);},units(){checkMember();return clone(memberData.units);},staff(){checkMember();return clone(memberData.staff);},requests(member=false){if(member)checkMember();return clone(member?memberData.requests:own?.requests||[]);},

@@ -111,6 +111,19 @@
  body[data-interface=portal] :is(.login-card .tabs button,.login-card .steps,.login-card .form-foot){font-size:14px;line-height:1.7}
  body[data-interface=portal] .login-card .btn{font-size:15px;min-height:50px}
  body[data-interface=portal] .arrive{animation:interface-arrive 220ms var(--ui-ease) both}
+ #portal-app #portal-main{transition:filter 160ms ease-out,opacity 160ms ease-out}
+ #portal-app[aria-busy=true] #portal-main{filter:blur(2.5px);opacity:.55;pointer-events:none;user-select:none}
+ .portal-load-shell{max-width:1200px;margin:30px auto 60px;padding:24px 32px;min-height:440px}
+ .portal-skeleton .skeleton-title{width:40%;height:32px;border-radius:8px;background:#d5dfcf;margin-bottom:20px}
+ .portal-skeleton .skeleton-line{width:65%;height:14px;border-radius:5px;background:#e1e8da;margin-bottom:32px}
+ .skeleton-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
+ .skeleton-stats i{height:100px;border:1px solid #d0dcc7;border-radius:11px;background:#e7eddf}
+ .skeleton-panel{border:1px solid #d0dcc7;border-radius:11px;background:#fffefb;padding:24px;display:grid;gap:22px}
+ .skeleton-panel i{display:block;height:18px;border-radius:5px;background:#e4ebdd}.skeleton-panel i:last-child{width:70%}
+ .portal-load-status{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);padding:12px 16px;border:1px solid #c5d3bd;border-radius:30px;background:#fffefb;box-shadow:0 5px 18px #253b3010;z-index:90;pointer-events:none}
+ .load-dots{display:flex;gap:6px}.load-dots i{width:6px;height:6px;border-radius:50%;background:#52754d;animation:portal-load-dot 900ms ease-in-out infinite alternate}.load-dots i:nth-child(2){animation-delay:150ms}.load-dots i:nth-child(3){animation-delay:300ms}
+ @keyframes portal-load-dot{from{opacity:.35}to{opacity:1}}
+ html[data-motion=off] #portal-app #portal-main{transition:none}html[data-motion=off] .load-dots i{animation:none}
  @keyframes interface-arrive{from{opacity:.45;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
  body[data-interface=portal]:has(:focus-visible) .arrive{animation:none}
 
