@@ -1,5 +1,14 @@
 import test from 'node:test';import assert from 'node:assert/strict';import vm from 'node:vm';import fs from 'node:fs';import writeXlsxFile from 'write-excel-file/universal';import {readSheet} from 'read-excel-file/node';
 const window={};vm.runInNewContext(fs.readFileSync('portal-reference.js','utf8'),{window});vm.runInNewContext(fs.readFileSync('portal-transfer.js','utf8'),{window,TextDecoder,DataView,Uint8Array,Map,Set,Blob,Date,structuredClone});const T=window.PortalTransfer;
+
+test('Contact emails survive CSV and XLSX import; invalid email is reported on its row',async()=>{
+ for(const email of ['minh.an+doan@gmail.com','sv@school.edu.vn','+alias@outlook.com','-alias@company.com','']){
+  const record={...T.example(),email},rows=T.rowsFromMatrix(T.parseCSV(T.csv([record])));assert.equal(rows[0].data.email,email);assert.equal(rows[0].localErrors.length,0);
+ }
+ const record={...T.example(),email:'import+test@gmail.com'},blob=await writeXlsxFile(T.matrix([record]).map(row=>row.map(value=>({type:String,value})))).toBlob();
+ assert.equal(T.rowsFromMatrix(await readSheet(Buffer.from(await blob.arrayBuffer()),1))[0].data.email,record.email);
+ for(const email of ['bad email','a@domain','a@@gmail.com','a@-domain.com','a..b@gmail.com','a'.repeat(95)+'@gmail.com'])assert(T.rowsFromMatrix(T.matrix([{...record,email}]))[0].localErrors.some(e=>e.includes('email')));
+});
 test('CSV handles BOM, quoted separators, multiline fields, semicolon and invalid quoting',()=>{assert.deepEqual(JSON.parse(JSON.stringify(T.parseCSV('\uFEFFTên;Địa chỉ\r\n"Nguyễn An";"12, Đường A\nPhường B"'))),[['Tên','Địa chỉ'],['Nguyễn An','12, Đường A\nPhường B']]);assert.throws(()=>T.parseCSV('"a'),/chưa đóng/);assert.throws(()=>T.parseCSV('a"b,c'),/không hợp lệ/);});
 test('Header aliases normalize accents; leading zeros are preserved and numeric identifiers flagged',()=>{const source=[['Số CCCD','Họ và tên','Ngày sinh','Giới tính','Số điện thoại','Địa chỉ','Khu vực','Tỉnh/thành'],['000000000901','Nguyễn An','15/08/2002','nam','0000000901','12 đường mẫu','Phường Mẫu A','Hà Nội']],rows=T.rowsFromMatrix(source);assert.equal(rows[0].data.cccd,'000000000901');assert.equal(rows[0].data.dob,'2002-08-15');assert.equal(rows[0].data.gender,'Nam');assert.equal(rows[0].localErrors.length,0);source[1][0]=901;assert(rows[0].localErrors.length===0);assert(T.rowsFromMatrix(source)[0].localErrors.length>0);assert.throws(()=>T.rowsFromMatrix([['Số CCCD','Mật khẩu'],['000000000001','secret']]),/Không hỗ trợ/);});
 test('Merge accepts sparse columns; new records require all mandatory headers',()=>{const m=[['Số CCCD','Nghề nghiệp'],['000000000901','Sinh viên']];assert.equal(T.rowsFromMatrix(m,'merge')[0].data.occupation,'Sinh viên');assert.throws(()=>T.rowsFromMatrix(m),/Thiếu cột/);});

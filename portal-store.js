@@ -60,7 +60,7 @@
     if (!['Nam','Nữ','Khác'].includes(r.gender)) throw new Error('Vui lòng chọn giới tính.');
     if (!/^(?:\d{10}|\+[1-9]\d{6,14})$/.test(r.phone)) throw new Error('Số điện thoại cần 10 chữ số hoặc dạng quốc tế có dấu + và mã nước.');
     if (r.email.length>100) throw new Error('Địa chỉ email tối đa 100 ký tự.');
-    if (r.email && !/^[^\s@]+@example\.invalid$/.test(r.email)) throw new Error('Địa chỉ email minh họa phải sử dụng đuôi @example.invalid.');
+    if (r.email && !/^[A-Za-z0-9_%+-]+([.][A-Za-z0-9_%+-]+)*@[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?([.][A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+$/.test(r.email)) throw new Error('Vui lòng nhập địa chỉ email hợp lệ.');
     if (!['Phường Mẫu A','Phường Mẫu B','Phường Mẫu C'].includes(r.ward)) throw new Error('Vui lòng chọn khu vực trong danh sách.');
     if (!r.address || r.address.length > 200 || r.occupation.length > 100) throw new Error('Địa chỉ cần từ 1–200 ký tự; nghề nghiệp tối đa 100 ký tự.');
     for(const key of ['nationality','ethnicity','religion','hometown','birthplace','birthRegistration','maritalStatus','temporaryAddress','currentAddress','householdCode','householdHead','householdRelation']) {

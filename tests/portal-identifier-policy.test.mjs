@@ -20,4 +20,31 @@ test('Provisioning, login, resend and verified profile access work for an identi
 test('Import preview and commit share the broadened formats and reject duplicate identifiers atomically',async()=>{
  const rows=[{row:2,data:record({cccd:'234567890123',phone:'+12025550123'})}],preview=await member('select cd_import_preview($1,$2) as d',[JSON.stringify(rows),'create']);assert.equal(preview[0].error,null);const result=await member('select cd_import_commit($1,$2,$3,$4,false) as d',[JSON.stringify(rows),'create','import-new-prefix.csv',randomUUID()]);assert.equal(result.created,1);const duplicate=await member('select cd_import_preview($1,$2) as d',[JSON.stringify(rows),'create']);assert.equal(duplicate[0].error,'DUPLICATE_IDENTIFIER');assert.equal((await member('select cd_portal_status() as d')).fictionalOnly,false);
 });
+test('Contact email accepts ordinary providers, plus aliases and optional empty values without changing Auth or OTP settings',async()=>{
+ const authBefore=(await db.query('select id,email,raw_user_meta_data,raw_app_meta_data from auth.users order by id')).rows;
+ const accountsBefore=(await db.query('select * from cd_tai_khoan_cong_dan order by id')).rows;
+ for(const [i,email] of ['minhan@gmail.com','Minh.An+doan@outlook.com','sinhvien@sv.university.edu.vn','legacy@example.invalid',''].entries()){
+  const cccd='34567890123'+i,r=await member('select cd_save_record($1) as d',[JSON.stringify(record({cccd,email:'  '+email+'  '}))]);assert.equal(r.email,email);
+  const bundle=await member('select cd_member_bundle() as d');assert.equal(bundle.records.find(c=>c.id===r.id).email,email);
+ }
+ assert.deepEqual((await db.query('select id,email,raw_user_meta_data,raw_app_meta_data from auth.users order by id')).rows,authBefore);
+ assert.deepEqual((await db.query('select * from cd_tai_khoan_cong_dan order by id')).rows,accountsBefore);
+ const row=await member('select cd_save_record($1) as d',[JSON.stringify(record({cccd:'456789012345',email:'initial@gmail.com'}))]);
+ for(const email of ['missing-at','a@@gmail.com','a b@gmail.com','a@domain','a@-domain.com','a@domain..com','a..b@gmail.com','<a>@gmail.com']){
+  await assert.rejects(member('select cd_save_record($1,$2) as d',[JSON.stringify({...row,email}),row.rowVersion]),/INVALID_CONTACT_EMAIL/);
+  await assert.rejects(db.query('update cd_cong_dan set email_lien_he=$1 where id=$2',[email,row.id]),/cd_profile_text_bounds/);
+ }
+ await assert.rejects(member('select cd_save_record($1,$2) as d',[JSON.stringify({...row,email:'a'.repeat(95)+'@gmail.com'}),row.rowVersion]),/FIELD_TOO_LONG/);
+ assert.equal((await member('select cd_member_bundle() as d')).records.find(r=>r.id===row.id).email,'initial@gmail.com');
+ assert.equal((await member('select cd_portal_status() as d')).contactEmailPolicy,'optional-valid-email');
+});
+
+test('Import validates contact email in preview and saves it with the same policy as manual entry',async()=>{
+ const rows=[{row:2,data:record({cccd:'567890123456',email:'nhom12+import@gmail.com'})}];
+ assert.equal((await member('select cd_import_preview($1,$2) as d',[JSON.stringify(rows),'create']))[0].error,null);
+ const result=await member('select cd_import_commit($1,$2,$3,$4,false) as d',[JSON.stringify(rows),'create','contact-email.csv',randomUUID()]);assert.equal(result.created,1);
+ assert.equal((await member('select cd_member_bundle() as d')).records.find(r=>r.cccd==='567890123456').email,rows[0].data.email);
+ const bad=[{row:2,data:record({cccd:'567890123457',email:'invalid email'})}];assert.equal((await member('select cd_import_preview($1,$2) as d',[JSON.stringify(bad),'create']))[0].error,'INVALID_CONTACT_EMAIL');
+ await assert.rejects(member('select cd_import_commit($1,$2,$3,$4,false) as d',[JSON.stringify(bad),'create','invalid-email.csv',randomUUID()]),/IMPORT_HAS_ERRORS/);
+});
 test.after(()=>db.close());

@@ -44,6 +44,12 @@
   },true);
   for(const name of ['input','change'])form.addEventListener(name,event=>{if(event.target.matches('input,select,textarea'))clear(event.target);error.textContent='';});
   for(const input of form.querySelectorAll('[name=cccd],[name=phone],[name=email]'))input.spellcheck=false;
+  const email=get('email');
+  if(email){
+   const validateEmail=()=>email.setCustomValidity(window.PortalTransfer.validEmail(email.value)?'':'Vui lòng nhập địa chỉ email hợp lệ (tối đa 100 ký tự).');
+   email.addEventListener('input',validateEmail);email.addEventListener('change',validateEmail);
+   email.addEventListener('blur',()=>{email.value=email.value.trim();validateEmail();});validateEmail();
+  }
  }
  window.PortalInterface=Object.freeze({bindRecord});
 })();

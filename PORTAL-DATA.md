@@ -19,7 +19,7 @@ Website giữ nguyên GitHub Pages; dữ liệu, phân quyền và lịch sử �
 3. Hàm sử dụng biến Supabase tích hợp (`SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEYS` / `SUPABASE_ANON_KEY`, `SUPABASE_SECRET_KEYS` / `SUPABASE_SERVICE_ROLE_KEY`). Không đưa secret vào JavaScript của website, repo, nội dung báo cáo hoặc log.
 4. Đưa các tệp frontend lên GitHub Pages sau khi backend đã sẵn sàng. Không tự tải dữ liệu cũ từ localStorage. Thành viên chọn **Nhập / xuất dữ liệu → Chuyển hồ sơ cũ từ trình duyệt**, xem trước rồi xác nhận. Mật khẩu dùng chung và trạng thái tài khoản cũ không được chuyển; cấp riêng từng tài khoản sau nhập.
 
-CCCD cần đủ 12 chữ số, không giới hạn tiền tố. Số liên hệ nhận 10 chữ số hoặc dạng quốc tế có dấu + và mã nước. Dữ liệu cũ bắt đầu bằng 000 vẫn giữ nguyên và sử dụng được. Email hồ sơ hiện vẫn dùng @example.invalid; nên dùng dữ liệu thử nghiệm cho đồ án.
+CCCD cần đủ 12 chữ số, không giới hạn tiền tố. Số liên hệ nhận 10 chữ số hoặc dạng quốc tế có dấu + và mã nước. Dữ liệu cũ bắt đầu bằng 000 vẫn giữ nguyên và sử dụng được. Email liên hệ có thể để trống hoặc dùng địa chỉ hợp lệ (Gmail, Outlook, email cơ quan…), tối đa 100 ký tự. Email chỉ được lưu để liên hệ, không thay đổi tài khoản đăng nhập và chưa được xác minh hộp thư; OTP vẫn qua Telegram theo cấu hình tài khoản. Địa chỉ @example.invalid cũ vẫn dùng được.
 
 ## Kiểm tra
 

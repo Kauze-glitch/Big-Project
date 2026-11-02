@@ -45,6 +45,12 @@ test('Card expires on the local day instead of remaining active until UTC midnig
 test('Overlong email is rejected before it can invalidate all saved records',()=>{
  const R=repo(),old=R.get('demo-1');assert.throws(()=>R.save({...fields(old),email:'a'.repeat(501)+'@example.invalid'},old.id),/100/);assert.equal(R.list().length,12);assert.equal(R.get(old.id).email,old.email);
 });
+
+test('Legacy profile accepts real contact email and retains it after reload',()=>{
+ const R=repo(),old=R.get('demo-1'),saved=R.save({...fields(old),email:'minh.an+doan@gmail.com'},old.id);assert.equal(saved.email,'minh.an+doan@gmail.com');
+ assert.equal(repo({records:R.list(),events:[]}).get(saved.id).email,saved.email);
+ assert.throws(()=>R.save({...fields(saved),email:'a@-domain.com'},saved.id),/email hợp lệ/);
+});
 test('Account issue-lock-unlock flow persists and duplicate or invalid dates never overwrite records',()=>{
  const R=repo(),original=R.get('demo-1');assert.throws(()=>R.checkLogin('000000000005','demo123'),/chưa được cấp/);assert.throws(()=>R.checkLogin(original.cccd,'bad'),/không chính xác/);
  assert.throws(()=>R.save(fields(original)),/đã tồn tại/);assert.throws(()=>R.save({...fields(original),dob:'2000-02-31'},original.id),/Ngày sinh/);
