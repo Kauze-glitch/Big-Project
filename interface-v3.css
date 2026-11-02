@@ -28,6 +28,23 @@
  body[data-interface] .btn.secondary:hover,body[data-interface] .btn.btn-quiet:hover,body[data-interface] .btn.ghost:hover{background:#e6eddf;color:#284a37;border-color:#a9bd9e}
  body[data-interface] .btn.danger:hover{background:#f8e7df;color:#81382c;border-color:#cfa697}
 
+ /* The same artwork belongs to every page shell, including top-layer slides.
+    The frame never participates in layout or captures an interaction. */
+ body[data-interface]::before{content:none}
+ body[data-interface] .floral-frame{position:fixed;inset:0;z-index:110;pointer-events:none;opacity:.65;filter:saturate(.7);user-select:none}
+ body[data-interface] .floral-frame::after{content:'';position:absolute;inset:5px;border:1px solid #a8b48a;border-radius:18px;pointer-events:none}
+ body[data-interface] .floral-frame span{position:absolute;background-image:url('floral-frame.png');background-repeat:no-repeat;pointer-events:none}
+ body[data-interface] .floral-frame .floral-tl{top:0;left:0;width:82px;height:45px;background-size:250px 167px;background-position:top left;mask-image:radial-gradient(ellipse at top left,#000 60%,transparent 100%)}
+ body[data-interface] .floral-frame .floral-tr{top:0;right:0;width:40px;height:52px;background-size:220px 147px;background-position:top right;mask-image:radial-gradient(ellipse at top right,#000 60%,transparent 100%)}
+ body[data-interface] .floral-frame .floral-bl{bottom:0;left:0;width:55px;height:65px;background-size:240px 160px;background-position:bottom left;mask-image:radial-gradient(ellipse at bottom left,#000 60%,transparent 100%)}
+ body[data-interface] .floral-frame .floral-br{bottom:0;right:0;width:105px;height:62px;background-size:280px 187px;background-position:bottom right;mask-image:radial-gradient(ellipse at bottom right,#000 60%,transparent 100%)}
+ body[data-interface] .presentation-panel{position:relative;isolation:isolate}
+ body[data-interface] .presentation-panel>.floral-frame{position:absolute;z-index:4}
+ @media(min-width:761px){
+  body[data-interface] .presentation-header{padding-inline:100px 64px}
+  body[data-interface] .presentation-footer{padding-inline:80px 120px}
+ }
+
  /* Report pages: the subject and team stay prominent; ornament sits at edges. */
  body:is([data-interface=project],[data-interface=editor]) .floral-frame{opacity:.6}
  body:is([data-interface=project],[data-interface=editor]) .floral-tl{width:82px;height:45px;background-size:250px 167px}
@@ -137,3 +154,4 @@
  }
  @media(prefers-reduced-motion:reduce){body[data-interface] .arrive,body[data-interface] .btn,body[data-interface] .row-actions button{animation:none!important;transition:none!important;transform:none!important}}
 }
+@media print{body[data-interface] .floral-frame{display:none!important}}

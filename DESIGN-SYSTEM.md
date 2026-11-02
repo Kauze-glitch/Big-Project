@@ -12,6 +12,7 @@ Mục tiêu: đọc báo cáo thuận tiện, tìm đúng hồ sơ và thực hi
 - Danh mục quản lý thu gọn trên điện thoại, mở bằng nút, đóng bằng Escape hoặc sau chọn mục. Khách và công dân không được thêm danh mục thành viên.
 - Khối nhập liệu dùng lỗi cạnh ô. Thông tin trống và số 0 giữ ý nghĩa; số liệu lấy từ dữ liệu hiện tại, không thêm chỉ số minh họa.
 - Chuyển trang cổng công dân dùng opacity/translate ngắn 220 ms; tôn trọng giảm chuyển động. Hoa trang trí nhỏ ở góc, không che vùng nội dung.
+- Viền hoa được dùng trên cả sáu trang, kể cả cổng công dân, database và trang xuất báo cáo. Trình chiếu có khung riêng bên trong vùng toàn màn hình. Khung là trang trí, không nhận chuột hay focus và không đưa vào bản in.
 
 ## Hướng dẫn tham khảo đã áp dụng
 

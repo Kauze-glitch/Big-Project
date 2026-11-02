@@ -1,5 +1,17 @@
 'use strict';
 (() => {
+ function floralFrame(surface){
+  if(!document.body.hasAttribute('data-interface'))return;
+  if([...surface.children].some(child=>child.classList.contains('floral-frame')))return;
+  const frame=document.createElement('div');frame.className='floral-frame';frame.setAttribute('aria-hidden','true');
+  for(const corner of ['tl','tr','bl','br']){const leaf=document.createElement('span');leaf.className='floral-'+corner;frame.append(leaf);}
+  surface.append(frame);
+ }
+ floralFrame(document.body);
+ // Native modal/fullscreen surfaces paint above the body decoration. Keep a
+ // frame inside the presentation panel so both windowed and fullscreen work.
+ for(const panel of document.querySelectorAll('.presentation-panel'))floralFrame(panel);
+ document.addEventListener('fullscreenchange',()=>{const panel=document.fullscreenElement;if(panel?.matches('.presentation-panel'))floralFrame(panel);});
  function reportNavigation(){
  const sidebar=document.querySelector('.sidebar');
  if(!sidebar)return;
