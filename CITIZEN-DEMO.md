@@ -1,3 +1,5 @@
+> Tài liệu lưu trữ của bản demo cục bộ cũ. Website hiện tại dùng đăng nhập và dữ liệu máy chủ; xem [PORTAL-DATA.md](PORTAL-DATA.md) để biết định dạng và nghiệp vụ mới. Các mật khẩu mẫu bên dưới không áp dụng cho hệ thống hiện tại.
+
 # Citizen UI prototype
 
 This is a coursework UI demonstration for the Nhóm 12 coursework. It does not grant project membership, create Supabase users, send Telegram messages or verify identity.

@@ -38,7 +38,7 @@
    for(let parent=el.parentElement;parent&&parent!==form;parent=parent.parentElement)if(parent.tagName==='DETAILS')parent.open=true;
    const message=document.createElement('small');message.className='field-error';message.id='record-error-'+el.name;
    const label=el.closest('.field').querySelector('span')?.textContent.replace(/\s*\*$/,'')||'thông tin này';
-   message.textContent=el.validity.customError?el.validationMessage:el.validity.valueMissing?`Vui lòng ${el.tagName==='SELECT'?'chọn':'nhập'} ${label.toLowerCase()}.`:el.name==='cccd'?'Số CCCD cần đủ 12 chữ số và bắt đầu bằng 000.':el.name==='phone'?'Số điện thoại cần đủ 10 chữ số và bắt đầu bằng 000.':el.type==='email'?'Vui lòng nhập địa chỉ email hợp lệ.':`Vui lòng kiểm tra ${label.toLowerCase()}.`;
+   message.textContent=el.validity.customError?el.validationMessage:el.validity.valueMissing?`Vui lòng ${el.tagName==='SELECT'?'chọn':'nhập'} ${label.toLowerCase()}.`:el.name==='cccd'?'Số CCCD cần đúng 12 chữ số.':el.name==='phone'?'Số điện thoại cần 10 chữ số hoặc dạng quốc tế có dấu + và mã nước.':el.type==='email'?'Vui lòng nhập địa chỉ email hợp lệ.':`Vui lòng kiểm tra ${label.toLowerCase()}.`;
    el.closest('.field').append(message);el.setAttribute('aria-describedby',[(el.getAttribute('aria-describedby')||''),message.id].filter(Boolean).join(' '));
    if(!firstInvalid){firstInvalid=el;queueMicrotask(()=>{firstInvalid?.focus();firstInvalid=null;});}
   },true);

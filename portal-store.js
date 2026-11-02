@@ -30,7 +30,7 @@
       if (!Array.isArray(data.records) || !Array.isArray(data.events) || data.records.length > 1000) throw new Error();
       const ids = new Set(), numbers = new Set();
       for (const r of data.records) {
-        if (!r || typeof r.id !== 'string' || ids.has(r.id) || numbers.has(r.cccd) || !/^000\d{9}$/.test(r.cccd) || !states.includes(r.account)) throw new Error();
+        if (!r || typeof r.id !== 'string' || ids.has(r.id) || numbers.has(r.cccd) || !/^\d{12}$/.test(r.cccd) || !states.includes(r.account)) throw new Error();
         for (const key of ['name','dob','gender','phone','email','address','ward','occupation','updatedAt']) if (typeof r[key] !== 'string' || r[key].length > 500) throw new Error();
         ids.add(r.id); numbers.add(r.cccd);
       }
@@ -53,12 +53,12 @@
     const r = {};
     for (const key of ['name','cccd','dob','gender','phone','email','address','ward','occupation']) r[key] = String(input[key] || '').trim();
     if (r.name.length < 2 || r.name.length > 80) throw new Error('Họ và tên phải có từ 2 đến 80 ký tự.');
-    if (!/^000\d{9}$/.test(r.cccd)) throw new Error('Số CCCD minh họa phải gồm 12 chữ số, bắt đầu bằng 000.');
+    if (!/^\d{12}$/.test(r.cccd)) throw new Error('Số CCCD phải gồm đúng 12 chữ số.');
     if (records.some(x => x.id !== existing?.id && x.cccd === r.cccd)) throw new Error('Số CCCD đã tồn tại trong danh sách hồ sơ.');
     const date = new Date(r.dob + 'T00:00:00Z');
     if (!/^\d{4}-\d{2}-\d{2}$/.test(r.dob) || !Number.isFinite(+date) || date.toISOString().slice(0, 10) !== r.dob || r.dob < '1900-01-01' || r.dob > today()) throw new Error('Ngày sinh không hợp lệ. Vui lòng kiểm tra lại.');
     if (!['Nam','Nữ','Khác'].includes(r.gender)) throw new Error('Vui lòng chọn giới tính.');
-    if (!/^000\d{7}$/.test(r.phone)) throw new Error('Số điện thoại minh họa phải gồm 10 chữ số, bắt đầu bằng 000.');
+    if (!/^(?:\d{10}|\+[1-9]\d{6,14})$/.test(r.phone)) throw new Error('Số điện thoại cần 10 chữ số hoặc dạng quốc tế có dấu + và mã nước.');
     if (r.email.length>100) throw new Error('Địa chỉ email tối đa 100 ký tự.');
     if (r.email && !/^[^\s@]+@example\.invalid$/.test(r.email)) throw new Error('Địa chỉ email minh họa phải sử dụng đuôi @example.invalid.');
     if (!['Phường Mẫu A','Phường Mẫu B','Phường Mẫu C'].includes(r.ward)) throw new Error('Vui lòng chọn khu vực trong danh sách.');

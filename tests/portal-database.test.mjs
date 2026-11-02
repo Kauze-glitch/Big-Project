@@ -23,7 +23,7 @@ test('Members share persisted records and conflicting updates do not overwrite a
  const bundle=await member('select cd_member_bundle() doc',[],ids.member3);assert.equal(bundle.records.find(r=>r.id===c.id).occupation,next.occupation);
 });
 test('Invalid identity, duplicate identity and invalid dates leave the original data unchanged',async()=>{
- const c=await save();await assert.rejects(save({cccd:c.cccd}),/DUPLICATE_IDENTIFIER/);await assert.rejects(save({cccd:'123456789012'}),/FICTIONAL_IDENTIFIER/);await assert.rejects(save({dob:'2026-02-31'}),/INVALID_BIRTH_DATE/);await assert.rejects(save({email:'a@real.com'}),/FICTIONAL_EMAIL/);
+ const c=await save();await assert.rejects(save({cccd:c.cccd}),/DUPLICATE_IDENTIFIER/);await assert.rejects(save({cccd:'12345678901'}),/INVALID_IDENTIFIER/);await assert.rejects(save({dob:'2026-02-31'}),/INVALID_BIRTH_DATE/);await assert.rejects(save({email:'a@real.com'}),/FICTIONAL_EMAIL/);
 });
 test('Changing household head retains both role intervals and conflicts with stale edits to the previous head',async()=>{
  let a=await save();a=await member('select cd_save_record($1,$2) doc',[JSON.stringify({...a,householdCode:'HO-TEST-HEAD',householdRelation:'chu_ho',householdHeadId:a.id}),a.rowVersion]);const b=await save({householdCode:'HO-TEST-HEAD',householdRelation:'con',householdHeadId:a.id});

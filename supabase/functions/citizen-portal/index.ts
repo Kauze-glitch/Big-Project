@@ -61,7 +61,7 @@ async function handle(req) {
   const ip=req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()||req.headers.get('cf-connecting-ip')||'unknown';
   await rate('portal:ip:'+await digest(serviceKey,ip),60,600);
   if(action==='start') {
-   if(typeof data.cccd!=='string'||!/^000[0-9]{9}$/.test(data.cccd)||typeof data.password!=='string'||data.password.length<1||data.password.length>100)throw new PortalError('INVALID_CREDENTIALS',401);
+   if(typeof data.cccd!=='string'||!/^[0-9]{12}$/.test(data.cccd)||typeof data.password!=='string'||data.password.length<1||data.password.length>100)throw new PortalError('INVALID_CREDENTIALS',401);
    await rate('portal:login:'+await digest(serviceKey,data.cccd),12,600);
    const account=await rpc('cd_auth_lookup',{p_cccd:data.cccd});if(!account?.email||!uuid(account.authUserId))throw new PortalError('INVALID_CREDENTIALS',401);
    const signed=await request('/auth/v1/token?grant_type=password',{method:'POST',headers:{apikey:publicKey,'Content-Type':'application/json'},body:JSON.stringify({email:account.email,password:data.password})});
@@ -93,7 +93,7 @@ async function handle(req) {
   if(action==='resend'||action==='verify') {
    await rate('portal:verify:'+user.id,40,600);
    if(action==='resend') {
-    if(typeof data.cccd!=='string'||!/^000[0-9]{9}$/.test(data.cccd))throw new PortalError('INVALID_INPUT');
+    if(typeof data.cccd!=='string'||!/^[0-9]{12}$/.test(data.cccd))throw new PortalError('INVALID_INPUT');
     const account=await rpc('cd_auth_lookup',{p_cccd:data.cccd});if(!account||account.authUserId!==user.id)throw new PortalError('INVALID_CREDENTIALS',401);
     return response(200,await issueChallenge(account,user,c.session_id,null));
    }

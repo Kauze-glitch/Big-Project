@@ -5,7 +5,7 @@ Website giữ nguyên GitHub Pages; dữ liệu, phân quyền và lịch sử �
 ## Chức năng
 
 - Thành viên: thêm/sửa hồ sơ, cấp mật khẩu riêng, khóa/mở khóa tài khoản, lập hộ và xử lý yêu cầu công dân.
-- Công dân: CCCD + mật khẩu → mã OTP mô phỏng ngẫu nhiên → chỉ xem hồ sơ và yêu cầu của mình. Chưa có gửi SMS/Telegram; không kết nối VNeID hoặc dữ liệu quốc gia.
+- Công dân: CCCD + mật khẩu → OTP theo kênh tài khoản (mô phỏng hoặc Telegram) → chỉ xem hồ sơ và yêu cầu của mình. Không kết nối VNeID hoặc dữ liệu quốc gia.
 - Yêu cầu: Nháp → Đã gửi → Đã tiếp nhận → Đang xử lý → Hoàn thành/Từ chối; có nhánh Cần bổ sung và hủy có lý do. Áp dụng thay đổi vào hồ sơ là lựa chọn duyệt riêng, có kiểm tra phiên bản.
 - Nhập `.xlsx` / CSV: sheet đầu tiên, tối đa 500 dòng/10 MB; xem trước, kiểm tra trùng, lỗi từng dòng, chế độ thêm hoặc thêm/cập nhật. Mặc định giao dịch nguyên khối; nhập một phần phải chọn rõ. Mã đợt bảo vệ thao tác thử lại khỏi tạo trùng.
 - Xuất Excel/CSV theo bộ lọc hoặc toàn bộ. CCCD và điện thoại là chuỗi để giữ số 0 đầu; không xuất mật khẩu, OTP hoặc quyền.
@@ -19,7 +19,7 @@ Website giữ nguyên GitHub Pages; dữ liệu, phân quyền và lịch sử �
 3. Hàm sử dụng biến Supabase tích hợp (`SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEYS` / `SUPABASE_ANON_KEY`, `SUPABASE_SECRET_KEYS` / `SUPABASE_SERVICE_ROLE_KEY`). Không đưa secret vào JavaScript của website, repo, nội dung báo cáo hoặc log.
 4. Đưa các tệp frontend lên GitHub Pages sau khi backend đã sẵn sàng. Không tự tải dữ liệu cũ từ localStorage. Thành viên chọn **Nhập / xuất dữ liệu → Chuyển hồ sơ cũ từ trình duyệt**, xem trước rồi xác nhận. Mật khẩu dùng chung và trạng thái tài khoản cũ không được chuyển; cấp riêng từng tài khoản sau nhập.
 
-Chỉ dùng CCCD giả lập 12 số bắt đầu `000`, điện thoại 10 số bắt đầu `000`, email `@example.invalid`. Không nhập dữ liệu cư dân thật vào bản đồ án.
+CCCD cần đủ 12 chữ số, không giới hạn tiền tố. Số liên hệ nhận 10 chữ số hoặc dạng quốc tế có dấu + và mã nước. Dữ liệu cũ bắt đầu bằng 000 vẫn giữ nguyên và sử dụng được. Email hồ sơ hiện vẫn dùng @example.invalid; nên dùng dữ liệu thử nghiệm cho đồ án.
 
 ## Kiểm tra
 
@@ -74,3 +74,9 @@ Kiểm thử bổ sung: các vai trò không được vượt quyền; chặn m�
 ## Chỉnh sửa nhập số Telegram (03/11/2026)
 
 Sau migration phiên bản 4, chạy thêm supabase/migrations/20261102174930_normalize_telegram_phone.sql. Giao diện và RPC cùng chuẩn hóa số Việt Nam dạng 09…, +849… và +8409… có thừa số 0; bỏ khoảng trắng/dấu định dạng, không tự điền chữ số bị thiếu. Không đổi các số đã lưu trong migration. Phân biệt thiếu token, token bị nhà cung cấp từ chối và số nhận không hợp lệ; có nút kiểm tra lại cấu hình ngay trong form, giữ nội dung đang nhập khi lỗi. Token không xuất hiện trong trạng thái trả về. Nhóm đã xác nhận nhận OTP Telegram thật; các bài thử tự động vẫn dùng nhà cung cấp giả lập.
+
+## Định dạng căn cước và số liên hệ (03/11/2026)
+
+Chạy supabase/migrations/20261102190014_flexible_citizen_identifiers.sql sau các migration trước, deploy Edge Function rồi cập nhật frontend. Phiên bản schema 5 cho phép CCCD bất kỳ đủ 12 chữ số, kể cả bắt đầu 0 hoặc 1–9; vẫn giữ UNIQUE và kiểm tra phiên bản. Điện thoại liên hệ nhận 10 chữ số với tiền tố bất kỳ, hoặc dạng quốc tế có dấu + và 7–15 chữ số. Số nhận Telegram giữ cơ chế và chuẩn hóa riêng. Migration không đổi dữ liệu hồ sơ, mật khẩu, quyền hoặc số OTP đã lưu.
+
+Đã đồng bộ form thêm/sửa, đăng nhập, cấp tài khoản, gửi lại mã, nhập tệp và kho cục bộ cũ. CSV xuất số quốc tế có dấu nháy bảo vệ công thức; khi nhập lại chỉ bỏ dấu nháy ở cột định danh/điện thoại nếu phần còn lại khớp đúng định dạng, không bỏ bảo vệ ở dữ liệu tùy ý. Ô định danh trong Excel vẫn cần kiểu Text để giữ chính xác chữ số đầu.
