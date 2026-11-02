@@ -15,7 +15,7 @@
     <form class="login-card" data-login-form>
       <img src="/assets/zyro-logo.webp" alt="ZYRO Volleyball Club" width="420" height="288">
       <div>
-        <h1>Quản trị ZYRO</h1>
+        <div class="login-title" role="heading" aria-level="1">Quản trị ZYRO</div>
         <p>Duyệt đăng ký và điều chỉnh nội dung website.</p>
       </div>
       <label>
@@ -49,12 +49,22 @@
 
     <main class="admin-main">
       <header class="admin-topbar">
-        <div>
+        <div class="topbar-heading">
           <h1 data-screen-title>Đăng ký</h1>
-          <span data-updated>Đang tải dữ liệu…</span>
+          <div class="topbar-meta">
+            <span data-updated>Đang tải dữ liệu…</span>
+            <span class="sync-status" data-sync-status aria-live="polite"></span>
+            <span class="change-indicator" data-change-indicator hidden></span>
+          </div>
         </div>
-        <a href="/" target="_blank" rel="noreferrer">Xem trang public</a>
+        <div class="topbar-actions">
+          <button class="secondary-button refresh-button" type="button" data-refresh>Đồng bộ</button>
+          <button class="secondary-button logout-mobile" type="button" data-logout>Thoát</button>
+          <a href="/" target="_blank" rel="noreferrer">Xem trang public</a>
+        </div>
       </header>
+
+      <div class="toast-region" data-toast-region aria-live="polite" aria-relevant="additions text"></div>
 
       <section class="screen" data-screen="registrations">
         <div class="screen-title-row">
@@ -62,14 +72,13 @@
             <h2>Đăng ký thành viên</h2>
             <p>Duyệt nhanh những bạn đã hoàn thành form.</p>
           </div>
-          <button class="secondary-button" type="button" data-refresh>Đồng bộ</button>
         </div>
 
-        <div class="status-tabs" role="tablist" aria-label="Trạng thái đăng ký">
-          <button class="is-active" type="button" data-status-filter="all">Tất cả <span data-count-status="all">0</span></button>
-          <button type="button" data-status-filter="new">Chờ duyệt <span data-count-status="new">0</span></button>
-          <button type="button" data-status-filter="approved">Đã duyệt <span data-count-status="approved">0</span></button>
-          <button type="button" data-status-filter="rejected">Từ chối <span data-count-status="rejected">0</span></button>
+        <div class="status-tabs" role="group" aria-label="Lọc trạng thái đăng ký">
+          <button class="is-active" type="button" data-status-filter="all" aria-pressed="true">Tất cả <span data-count-status="all">0</span></button>
+          <button type="button" data-status-filter="new" aria-pressed="false">Chờ duyệt <span data-count-status="new">0</span></button>
+          <button type="button" data-status-filter="approved" aria-pressed="false">Đã duyệt <span data-count-status="approved">0</span></button>
+          <button type="button" data-status-filter="rejected" aria-pressed="false">Từ chối <span data-count-status="rejected">0</span></button>
         </div>
 
         <div class="registration-toolbar">
@@ -128,8 +137,21 @@
             <h2>Giao diện & nội dung</h2>
             <p>Thay lịch sân, người liên hệ, nội dung và lựa chọn form mà không cần sửa code.</p>
           </div>
-          <button class="primary-button" type="button" data-save-config>Lưu thay đổi</button>
+          <div class="settings-actions">
+            <button class="secondary-button" type="button" data-revert-config disabled>Hoàn tác</button>
+            <button class="primary-button" type="button" data-save-config disabled>Lưu thay đổi</button>
+          </div>
         </div>
+        <section class="change-tracker" data-change-tracker aria-live="polite" aria-atomic="true">
+          <div class="change-tracker-header">
+            <div>
+              <strong data-change-summary>Chưa có thay đổi chưa lưu</strong>
+              <p data-change-hint>Cấu hình đã đồng bộ với website public.</p>
+            </div>
+            <span class="change-count" data-change-count>0</span>
+          </div>
+          <ul class="change-list" data-change-list hidden></ul>
+        </section>
         <p class="save-status" data-save-status aria-live="polite"></p>
 
         <div class="settings-stack">
@@ -216,6 +238,17 @@
     </main>
   </div>
 
+  <dialog class="confirm-dialog" data-confirm-dialog aria-labelledby="confirm-title" aria-describedby="confirm-message">
+    <div class="confirm-dialog-content">
+      <h2 id="confirm-title" data-confirm-title>Tiếp tục?</h2>
+      <p id="confirm-message" data-confirm-message></p>
+      <div class="confirm-actions">
+        <button class="secondary-button" type="button" data-confirm-cancel>Hủy</button>
+        <button class="danger-button" type="button" data-confirm-accept>Tiếp tục</button>
+      </div>
+    </div>
+  </dialog>
+
   <div class="detail-backdrop" data-detail-backdrop hidden></div>
   <aside class="detail-drawer" data-detail-drawer hidden role="dialog" aria-modal="true" aria-labelledby="detail-title">
     <header class="detail-header">
@@ -260,4 +293,3 @@
   <script src="/admin.js" type="module"></script>
 </body>
 </html>
-
