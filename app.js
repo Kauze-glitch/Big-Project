@@ -6,14 +6,15 @@
   try{motion=localStorage.getItem('nhom12-motion')!=='off';}catch{}
   function animatePage(){
     pageAnimation?.cancel();
-    if(!motion)return;
+    pageAnimation=null;
+    if(!motion||window.matchMedia?.('(prefers-reduced-motion: reduce)').matches||!$('page-view').animate)return;
     pageAnimation=$('page-view').animate([
-      {opacity:0,transform:'translateY(24px)',filter:'blur(2px)'},
+      {opacity:.3,transform:'translateY(12px)',filter:'blur(1.2px)'},
       {opacity:1,transform:'translateY(0)',filter:'blur(0)'}
-    ],{duration:380,easing:'cubic-bezier(.22,.68,.18,1)'});
+    ],{duration:240,easing:'cubic-bezier(.23,1,.32,1)'});
   }
   const motionButton=A.el('button','btn btn-quiet');
-  function motionLabel(){motionButton.textContent=motion?'Chuyển động: Bật':'Chuyển động: Tắt';motionButton.setAttribute('aria-pressed',String(motion));}
+  function motionLabel(){motionButton.textContent=motion?'Chuyển động: Bật':'Chuyển động: Tắt';motionButton.setAttribute('aria-pressed',String(motion));document.documentElement.dataset.motion=motion?'on':'off';}
   motionLabel();motionButton.title='Bật hoặc tắt cuộn mượt và hiệu ứng chuyển trang';
   motionButton.onclick=()=>{window.Nhom12Scroll?.stop();motion=!motion;try{localStorage.setItem('nhom12-motion',motion?'on':'off');}catch{}motionLabel();if(motion)animatePage();else pageAnimation?.cancel();};
   document.querySelector('.header-actions').prepend(motionButton);

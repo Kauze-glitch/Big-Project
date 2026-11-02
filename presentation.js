@@ -30,7 +30,7 @@
     picker.replaceChildren();slides.forEach((s,i)=>{const b=A.el('button','presentation-dot',String(i+1));b.type='button';b.title=s.title;b.setAttribute('aria-label','Phần '+(i+1)+': '+s.title);b.setAttribute('aria-current',i===index?'step':'false');b.onclick=()=>go(i);picker.append(b);});
     live.textContent='Phần '+(index+1)+' trên '+slides.length+': '+slide.title;
     let motion=!matchMedia('(prefers-reduced-motion: reduce)').matches;try{if(localStorage.getItem('nhom12-motion')==='off')motion=false;}catch{}
-    if(motion)article.animate([{opacity:0,transform:'translateY(20px)'},{opacity:1,transform:'translateY(0)'}],{duration:300,easing:'ease-out'});
+    if(motion)article.animate?.([{opacity:.3,transform:'translateY(12px)',filter:'blur(1.2px)'},{opacity:1,transform:'translateY(0)',filter:'blur(0)'}],{duration:220,easing:'cubic-bezier(.23,1,.32,1)'});
   }
   function go(to){if(to<0||to>=slides.length||to===index)return;index=to;draw();viewport.focus({preventScroll:true});}
   async function prepare(token){
