@@ -22,13 +22,13 @@
   <main id="top">
     <section class="hero">
       <div class="hero-copy">
-        <h1>Chơi vui.<br>Tiến bộ.</h1>
-        <p class="hero-lead">Một sân chơi lâu dài cho người mới và những bạn muốn đánh bóng trong không khí thoải mái, hòa đồng, không đặt nặng thắng — thua.</p>
+        <h1><span data-config="hero.titleLine1">Chơi vui.</span><br><span data-config="hero.titleLine2">Tiến bộ.</span></h1>
+        <p class="hero-lead" data-config="hero.lead">Một sân chơi lâu dài cho người mới và những bạn muốn đánh bóng trong không khí thoải mái, hòa đồng, không đặt nặng thắng — thua.</p>
         <div class="hero-actions">
           <a class="button button-primary" href="#signup">Bắt đầu đăng ký</a>
-          <div class="schedule" aria-label="Lịch sân">
-            <strong>T7 & CN</strong>
-            <span>18:30 — 21:30</span>
+          <div class="schedule" data-schedule aria-label="Lịch sân">
+            <div class="schedule-slot"><strong>T7</strong><span>18:30 — 21:30</span></div>
+            <div class="schedule-slot"><strong>CN</strong><span>18:30 — 21:30</span></div>
           </div>
         </div>
       </div>
@@ -42,7 +42,7 @@
       </div>
     </section>
 
-    <section class="club-principles" aria-label="Tinh thần nhóm">
+    <section class="club-principles" data-principles aria-label="Tinh thần nhóm">
       <article>
         <div>
           <h2>Newbie-first</h2>
@@ -65,8 +65,8 @@
 
     <section class="signup-section" id="signup" aria-labelledby="signup-title">
       <div class="signup-intro">
-        <h2 id="signup-title">4 câu. Khoảng 1 phút.</h2>
-        <p>Tụi mình dùng thông tin này để hiểu bạn hơn trước khi duyệt vào nhóm. Không phải phỏng vấn, cứ trả lời đúng với bạn là được.</p>
+        <h2 id="signup-title" data-config="signup.title">4 câu. Khoảng 1 phút.</h2>
+        <p data-config="signup.intro">Tụi mình dùng thông tin này để hiểu bạn hơn trước khi duyệt vào nhóm. Không phải phỏng vấn, cứ trả lời đúng với bạn là được.</p>
       </div>
 
       <div class="form-shell" data-form-shell>
@@ -89,7 +89,7 @@
             <span data-step-title>Tên Zalo</span>
           </div>
 
-          <p class="privacy-note">Thông tin chỉ dùng cho việc duyệt thành viên ZYRO.</p>
+          <p class="privacy-note" data-config="signup.privacyNote">Thông tin chỉ dùng cho việc duyệt thành viên ZYRO.</p>
         </aside>
 
         <form class="join-form" id="join-form" novalidate>
@@ -106,7 +106,7 @@
           <fieldset class="form-step" data-step="1">
             <legend>Bạn dự định tham gia trong bao lâu?</legend>
             <p class="helper">ZYRO ưu tiên những bạn muốn sinh hoạt và chơi cùng nhóm lâu dài.</p>
-            <div class="choice-stack" role="radiogroup" aria-label="Thời gian dự định tham gia">
+            <div class="choice-stack" data-options="duration" role="radiogroup" aria-label="Thời gian dự định tham gia">
               <label class="choice"><input type="radio" name="duration" value="long"><span><strong>Lâu dài</strong><small>Muốn sinh hoạt cùng nhóm thường xuyên</small></span></label>
               <label class="choice"><input type="radio" name="duration" value="unsure"><span><strong>Muốn trải nghiệm trước</strong><small>Chưa xác định, muốn thử vài buổi</small></span></label>
               <label class="choice"><input type="radio" name="duration" value="short"><span><strong>Ngắn hạn</strong><small>Chủ yếu tham gia giao lưu một vài buổi</small></span></label>
@@ -120,7 +120,7 @@
 
             <div class="selector-group">
               <span class="field-label">Giới tính</span>
-              <div class="segmented">
+              <div class="segmented" data-options="gender">
                 <label><input type="radio" name="gender" value="male"><span>Nam</span></label>
                 <label><input type="radio" name="gender" value="female"><span>Nữ</span></label>
               </div>
@@ -129,7 +129,7 @@
 
             <div class="selector-group">
               <span class="field-label">Vị trí chơi</span>
-              <div class="segmented segmented-wrap">
+              <div class="segmented segmented-wrap" data-options="position">
                 <label><input type="radio" name="position" value="attacker"><span>Công</span></label>
                 <label><input type="radio" name="position" value="defender"><span>Thủ</span></label>
                 <label><input type="radio" name="position" value="setter"><span>Chuyền 2</span></label>
@@ -140,7 +140,7 @@
 
             <div class="selector-group">
               <span class="field-label">Trình độ</span>
-              <div class="segmented segmented-wrap">
+              <div class="segmented segmented-wrap" data-options="level">
                 <label><input type="radio" name="level" value="newbie"><span>Người mới</span></label>
                 <label><input type="radio" name="level" value="intermediate"><span>Trung bình</span></label>
                 <label><input type="radio" name="level" value="good"><span>Tốt</span></label>
@@ -166,9 +166,9 @@
 
         <section class="success-panel" data-success hidden tabindex="-1" aria-labelledby="success-title">
           <div class="success-icon" aria-hidden="true">✓</div>
-          <h3 id="success-title">Hẹn gặp bạn trên sân.</h3>
-          <p>Bước cuối: chủ động nhắn Zalo cho một trong hai admin và ghi <strong>“Mình đã hoàn thành form đăng ký ZYRO”</strong> để tụi mình check nhanh nhé.</p>
-          <div class="admin-links">
+          <h3 id="success-title" data-config="signup.successTitle">Hẹn gặp bạn trên sân.</h3>
+          <p data-config="signup.successMessage">Bước cuối: chủ động nhắn Zalo cho một trong các admin và ghi “Mình đã hoàn thành form đăng ký ZYRO” để tụi mình check nhanh nhé.</p>
+          <div class="admin-links" data-contacts>
             <a class="admin-link" href="https://zalo.me/0836000190" target="_blank" rel="noreferrer"><span>Anh Nguyễn</span><strong>0836 000 190</strong></a>
             <a class="admin-link" href="https://zalo.me/0364964897" target="_blank" rel="noreferrer"><span>Long</span><strong>0364 964 897</strong></a>
           </div>
