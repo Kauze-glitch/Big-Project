@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ZYRO Admin — Đăng ký</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700&family=Barlow:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/admin.css">
+</head>
+<body>
+  <main>
+    <header><div><p>ZYRO / ADMIN</p><h1>Danh sách đăng ký</h1></div><button type="button" data-refresh>Làm mới</button></header>
+    <section class="toolbar" aria-label="Bộ lọc"><input type="search" data-search placeholder="Tìm tên Zalo..."><select data-filter><option value="all">Tất cả trạng thái</option><option value="new">Chờ duyệt</option><option value="approved">Đã duyệt</option><option value="rejected">Từ chối</option></select></section>
+    <p class="status" data-status aria-live="polite"></p>
+    <section class="list" data-list></section>
+  </main>
+  <script src="/admin.js" type="module"></script>
+</body>
+</html>
