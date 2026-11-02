@@ -165,20 +165,27 @@ a { color: inherit; }
 }
 
 .schedule {
-  display: grid;
-  gap: 1px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px 18px;
   padding-left: 20px;
   border-left: 2px solid var(--line);
 }
 
-.schedule strong {
+.schedule-slot {
+  display: grid;
+  gap: 1px;
+  min-width: 92px;
+}
+
+.schedule-slot strong {
   color: var(--navy);
   font-family: var(--font-display);
   font-size: 1.5rem;
   line-height: 1;
 }
 
-.schedule span {
+.schedule-slot span {
   color: var(--muted);
   font-size: 14px;
   font-weight: 500;
@@ -233,7 +240,7 @@ a { color: inherit; }
 
 .club-principles {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   width: min(1320px, calc(100% - 40px));
   margin: 0 auto;
   background: #eaf0f7;
@@ -765,6 +772,7 @@ textarea {
 
   .hero-actions .button { width: 100%; }
   .schedule { padding: 0 0 0 14px; }
+  .schedule-slot { min-width: 110px; }
 
   .hero-brand {
     min-height: 300px;
