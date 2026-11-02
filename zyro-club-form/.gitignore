@@ -1,0 +1,6 @@
+node_modules/
+.env
+.data/
+.taste-skill/before/
+.taste-skill/after/
+npm-debug.log*
