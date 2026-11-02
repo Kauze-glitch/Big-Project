@@ -1,6 +1,9 @@
 /* Shared screen UI. Authored documents, diagram geometry and print output keep
    their own styles. Desktop portal: 1440 - 64 gutters - 224 nav - 28 gap = 1124. */
 @media screen {
+ html[data-motion=on]{scroll-behavior:smooth}
+ html[data-motion=on] body[data-interface] :is(.presentation-viewport,.dialog-body,.table-wrap,.table-scroll,.list,.ai-messages){scroll-behavior:smooth}
+ html[data-motion=off],html[data-motion=off] body[data-interface] :is(.presentation-viewport,.dialog-body,.table-wrap,.table-scroll,.list,.ai-messages){scroll-behavior:auto!important}
  body[data-interface]{
   --ui-ink:#253b30;--ui-muted:#53644f;--ui-accent:#315443;
   --ui-ground:#f2f4ed;--ui-paper:#fffefb;--ui-line:#ccd7c5;
