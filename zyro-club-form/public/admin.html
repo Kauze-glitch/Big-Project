@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f7fa">
+  <title>ZYRO Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/admin.css">
+</head>
+<body>
+  <section class="login-view" data-login-view>
+    <form class="login-card" data-login-form>
+      <img src="/assets/zyro-logo.webp" alt="ZYRO Volleyball Club" width="420" height="288">
+      <div>
+        <h1>Quản trị ZYRO</h1>
+        <p>Duyệt đăng ký và điều chỉnh nội dung website.</p>
+      </div>
+      <label>
+        <span>Tên đăng nhập</span>
+        <input name="username" autocomplete="username" value="zyro" required>
+      </label>
+      <label>
+        <span>Mật khẩu</span>
+        <input name="password" type="password" autocomplete="current-password" required>
+      </label>
+      <p class="login-status" data-login-status aria-live="polite"></p>
+      <button class="primary-button" type="submit">Đăng nhập</button>
+    </form>
+  </section>
+
+  <div class="admin-shell" data-admin-shell hidden>
+    <aside class="admin-sidebar">
+      <div class="admin-brand">
+        <img src="/assets/zyro-logo.webp" alt="ZYRO Volleyball Club" width="420" height="288">
+        <div><strong>ZYRO Club</strong><span>Admin</span></div>
+      </div>
+      <nav class="admin-nav" aria-label="Quản trị">
+        <button type="button" class="is-active" data-nav="registrations">Đăng ký</button>
+        <button type="button" data-nav="settings">Giao diện & nội dung</button>
+      </nav>
+      <div class="sidebar-actions">
+        <a href="/" target="_blank" rel="noreferrer">Mở website</a>
+        <button type="button" data-logout>Đăng xuất</button>
+      </div>
+    </aside>
+
+    <main class="admin-main">
+      <header class="admin-topbar">
+        <div>
+          <h1 data-screen-title>Đăng ký</h1>
+          <span data-updated>Đang tải dữ liệu…</span>
+        </div>
+        <a href="/" target="_blank" rel="noreferrer">Xem trang public</a>
+      </header>
+
+      <section class="screen" data-screen="registrations">
+        <div class="screen-title-row">
+          <div>
+            <h2>Đăng ký thành viên</h2>
+            <p>Duyệt nhanh những bạn đã hoàn thành form.</p>
+          </div>
+          <button class="secondary-button" type="button" data-refresh>Đồng bộ</button>
+        </div>
+
+        <div class="status-tabs" role="tablist" aria-label="Trạng thái đăng ký">
+          <button class="is-active" type="button" data-status-filter="all">Tất cả <span data-count-status="all">0</span></button>
+          <button type="button" data-status-filter="new">Chờ duyệt <span data-count-status="new">0</span></button>
+          <button type="button" data-status-filter="approved">Đã duyệt <span data-count-status="approved">0</span></button>
+          <button type="button" data-status-filter="rejected">Từ chối <span data-count-status="rejected">0</span></button>
+        </div>
+
+        <div class="registration-toolbar">
+          <input type="search" data-search placeholder="Tìm tên Zalo…">
+          <span data-registration-status></span>
+        </div>
+
+        <div class="registration-table" data-ui>
+          <div class="registration-head" aria-hidden="true">
+            <span>Thành viên</span><span>Thông tin</span><span>Mong muốn</span><span>Ngày gửi</span><span>Trạng thái</span>
+          </div>
+          <div data-registration-list></div>
+        </div>
+      </section>
+
+      <section class="screen" data-screen="settings" hidden>
+        <div class="screen-title-row">
+          <div>
+            <h2>Giao diện & nội dung</h2>
+            <p>Thay lịch sân, người liên hệ, nội dung và lựa chọn form mà không cần sửa code.</p>
+          </div>
+          <button class="primary-button" type="button" data-save-config>Lưu thay đổi</button>
+        </div>
+        <p class="save-status" data-save-status aria-live="polite"></p>
+
+        <div class="settings-stack">
+          <section class="settings-section">
+            <div class="settings-label">
+              <h2>Trang chủ</h2>
+              <p>Hai dòng headline và phần giới thiệu đầu trang.</p>
+            </div>
+            <div class="settings-panel">
+              <label><span>Dòng tiêu đề 1</span><input data-bind="hero.titleLine1" maxlength="50"></label>
+              <label><span>Dòng tiêu đề 2</span><input data-bind="hero.titleLine2" maxlength="50"></label>
+              <label><span>Mô tả</span><textarea data-bind="hero.lead" rows="4" maxlength="320"></textarea></label>
+            </div>
+          </section>
+
+          <section class="settings-section">
+            <div class="settings-label">
+              <h2>Lịch sân</h2>
+              <p>Thêm T4/T6 hoặc đổi giờ bất kỳ lúc nào. Website public tự cập nhật.</p>
+            </div>
+            <div class="settings-panel">
+              <div class="repeat-list" data-schedule-editor></div>
+              <button class="text-button" type="button" data-add-schedule>+ Thêm buổi chơi</button>
+            </div>
+          </section>
+
+          <section class="settings-section">
+            <div class="settings-label">
+              <h2>Tinh thần nhóm</h2>
+              <p>Các nguyên tắc hiển thị ngay dưới hero.</p>
+            </div>
+            <div class="settings-panel">
+              <div class="repeat-list" data-principles-editor></div>
+              <button class="text-button" type="button" data-add-principle>+ Thêm nguyên tắc</button>
+            </div>
+          </section>
+
+          <section class="settings-section">
+            <div class="settings-label">
+              <h2>Người liên hệ</h2>
+              <p>Thêm Trưởng nhóm, Phó nhóm hoặc người phụ trách khác. Số điện thoại tạo link Zalo tự động.</p>
+            </div>
+            <div class="settings-panel">
+              <div class="repeat-list" data-contacts-editor></div>
+              <button class="text-button" type="button" data-add-contact>+ Thêm người liên hệ</button>
+            </div>
+          </section>
+
+          <section class="settings-section">
+            <div class="settings-label">
+              <h2>Tuỳ chọn form</h2>
+              <p>Chọn nhóm bằng dropdown rồi thêm/xóa option. Validation backend dùng chính danh sách này.</p>
+            </div>
+            <div class="settings-panel">
+              <label>
+                <span>Nhóm lựa chọn</span>
+                <select data-option-category>
+                  <option value="duration">Thời gian tham gia</option>
+                  <option value="gender">Giới tính</option>
+                  <option value="position">Vị trí chơi</option>
+                  <option value="level">Trình độ</option>
+                </select>
+              </label>
+              <div class="repeat-list option-list" data-options-editor></div>
+              <button class="text-button" type="button" data-add-option>+ Thêm lựa chọn</button>
+            </div>
+          </section>
+
+          <section class="settings-section">
+            <div class="settings-label">
+              <h2>Form & xác nhận</h2>
+              <p>Nội dung giới thiệu form và lời nhắn sau khi gửi thành công.</p>
+            </div>
+            <div class="settings-panel">
+              <label><span>Tiêu đề form</span><input data-bind="signup.title" maxlength="90"></label>
+              <label><span>Mô tả form</span><textarea data-bind="signup.intro" rows="3" maxlength="320"></textarea></label>
+              <label><span>Ghi chú riêng tư</span><input data-bind="signup.privacyNote" maxlength="180"></label>
+              <label><span>Tiêu đề sau khi gửi</span><input data-bind="signup.successTitle" maxlength="90"></label>
+              <label><span>Lời nhắn sau khi gửi</span><textarea data-bind="signup.successMessage" rows="4" maxlength="360"></textarea></label>
+            </div>
+          </section>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="/admin.js" type="module"></script>
+</body>
+</html>
+
