@@ -10,12 +10,8 @@ const app = express();
 const port = Number(process.env.PORT || 3000);
 const isProduction = process.env.NODE_ENV === "production";
 const apiUrl = (process.env.ZYRO_API_URL || "https://grhdawkxnrkgkahegnnd.supabase.co/functions/v1/zyro-api").replace(/\/$/, "");
-const edgeSecret = process.env.ZYRO_EDGE_SECRET || "";
 const mailEncryptionSecret = process.env.MAIL_SETTINGS_ENCRYPTION_KEY || "";
 
-if (isProduction && !edgeSecret) {
-  throw new Error("ZYRO_EDGE_SECRET is required in production.");
-}
 if (isProduction && !mailEncryptionSecret) {
   throw new Error("MAIL_SETTINGS_ENCRYPTION_KEY is required in production.");
 }
@@ -134,7 +130,6 @@ async function edgeFetch(pathname, options = {}) {
     ...options,
     headers: {
       "Content-Type": "application/json",
-      "x-zyro-secret": edgeSecret,
       ...(options.headers || {}),
     },
   });
