@@ -6,16 +6,23 @@
   try{motion=localStorage.getItem('nhom12-motion')!=='off';}catch{}
   function animatePage(){
     pageAnimation?.cancel();
-    if(!motion)return;
+    pageAnimation=null;
+    if(window.Nhom12Motion){pageAnimation=window.Nhom12Motion.enter($('page-view'));return;}
+    if(!motion||window.matchMedia?.('(prefers-reduced-motion: reduce)').matches||!$('page-view').animate)return;
     pageAnimation=$('page-view').animate([
-      {opacity:0,transform:'translateY(24px)',filter:'blur(2px)'},
+      {opacity:.3,transform:'translateY(12px)',filter:'blur(1.2px)'},
       {opacity:1,transform:'translateY(0)',filter:'blur(0)'}
-    ],{duration:380,easing:'cubic-bezier(.22,.68,.18,1)'});
+    ],{duration:240,easing:'cubic-bezier(.23,1,.32,1)'});
   }
   const motionButton=A.el('button','btn btn-quiet');
-  function motionLabel(){motionButton.textContent=motion?'Chuyển động: Bật':'Chuyển động: Tắt';motionButton.setAttribute('aria-pressed',String(motion));}
-  motionLabel();motionButton.title='Bật hoặc tắt cuộn mượt và hiệu ứng chuyển trang';
-  motionButton.onclick=()=>{window.Nhom12Scroll?.stop();motion=!motion;try{localStorage.setItem('nhom12-motion',motion?'on':'off');}catch{}motionLabel();if(motion)animatePage();else pageAnimation?.cancel();};
+  function motionLabel(){
+    const M=window.Nhom12Motion;if(M)motion=M.enabled();
+    motionButton.textContent=M?.preference()==='auto'&&M.reduced()?'Chuyển động: Giảm theo thiết bị':motion?'Chuyển động: Bật':'Chuyển động: Tắt';
+    motionButton.setAttribute('aria-pressed',String(motion));if(!M)document.documentElement.dataset.motion=motion?'on':'off';
+    motionButton.title=M?.preference()==='auto'&&M.reduced()?'Thiết bị đang yêu cầu giảm chuyển động. Bấm để bật hiệu ứng trên website.':'Bật hoặc tắt hiệu ứng chuyển trang và hộp thoại';
+  }
+  motionLabel();window.addEventListener('nhom12motionchange',motionLabel);
+  motionButton.onclick=()=>{window.Nhom12Scroll?.stop();if(window.Nhom12Motion)window.Nhom12Motion.setPreference(window.Nhom12Motion.enabled()?'off':'on');else{motion=!motion;try{localStorage.setItem('nhom12-motion',motion?'on':'off');}catch{}}motionLabel();if(motion)animatePage();else pageAnimation?.cancel();};
   document.querySelector('.header-actions').prepend(motionButton);
   const currentSlug=()=>new URLSearchParams(location.search).get('section');
   function cleanup(){$('page-view').querySelectorAll('.visual-reader').forEach(el=>el.cleanup?.());}

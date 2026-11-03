@@ -18,6 +18,7 @@ const fields = r => Object.fromEntries(['name','cccd','dob','gender','phone','em
 test('Original demo citizen gets a card with matching identity; no shared hard-coded name',()=>{const R=repo();for(const r of R.list()){assert.equal(r.identityCard.fullName,r.name);assert.equal(r.identityCard.number,r.cccd);assert.equal(r.identityCard.dob,r.dob);}});
 test('Legacy saved records retain edits and receive only matching demo card snapshots',()=>{const old=JSON.parse(JSON.stringify(repo().get('demo-1')));delete old.identityCard;old.name='Tên đã được sửa';const r=repo({records:[old],events:[]}).get('demo-1');assert.equal(r.name,'Tên đã được sửa');assert.equal(r.identityCard.fullName,'Nguyễn An Minh');});
 test('New citizens do not get fabricated card information',()=>{const R=repo(),r=R.save({...fields(R.get('demo-1')),name:'Công dân mới',cccd:'000000000099',phone:'0000000099'});assert.equal(r.identityCard,undefined);assert.match(view().api.html(r,'card',false),/Chưa cập nhật thông tin căn cước/);});
+test('Legacy storage preserves arbitrary identifier prefixes and ordinary contact numbers after reloading',()=>{const R=repo(),r=R.save({...fields(R.get('demo-1')),name:'Công dân mới',cccd:'123456789012',phone:'+12025550123'}),loaded=repo({records:R.list(),events:[]}).get(r.id);assert.equal(loaded.cccd,'123456789012');assert.equal(loaded.phone,'+12025550123');assert.equal(loaded.identityCard,undefined);});
 test('Editing profile preserves card snapshot and existing extra data',()=>{const R=repo(),old=R.get('demo-1'),r=R.save({...fields(old),name:'Tên mới',nationality:'Việt Nam',hometown:'Quê quán mới'},old.id);assert.equal(r.identityCard.fullName,old.name);assert.equal(R.get(old.id).hometown,'Quê quán mới');});
 test('Member can add full card data and fields to a new citizen',()=>{const R=repo();const r=R.save({...fields(R.get('demo-1')),name:'Công dân mới',cccd:'000000000099',phone:'0000000099',nationality:'Việt Nam',cardIssuedOn:'2025-09-01',cardExpiresOn:'2035-09-01',cardIssuer:'Nơi cấp minh họa',cardStatus:'active'});assert.equal(r.identityCard.fullName,'Công dân mới');assert.equal(r.identityCard.number,'000000000099');assert.equal(r.nationality,'Việt Nam');});
 test('Partial or reversed card dates are rejected without changing record',()=>{const R=repo(),r=R.get('demo-1');assert.throws(()=>R.save({...fields(r),cardIssuedOn:'2025-09-01',cardExpiresOn:'2024-09-01',cardIssuer:'Nơi cấp'},r.id));assert.equal(R.get(r.id).identityCard.expiresOn,'2035-09-01');});
@@ -43,6 +44,12 @@ test('Card expires on the local day instead of remaining active until UTC midnig
 });
 test('Overlong email is rejected before it can invalidate all saved records',()=>{
  const R=repo(),old=R.get('demo-1');assert.throws(()=>R.save({...fields(old),email:'a'.repeat(501)+'@example.invalid'},old.id),/100/);assert.equal(R.list().length,12);assert.equal(R.get(old.id).email,old.email);
+});
+
+test('Legacy profile accepts real contact email and retains it after reload',()=>{
+ const R=repo(),old=R.get('demo-1'),saved=R.save({...fields(old),email:'minh.an+doan@gmail.com'},old.id);assert.equal(saved.email,'minh.an+doan@gmail.com');
+ assert.equal(repo({records:R.list(),events:[]}).get(saved.id).email,saved.email);
+ assert.throws(()=>R.save({...fields(saved),email:'a@-domain.com'},saved.id),/email hợp lệ/);
 });
 test('Account issue-lock-unlock flow persists and duplicate or invalid dates never overwrite records',()=>{
  const R=repo(),original=R.get('demo-1');assert.throws(()=>R.checkLogin('000000000005','demo123'),/chưa được cấp/);assert.throws(()=>R.checkLogin(original.cccd,'bad'),/không chính xác/);

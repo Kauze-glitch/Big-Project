@@ -1,0 +1,178 @@
+/* Shared screen UI. Authored documents, diagram geometry and print output keep
+   their own styles. Desktop portal: 1440 - 64 gutters - 224 nav - 28 gap = 1124. */
+@media screen {
+ html[data-motion=on]{scroll-behavior:smooth}
+ html[data-motion=on] body[data-interface] :is(.presentation-viewport,.dialog-body,.table-wrap,.table-scroll,.list,.ai-messages){scroll-behavior:smooth}
+ html[data-motion=off],html[data-motion=off] body[data-interface] :is(.presentation-viewport,.dialog-body,.table-wrap,.table-scroll,.list,.ai-messages){scroll-behavior:auto!important}
+ body[data-interface]{
+  --ui-ink:#253b30;--ui-muted:#53644f;--ui-accent:#315443;
+  --ui-ground:#f2f4ed;--ui-paper:#fffefb;--ui-line:#ccd7c5;
+  --ui-focus:#96691c;--ui-ease:cubic-bezier(.23,1,.32,1);
+  --ink:var(--ui-ink);--muted:var(--ui-muted);
+  -webkit-tap-highlight-color:#31544320;
+ }
+ body[data-interface] :is(button,a,input,select,textarea,summary):focus-visible{outline:3px solid var(--ui-focus);outline-offset:3px}
+ body[data-interface] :is(button,input,select,textarea){font-family:var(--font-ui,Arial,sans-serif)}
+ body[data-interface] :is(.btn,.download,.relation,.header-actions button){min-height:44px;line-height:1.55}
+ body[data-interface] :is(button,a,summary){touch-action:manipulation}
+ body[data-interface] :is(h1,h2,h3){text-wrap:balance}
+ body[data-interface] :is(.page-heading,.panel-heading,.header-links,.action-wrap)>*{min-width:0}
+ body[data-interface] :is(.cell-subtext,.small-text,.record-section-help,.preview-help,.citizen-note,.citizen-guidance,.ai-notice){font-size:13px;line-height:1.75}
+ body[data-interface] :is(.field>span,.filter-field){font-size:14px;line-height:1.55}
+ body[data-interface] :is(.field input,.field select,.field textarea){font-size:15px;min-height:48px}
+ body[data-interface] :is(.field small,.field-error){font-size:12px;line-height:1.7}
+ body[data-interface] input::placeholder,body[data-interface] textarea::placeholder{color:var(--ui-muted);opacity:1}
+ body[data-interface] :is(.badge,.member-role,.request-badge){font-size:12px;line-height:1.5}
+ body[data-interface] :is(.numeric-cell,.stat strong,.citizen-request-stats strong){font-variant-numeric:tabular-nums}
+ body[data-interface] :is(.page-heading p,.preview-help,.record-section-help,.citizen-details dd,.activity-list span){overflow-wrap:anywhere}
+ body[data-interface] dialog{scrollbar-gutter:stable}
+ body[data-interface] :is(.btn,summary,.row-actions button){transition:background-color 150ms ease,border-color 150ms ease,transform 130ms var(--ui-ease)}
+ body[data-interface] :is(.btn,summary,.row-actions button):disabled{opacity:.55;cursor:not-allowed}
+ body[data-interface] .btn.secondary:hover,body[data-interface] .btn.btn-quiet:hover,body[data-interface] .btn.ghost:hover{background:#e6eddf;color:#284a37;border-color:#a9bd9e}
+ body[data-interface] .btn.danger:hover{background:#f8e7df;color:#81382c;border-color:#cfa697}
+
+ /* A shared JS engine handles entry consistently, including browsers without
+    discrete display transitions. Native dialog close/cancel/cleanup stays instant. */
+ html[data-motion-engine=js] body[data-interface] .arrive{animation:none!important}
+ html[data-motion=off] body[data-interface] :is(dialog,.arrive){animation:none!important;transition:none!important}
+
+ /* The same artwork belongs to every page shell, including top-layer slides.
+    The frame never participates in layout or captures an interaction. */
+ body[data-interface]::before{content:none}
+ body[data-interface] .floral-frame{position:fixed;inset:0;z-index:110;pointer-events:none;opacity:.65;filter:saturate(.7);user-select:none}
+ body[data-interface] .floral-frame::after{content:'';position:absolute;inset:5px;border:1px solid #a8b48a;border-radius:18px;pointer-events:none}
+ body[data-interface] .floral-frame span{position:absolute;background-image:url('floral-frame.png');background-repeat:no-repeat;pointer-events:none}
+ body[data-interface] .floral-frame .floral-tl{top:0;left:0;width:82px;height:45px;background-size:250px 167px;background-position:top left;mask-image:radial-gradient(ellipse at top left,#000 60%,transparent 100%)}
+ body[data-interface] .floral-frame .floral-tr{top:0;right:0;width:40px;height:52px;background-size:220px 147px;background-position:top right;mask-image:radial-gradient(ellipse at top right,#000 60%,transparent 100%)}
+ body[data-interface] .floral-frame .floral-bl{bottom:0;left:0;width:55px;height:65px;background-size:240px 160px;background-position:bottom left;mask-image:radial-gradient(ellipse at bottom left,#000 60%,transparent 100%)}
+ body[data-interface] .floral-frame .floral-br{bottom:0;right:0;width:105px;height:62px;background-size:280px 187px;background-position:bottom right;mask-image:radial-gradient(ellipse at bottom right,#000 60%,transparent 100%)}
+ body[data-interface] .presentation-panel{position:relative;isolation:isolate}
+ body[data-interface] .presentation-panel>.floral-frame{position:absolute;z-index:4}
+ @media(min-width:761px){
+  body[data-interface] .presentation-header{padding-inline:100px 64px}
+  body[data-interface] .presentation-footer{padding-inline:80px 120px}
+ }
+
+ /* Report pages: the subject and team stay prominent; ornament sits at edges. */
+ body:is([data-interface=project],[data-interface=editor]) .floral-frame{opacity:.6}
+ body:is([data-interface=project],[data-interface=editor]) .floral-tl{width:82px;height:45px;background-size:250px 167px}
+ body:is([data-interface=project],[data-interface=editor]) .floral-br{width:105px;height:62px;background-size:280px 187px}
+ body:is([data-interface=project],[data-interface=editor]) .sidebar{background:#e9eedf;border-color:var(--ui-line)}
+ body:is([data-interface=project],[data-interface=editor]) .section-nav a{font-size:15px;line-height:1.6}
+ body:is([data-interface=project],[data-interface=editor]) .section-nav a.active{background:#dce6d4;color:#233e2e;box-shadow:inset 3px 0 #426444}
+ body[data-interface=project] .member-card{border-color:var(--ui-line);padding:26px}
+ body[data-interface=project] .member-task{font-size:14px;line-height:1.85}
+ body[data-interface=editor] :is(.compose-tip,.board-hint,.document-editor .writing-footer){font-size:13px;line-height:1.7}
+ body[data-interface=editor] :is(.block-label,.board-properties label){font-size:12px;letter-spacing:.3px}
+ body[data-interface=editor] :is(.board-properties input,.board-properties select,.board-caption){font-size:14px}
+ body[data-interface=editor] .ribbon-quick button{min-height:44px;min-width:42px}
+ body[data-interface] .ai-panel{border-color:#b5c8aa;box-shadow:0 16px 48px #20382724}
+ body[data-interface] :is(.ai-header p,.ai-reset,.ai-suggestions button){font-size:13px;line-height:1.6}
+
+ /* Portal: quiet surfaces, readable data, only common actions on the first line. */
+ body[data-interface=portal]{background:var(--ui-ground);--paper:var(--ui-paper);--green:var(--ui-accent);--line:var(--ui-line)}
+ body[data-interface=portal] .workspace{grid-template-columns:224px minmax(0,1fr);gap:28px}
+ body[data-interface=portal] .workspace-nav{background:#e8eee1;border-color:var(--ui-line);border-radius:12px;padding:18px 12px}
+ body[data-interface=portal] .workspace-nav a{font-size:14px;line-height:1.6;min-height:46px;border-radius:7px;padding:11px 12px}
+ body[data-interface=portal] .workspace-nav a.active{background:#d5e1cd;color:#233e2e;box-shadow:inset 3px 0 #426444;font-weight:700}
+ body[data-interface=portal] .workspace-nav a:not(.active):hover{background:#dce6d5;color:#233e2e}
+ body[data-interface=portal] .nav-bottom{margin-top:24px;font-size:12px;line-height:1.8}
+ .workspace-menu-toggle{display:none!important}
+ body[data-interface=portal] .page-heading h1{font-size:clamp(27px,2.8vw,34px);line-height:1.4;letter-spacing:-.6px}
+ body[data-interface=portal] .page-heading p{font-size:14px;line-height:1.8}
+ body[data-interface=portal] :is(.panel,.stat,.citizen-panel,.security-panel){border-radius:11px;box-shadow:none}
+ body[data-interface=portal] .stat .stat-label{font-size:13px;line-height:1.6}
+ body[data-interface=portal] .stat strong{font-size:30px;line-height:1.3}
+ body[data-interface=portal] .stat.primary{background:#e2eadb;color:var(--ui-ink);border-color:#bfceb5}
+ body[data-interface=portal] .stat.primary .stat-label{color:#435c3e}
+ body[data-interface=portal] .panel-heading h2{font-size:19px;line-height:1.5}
+ body[data-interface=portal] .citizen-table{white-space:normal}
+ body[data-interface=portal] .citizen-table th{font-size:12px;line-height:1.6;color:#4e6249;letter-spacing:.2px}
+ body[data-interface=portal] .citizen-table td{font-size:14px;line-height:1.65;vertical-align:top;padding:18px 14px;overflow-wrap:anywhere}
+ body[data-interface=portal] .citizen-table td:first-child{min-width:170px}
+ body[data-interface=portal] .citizen-table .numeric-cell{white-space:nowrap;font-size:13px}
+ body[data-interface=portal] .citizen-table td:first-child strong{font-size:15px;line-height:1.6}
+ body[data-interface=portal] .row-actions{display:flex;gap:7px;flex-wrap:wrap;min-width:185px;max-width:260px}
+ body[data-interface=portal] .row-actions button,.row-more>summary{font-size:12px;line-height:1.55;min-height:40px;border:1px solid #c5d3bd;border-radius:7px;padding:9px 10px;color:#315039;background:var(--ui-paper)}
+ body[data-interface=portal] .row-actions button:hover{background:#e6eddf;color:#284a37;border-color:#a9bd9e}
+ .row-more{flex-basis:100%;min-width:0}
+ .row-more>summary{cursor:pointer;width:fit-content;max-width:100%}
+ .row-more>summary:hover{background:#eaf0e3}
+ .row-secondary{display:grid;grid-template-columns:1fr;gap:7px;padding:10px 0 0}
+ .row-secondary button{width:100%;text-align:left;white-space:normal}
+ body[data-interface=portal] .activity-list li{font-size:13px;line-height:1.8}
+ body[data-interface=portal] .citizen-details dt{font-size:13px;line-height:1.6}
+ body[data-interface=portal] .citizen-details dd{font-size:15px;line-height:1.8}
+ body[data-interface=portal] :is(.identity-label,.citizen-summary p,.citizen-request-stats span){font-size:12px;line-height:1.7}
+ body[data-interface=portal] .identity-card{box-shadow:none}
+ body[data-interface=portal] .citizen-timeline time{font-size:12px}
+ body[data-interface=portal] .citizen-timeline p{font-size:14px}
+ body[data-interface=portal] .login-card{border-radius:16px;padding:32px;box-shadow:0 12px 36px #2038270a}
+ body[data-interface=portal] :is(.login-card .tabs button,.login-card .steps,.login-card .form-foot){font-size:14px;line-height:1.7}
+ body[data-interface=portal] .login-card .btn{font-size:15px;min-height:50px}
+ body[data-interface=portal] .arrive{animation:interface-arrive 220ms var(--ui-ease) both}
+ #portal-app #portal-main{transition:filter 160ms ease-out,opacity 160ms ease-out}
+ #portal-app[aria-busy=true] #portal-main{filter:blur(2.5px);opacity:.55;pointer-events:none;user-select:none}
+ .portal-load-shell{max-width:1200px;margin:30px auto 60px;padding:24px 32px;min-height:440px}
+ .portal-skeleton .skeleton-title{width:40%;height:32px;border-radius:8px;background:#d5dfcf;margin-bottom:20px}
+ .portal-skeleton .skeleton-line{width:65%;height:14px;border-radius:5px;background:#e1e8da;margin-bottom:32px}
+ .skeleton-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
+ .skeleton-stats i{height:100px;border:1px solid #d0dcc7;border-radius:11px;background:#e7eddf}
+ .skeleton-panel{border:1px solid #d0dcc7;border-radius:11px;background:#fffefb;padding:24px;display:grid;gap:22px}
+ .skeleton-panel i{display:block;height:18px;border-radius:5px;background:#e4ebdd}.skeleton-panel i:last-child{width:70%}
+ .portal-load-status{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);padding:12px 16px;border:1px solid #c5d3bd;border-radius:30px;background:#fffefb;box-shadow:0 5px 18px #253b3010;z-index:90;pointer-events:none}
+ .load-dots{display:flex;gap:6px}.load-dots i{width:6px;height:6px;border-radius:50%;background:#52754d;animation:portal-load-dot 900ms ease-in-out infinite alternate}.load-dots i:nth-child(2){animation-delay:150ms}.load-dots i:nth-child(3){animation-delay:300ms}
+ @keyframes portal-load-dot{from{opacity:.35}to{opacity:1}}
+ html[data-motion=off] #portal-app #portal-main{transition:none}html[data-motion=off] .load-dots i{animation:none}
+ @keyframes interface-arrive{from{opacity:.45;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+ body[data-interface=portal]:has(:focus-visible) .arrive{animation:none}
+
+ /* Schema and export controls: readable labels without rescaling diagram nodes
+    or overriding document font sizes chosen in the editor. */
+ body[data-interface=database] :is(.table-button,.detail p,.detail td,.callout,.card){font-size:14px;line-height:1.8}
+ body[data-interface=database] :is(.erd-help,.erd-status,.erd-save-status,.erd-footnote){font-size:13px;line-height:1.7}
+ body[data-interface=database] .erd-tools button{min-height:44px;font-size:13px}
+ body[data-interface=report] .report-options{padding:24px}
+ body[data-interface=report] :is(.report-options>p,.report-options label,.report-options legend,.preview-help){font-size:14px;line-height:1.75}
+ body[data-interface=report] :is(.report-options input,.report-options textarea,.report-options button){font-size:15px}
+ body[data-interface=report] :is(.report-options button,.pdf-dialog-header button,.pdf-pager button){min-height:44px}
+
+ @media(hover:hover) and (pointer:fine){body[data-interface] :is(.btn,.row-actions button):not(:disabled):active{transform:scale(.98)}}
+ @media(max-width:1100px){
+  body[data-interface=portal] .workspace{grid-template-columns:195px minmax(0,1fr);gap:20px}
+  body[data-interface=portal] .stats-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+ }
+ @media(max-width:760px){
+  body[data-interface] :is(.field input,.field select,.field textarea,.search-input,.filter-select,.ai-form textarea){font-size:16px;min-height:48px}
+  body[data-interface] :is(.btn,.row-actions button){min-height:44px}
+  body[data-interface=portal] .workspace{display:block;padding-inline:16px}
+  body[data-interface=portal] .workspace-nav{display:block;position:static;margin-bottom:22px;padding:8px}
+  .workspace-menu-toggle{display:block!important;width:100%;min-height:48px;padding:12px;border:1px solid #c5d3bd!important;border-radius:7px!important;background:#fffefb!important;font-size:14px!important;line-height:1.6!important;font-weight:600;color:#284a37!important;margin:0!important}
+  .workspace-nav-enhanced:not(.menu-open) .workspace-links{display:none}
+  .workspace-nav-enhanced.menu-open .workspace-links{display:block;margin-top:12px;max-height:60dvh;overflow:auto;overscroll-behavior:contain}
+  body[data-interface=portal] .workspace-nav a{font-size:14px;min-height:48px;margin:0 0 3px}
+  body[data-interface=portal] .workspace-nav .nav-bottom{display:none}
+  body[data-interface=portal] .nav-label{margin:12px}
+  body[data-interface=portal] .page-heading{align-items:flex-start;gap:16px}
+  body[data-interface=portal] .page-heading .action-wrap{width:100%;flex-wrap:wrap}
+  body[data-interface=portal] .citizen-table td:first-child{min-width:0}
+  body[data-interface=portal] .citizen-table .row-actions{max-width:none;min-width:0}
+  body[data-interface=portal] .row-actions>button{flex:1}
+  .row-more>summary{width:100%;min-height:44px}
+  .row-secondary{grid-template-columns:repeat(2,minmax(0,1fr))}
+  body[data-interface=portal] .stat{padding:16px}
+  body[data-interface=portal] .stat .stat-label{min-height:0;font-size:12px}
+  body[data-interface=portal] .login-card{padding:24px 20px}
+  body[data-interface=portal] .login-layout{gap:24px}
+  body[data-interface=portal] .login-intro h1{font-size:36px;line-height:1.35}
+  body[data-interface=portal] :is(.header-links,.intro-footer){flex-wrap:wrap}
+  body[data-interface=portal] .identity-card-head b{font-size:14px;letter-spacing:.7px}
+  body[data-interface=portal] .identity-name{font-size:18px;line-height:1.55}
+  body[data-interface=portal] .identity-number{font-size:18px;letter-spacing:.6px;overflow-wrap:anywhere}
+  body[data-interface=portal] .identity-mini{gap:12px;font-size:13px;line-height:1.7}
+  body[data-interface=portal] #record-dialog :is(.field input,.field select,.field textarea){font-size:16px}
+  body[data-interface=report] .report-options{padding:20px}
+ }
+ @media(prefers-reduced-motion:reduce){html:not([data-motion-preference=on]) body[data-interface] .arrive,html:not([data-motion-preference=on]) body[data-interface] .btn,html:not([data-motion-preference=on]) body[data-interface] .row-actions button{animation:none!important;transition:none!important;transform:none!important}}
+}
+@media print{body[data-interface] .floral-frame{display:none!important}}

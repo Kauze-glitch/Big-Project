@@ -23,7 +23,7 @@ test('Members share persisted records and conflicting updates do not overwrite a
  const bundle=await member('select cd_member_bundle() doc',[],ids.member3);assert.equal(bundle.records.find(r=>r.id===c.id).occupation,next.occupation);
 });
 test('Invalid identity, duplicate identity and invalid dates leave the original data unchanged',async()=>{
- const c=await save();await assert.rejects(save({cccd:c.cccd}),/DUPLICATE_IDENTIFIER/);await assert.rejects(save({cccd:'123456789012'}),/FICTIONAL_IDENTIFIER/);await assert.rejects(save({dob:'2026-02-31'}),/INVALID_BIRTH_DATE/);await assert.rejects(save({email:'a@real.com'}),/FICTIONAL_EMAIL/);
+ const c=await save();await assert.rejects(save({cccd:c.cccd}),/DUPLICATE_IDENTIFIER/);await assert.rejects(save({cccd:'12345678901'}),/INVALID_IDENTIFIER/);await assert.rejects(save({dob:'2026-02-31'}),/INVALID_BIRTH_DATE/);await assert.rejects(save({email:'sai-email'}),/INVALID_CONTACT_EMAIL/);
 });
 test('Changing household head retains both role intervals and conflicts with stale edits to the previous head',async()=>{
  let a=await save();a=await member('select cd_save_record($1,$2) doc',[JSON.stringify({...a,householdCode:'HO-TEST-HEAD',householdRelation:'chu_ho',householdHeadId:a.id}),a.rowVersion]);const b=await save({householdCode:'HO-TEST-HEAD',householdRelation:'con',householdHeadId:a.id});
@@ -127,5 +127,5 @@ test('Service-only provisioning cannot target a project account',async()=>{
  const c=await save(),operation=randomUUID(),a=await service('select cd_account_prepare($1,$2,0,$3,false) doc',[c.id,ids.member1,operation]);await assert.rejects(service('select cd_account_finish($1,$2,$3,$4) doc',[a.id,ids.member1,operation,ids.member1]),/PROJECT_ACCOUNT_PROTECTED/);
 });
 test('Additive migrations can be rerun without deleting citizen data',async()=>{
- const before=(await db.query('select count(*)::int n from cd_cong_dan')).rows[0].n;for(const file of fs.readdirSync('supabase').filter(f=>/^20261101_\d+_/.test(f)).sort())await db.exec(fs.readFileSync('supabase/'+file,'utf8'));assert.equal((await db.query('select count(*)::int n from cd_cong_dan')).rows[0].n,before);
+ const before=(await db.query('select count(*)::int n from cd_cong_dan')).rows[0].n;for(const file of fs.readdirSync('supabase').filter(f=>/^20261101_\d+_/.test(f)).sort())await db.exec(fs.readFileSync('supabase/'+file,'utf8'));for(const file of fs.readdirSync('supabase/migrations').filter(f=>/^\d+_.*\.sql$/.test(f)).sort())await db.exec(fs.readFileSync('supabase/migrations/'+file,'utf8'));assert.equal((await db.query('select count(*)::int n from cd_cong_dan')).rows[0].n,before);assert.equal((await member('select cd_member_permissions() doc')).role,'admin');
 });

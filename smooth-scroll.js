@@ -1,47 +1,71 @@
 'use strict';
 (() => {
-  let frame=0,target=0,lastTime=0,expected=0;
-  const limit=()=>Math.max(0,document.documentElement.scrollHeight-window.innerHeight);
-  const clamp=value=>Math.max(0,Math.min(limit(),value));
-  function stop(){cancelAnimationFrame(frame);frame=0;lastTime=0;}
+  let frame=0,state=null,lastTime=0;
+  const root=()=>document.scrollingElement||document.documentElement;
+  const position=host=>host===window?window.scrollY:host.scrollTop;
+  const limit=host=>Math.max(0,host===window?root().scrollHeight-window.innerHeight:host.scrollHeight-host.clientHeight);
+  const clamp=(value,host)=>Math.max(0,Math.min(limit(host),value));
+  function stop(){cancelAnimationFrame(frame);frame=0;state=null;lastTime=0;}
   window.Nhom12Scroll={stop};
+  function enabled(){
+    if(window.Nhom12Motion)return window.Nhom12Motion.enabled();
+    try{const choice=localStorage.getItem('nhom12-motion');if(choice==='on')return true;if(choice==='off')return false;}catch{}
+    return !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  }
+  function write(host,top){if(typeof host.scrollTo==='function')host.scrollTo({top,behavior:'instant'});else host.scrollTop=top;}
   function step(time){
+    if(!state||!enabled()){stop();return;}
+    const {host}=state,current=position(host);
+    if(host!==window&&!host.isConnected){stop();return;}
     // Yield immediately if a link, browser search, or another native action moved the page.
-    if(Math.abs(window.scrollY-expected)>2){stop();return;}
+    if(Math.abs(current-state.expected)>2){stop();return;}
     const elapsed=lastTime?Math.min(50,time-lastTime):16;
-    lastTime=time;target=clamp(target);
-    const next=window.scrollY+(target-window.scrollY)*(1-Math.exp(-elapsed/85));
-    const done=Math.abs(target-next)<.75;
-    window.scrollTo({top:done?target:next,behavior:'instant'});
-    expected=window.scrollY;
+    lastTime=time;state.target=clamp(state.target,host);
+    const next=current+(state.target-current)*(1-Math.exp(-elapsed/85));
+    const done=Math.abs(state.target-next)<.75;
+    write(host,done?state.target:next);state.expected=position(host);
     if(done){stop();return;}
     frame=requestAnimationFrame(step);
   }
-  function nativeArea(element){
-    if(!(element instanceof Element))return false;
-    if(element.closest('input,textarea,select,[contenteditable],dialog,[role="dialog"]'))return true;
-    for(let node=element;node&&node!==document.body;node=node.parentElement){
-      const css=getComputedStyle(node);
-      if(/auto|scroll|overlay/.test(css.overflowY)&&node.scrollHeight>node.clientHeight+1)return true;
-      if(/auto|scroll|overlay/.test(css.overflowX)&&node.scrollWidth>node.clientWidth+1)return true;
+  function scrollHost(element,delta){
+    if(!(element instanceof Element))return window;
+    if(element.closest('input,textarea,[contenteditable]:not([contenteditable="false"])'))return null;
+    const select=element.closest('select');
+    // A closed filter (even still focused after a choice) belongs to the page's
+    // wheel flow. Only an open picker/listbox retains native option scrolling.
+    if(select){
+      if(select.multiple||select.size>1)return null;
+      try{if(select.matches(':open'))return null;}
+      catch{if(document.activeElement===select)return null;}
     }
-    return false;
+    const modal=element.closest('dialog,[role="dialog"]');
+    for(let node=element;node&&node!==document.body&&node!==document.documentElement;node=node.parentElement){
+      const css=getComputedStyle(node),overflow=css.overflowY||css.overflow;
+      if(/auto|scroll|overlay/.test(overflow)&&node.scrollHeight>node.clientHeight+1){
+        const current=node.scrollTop,max=limit(node);
+        if(delta>0?current<max-1:current>1)return node;
+        if(/contain|none/.test(css.overscrollBehaviorY||css.overscrollBehavior))return null;
+      }
+      if(node===modal)return null;
+    }
+    return window;
   }
   window.addEventListener('wheel',event=>{
-    let enabled=true;
-    try{enabled=localStorage.getItem('nhom12-motion')!=='off';}catch{}
-    if(!enabled||event.defaultPrevented||!event.cancelable||event.ctrlKey||event.metaKey||event.shiftKey||Math.abs(event.deltaX)>Math.abs(event.deltaY)||nativeArea(event.target)){
+    if(!enabled()||event.defaultPrevented||!event.cancelable||event.ctrlKey||event.metaKey||event.shiftKey||Math.abs(event.deltaX)>Math.abs(event.deltaY)){
       stop();return;
     }
     const delta=event.deltaY*(event.deltaMode===1?16:event.deltaMode===2?window.innerHeight:1);
     if(!delta)return;
-    const current=window.scrollY;
+    const host=scrollHost(event.target,delta);if(!host){stop();return;}
+    const current=position(host);
+    if(!state||state.host!==host){stop();state={host,target:current,expected:current};}
     // Reversing the wheel should respond immediately, without leftover momentum.
-    if(!frame||Math.sign(delta)!==Math.sign(target-current))target=current;
-    target=clamp(target+delta);
-    if(target===current){stop();return;}
+    if(!frame||Math.sign(delta)!==Math.sign(state.target-current))state.target=current;
+    state.target=clamp(state.target+delta,host);
+    if(state.target===current){stop();return;}
     event.preventDefault();
-    if(!frame){expected=current;frame=requestAnimationFrame(step);}
+    if(!frame){lastTime=0;state.expected=current;frame=requestAnimationFrame(step);}
   },{passive:false});
   for(const type of ['pointerdown','touchstart','keydown','resize','pagehide'])window.addEventListener(type,stop,{passive:true});
+  window.addEventListener('nhom12motionchange',()=>{if(!enabled())stop();});
 })();

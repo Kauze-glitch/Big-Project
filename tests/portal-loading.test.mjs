@@ -1,0 +1,36 @@
+import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';import {JSDOM} from 'jsdom';
+const wait=()=>new Promise(r=>setTimeout(r,35));
+async function page(initialBlock){
+ const dom=new JSDOM(fs.readFileSync('portal.html','utf8'),{url:'https://fixture.invalid/portal.html#/admin',runScripts:'outside-only'}),w=dom.window,d=w.document,gates=new Map(),errors=[];
+ Object.assign(w,{structuredClone,Response,Request,TextEncoder,TextDecoder,scrollTo(){}});w.HTMLDialogElement.prototype.showModal=function(){this.open=true;};w.HTMLDialogElement.prototype.close=function(){this.open=false;this.dispatchEvent(new w.Event('close'));};w.addEventListener('error',e=>errors.push(e.error));
+ for(const name of ['tests/portal-ui-fixture','portal-auth','portal-api'])w.eval(fs.readFileSync(name+'.js','utf8'));
+ const block=name=>{let resolve,reject;const promise=new Promise((a,b)=>{resolve=a;reject=b;}),gate={promise,requested:false,release(){gates.delete(name);resolve();},fail(){gates.delete(name);reject(Error('Mất kết nối kiểm thử'));}};gates.set(name,gate);return gate;};
+ const defer=async name=>{const gate=gates.get(name);if(gate){gate.requested=true;await gate.promise;}};
+ const client=w.PortalAuth.client(),rpc=client.rpc;client.rpc=async(name,args)=>{await defer(name);return rpc(name,args);};
+ const fetch=w.fetch;w.fetch=async(url,args)=>{await defer(String(url).split('/').pop());return fetch(url,args);};
+ const initial=initialBlock?block(initialBlock):null;
+ for(const name of ['portal-reference','portal-residence','portal-interface','portal-profile','portal-store','portal-cloud','portal-transfer','portal-import-ui','portal-requests','portal-operations','portal-security','portal-statistics','portal'])w.eval(fs.readFileSync(name+'.js','utf8'));
+ await wait();return {w,d,block,initial,errors,close:()=>w.close()};
+}
+test('First load uses an inert skeleton instead of replacing the page with a loading-data heading',async()=>{
+ const p=await page('cd_member_bundle');try{assert(p.initial.requested);assert(p.d.querySelector('.portal-skeleton'));assert(p.d.querySelector('#portal-main').hasAttribute('inert'));assert.equal(p.d.querySelector('#portal-app').getAttribute('aria-busy'),'true');assert.doesNotMatch(p.d.querySelector('#portal-app').textContent,/Đang tải dữ liệu|Đang kết nối cơ sở dữ liệu/);p.initial.release();await wait();assert.match(p.d.querySelector('#portal-main').textContent,/Công dân Minh Họa/);assert(!p.d.querySelector('#portal-app').hasAttribute('aria-busy'));assert(!p.d.querySelector('#portal-main').hasAttribute('inert'));assert.equal(p.d.querySelector('.portal-load-status'),null);assert.deepEqual(p.errors,[]);}finally{p.close();}
+});
+test('Refreshing the same account keeps its existing main content blurred/inert while navigation remains available',async()=>{
+ const p=await page();try{const main=p.d.querySelector('#portal-main'),button=p.d.querySelector('#refresh-data'),gate=p.block('cd_member_bundle');button.focus();button.click();assert(gate.requested);assert.equal(p.d.querySelector('#portal-main'),main);assert.match(main.textContent,/Công dân Minh Họa/);assert(main.hasAttribute('inert'));assert.equal(p.d.querySelector('#portal-app').getAttribute('aria-busy'),'true');assert(!p.d.querySelector('.workspace-nav').hasAttribute('inert'));gate.release();await wait();assert(!p.d.querySelector('#portal-main').hasAttribute('inert'));assert(!p.d.querySelector('#portal-app').hasAttribute('aria-busy'));assert.equal(p.d.activeElement.id,'refresh-data');assert.deepEqual(p.errors,[]);}finally{p.close();}
+});
+test('A late response cannot replace the newest route or reapply its loading state',async()=>{
+ const p=await page();try{const gate=p.block('cd_business_bundle');p.w.location.hash='#/statistics';await wait();assert(gate.requested);assert.equal(p.d.querySelector('#portal-app').getAttribute('aria-busy'),'true');p.w.location.hash='#/requests';await wait();assert.match(p.d.querySelector('#portal-main h1').textContent,/Hồ sơ yêu cầu/);assert(!p.d.querySelector('#portal-app').hasAttribute('aria-busy'));gate.release();await wait();assert.match(p.d.querySelector('#portal-main h1').textContent,/Hồ sơ yêu cầu/);assert(!p.d.querySelector('#portal-main').hasAttribute('inert'));assert.equal(p.d.querySelector('.portal-load-status'),null);assert.deepEqual(p.errors,[]);}finally{p.close();}
+});
+test('Loading failure removes blur and stale records, shows the real error and allows retry',async()=>{
+ const p=await page();try{const gate=p.block('cd_member_bundle');p.d.querySelector('#refresh-data').click();gate.fail();await wait();assert.match(p.d.querySelector('#portal-main h1').textContent,/Chưa tải được dữ liệu/);assert.match(p.d.querySelector('#portal-main .error').textContent,/Mất kết nối/);assert.doesNotMatch(p.d.querySelector('#portal-app').textContent,/Công dân Minh Họa/);assert(!p.d.querySelector('#portal-app').hasAttribute('aria-busy'));p.d.querySelector('#retry-data').click();await wait();assert.match(p.d.querySelector('#portal-main').textContent,/Công dân Minh Họa/);assert.deepEqual(p.errors,[]);}finally{p.close();}
+});
+test('Losing member access clears private DOM immediately, rather than retaining a blurred copy',async()=>{
+ const p=await page();try{const gate=p.block('cd_member_bundle');p.d.querySelector('#refresh-data').click();p.w.PortalAuth={...p.w.PortalAuth,isMember:()=>false,userId:()=>null,status:()=> 'ready'};p.w.dispatchEvent(new p.w.Event('portalauthchange'));assert.doesNotMatch(p.d.querySelector('#portal-app').textContent,/Công dân Minh Họa/);assert.match(p.d.querySelector('#portal-app').textContent,/Khu vực dành cho thành viên/);assert(!p.d.querySelector('#portal-app').hasAttribute('aria-busy'));gate.release();await wait();assert.doesNotMatch(p.d.querySelector('#portal-app').textContent,/Công dân Minh Họa/);assert.equal(p.d.querySelector('.portal-load-status'),null);assert.deepEqual(p.errors,[]);}finally{p.close();}
+});
+test('Citizen view continuity is scoped to the verified account and expiry returns to login without revealing stale profile',async()=>{
+ const p=await page();try{
+  p.w.location.hash='#/login';await wait();let form=p.d.querySelector('#citizen-login');form.elements.cccd.value='000000000001';form.elements.password.value='CitizenTest123';form.requestSubmit();await wait();form=p.d.querySelector('#otp-form');form.elements.code.value='246810';form.requestSubmit();await wait();await wait();assert.match(p.d.querySelector('#portal-main').textContent,/Công dân Minh Họa/);
+  const main=p.d.querySelector('#portal-main'),gate=p.block('cd_citizen_bundle');p.w.location.hash='#/profile/card';await wait();assert(gate.requested);assert.equal(p.d.querySelector('#portal-main'),main);assert(main.hasAttribute('inert'));gate.release();await wait();assert(!p.d.querySelector('#portal-main').hasAttribute('inert'));
+  const now=p.w.Date.now();p.w.Date.now=()=>now+9*3600000;p.w.location.hash='#/profile/personal';await wait();assert(p.d.querySelector('#citizen-login'));assert.doesNotMatch(p.d.querySelector('#portal-app').textContent,/Công dân Minh Họa/);assert(!p.d.querySelector('#portal-app').hasAttribute('aria-busy'));assert.deepEqual(p.errors,[]);
+ }finally{p.close();}
+});

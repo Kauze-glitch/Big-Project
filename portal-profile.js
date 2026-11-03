@@ -7,7 +7,7 @@
   const box = (title, body) => `<section class="citizen-panel"><h2>${esc(title)}</h2>${body}</section>`;
   const details = rows => `<dl class="citizen-details">${rows.map(row => field(...row)).join('')}</dl>`;
   const portrait = '<svg viewBox="0 0 80 100" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="40" cy="29" r="17"/><path d="M10 90V77a30 30 0 0 1 60 0v13"/></svg>';
-  const pages = { personal: 'Thông tin cá nhân', card: 'Căn cước / CCCD', residence: 'Thông tin cư trú', documents: 'Giấy tờ của tôi', requests: 'Hồ sơ yêu cầu' };
+  const pages = { personal: 'Thông tin cá nhân', card: 'Căn cước / CCCD', residence: 'Thông tin cư trú', documents: 'Giấy tờ của tôi', requests: 'Hồ sơ yêu cầu', security: 'Bảo mật tài khoản' };
   const localToday=()=>{const d=new Date();return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');};
   function cardState(card, today = localToday()) {
     if (!card) return {label:'Chưa cập nhật', active:false};
@@ -53,7 +53,7 @@
   }
   function html(r, page, member) {
     page = Object.hasOwn(pages,page) ? page : 'personal';
-    const bodies = {personal,card,residence,requests,documents:()=>'<p role="status">Đang tải giấy tờ…</p>'};
+    const bodies = {personal,card,residence,requests,security:()=>window.PortalSecurity?.passwordHTML()||'',documents:()=>'<p role="status">Đang tải giấy tờ…</p>'};
     return `<div class="workspace citizen-workspace arrive"><aside class="workspace-nav citizen-nav"><p class="nav-label">HỒ SƠ CỦA TÔI</p><nav aria-label="Điều hướng hồ sơ công dân">${Object.entries(pages).map(([key,label])=>`<a href="#/profile/${key}" ${key===page?'class="active" aria-current="page"':''}>${label}</a>`).join('')}</nav>${member ? '<div class="nav-bottom"><a href="#/admin">Quản lý hồ sơ</a><a href="database.html">Sơ đồ database</a></div>' : ''}</aside><main id="portal-main" class="workspace-main citizen-main" tabindex="-1"><div class="page-heading"><div><p class="eyebrow">CỔNG THÔNG TIN CÁ NHÂN</p><h1>${pages[page]}</h1><p>Thông tin theo hồ sơ đã được ghi nhận trên hệ thống.</p></div><button id="citizen-logout" class="btn secondary small">Đăng xuất</button></div>${bodies[page](r)}</main></div>`;
   }
   function bind(r) {
