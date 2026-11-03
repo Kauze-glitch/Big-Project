@@ -1,7 +1,9 @@
-.env
-.env.*
-supabase/functions/.env
 node_modules/
-.cache/
-backups/
+.env
+.data/
+.taste-skill/before/
+.taste-skill/after/
+npm-debug.log*
+supabase/functions/.env
 supabase/.temp/
+

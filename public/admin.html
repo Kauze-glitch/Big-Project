@@ -1,0 +1,490 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f7fa">
+  <title>ZYRO Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/admin.css?v=20261103-zalo-mapping">
+</head>
+<body>
+  <section class="login-view" data-login-view>
+    <form class="login-card" data-login-form>
+      <img src="/assets/zyro-logo.webp" alt="ZYRO Volleyball Club" width="420" height="288">
+      <div>
+        <div class="login-title" role="heading" aria-level="1">Quản trị ZYRO</div>
+        <p>Duyệt đăng ký và điều chỉnh nội dung website.</p>
+      </div>
+      <label>
+        <span>Tên đăng nhập</span>
+        <input name="username" autocomplete="username" value="zyro" required>
+      </label>
+      <label>
+        <span>Mật khẩu</span>
+        <input name="password" type="password" autocomplete="current-password" required>
+      </label>
+      <p class="login-status" data-login-status aria-live="polite"></p>
+      <button class="primary-button" type="submit">Đăng nhập</button>
+    </form>
+  </section>
+
+  <div class="admin-shell" data-admin-shell hidden>
+    <aside class="admin-sidebar">
+      <div class="admin-brand">
+        <img src="/assets/zyro-logo.webp" alt="ZYRO Volleyball Club" width="420" height="288">
+        <div><strong>ZYRO Club</strong><span>Admin</span></div>
+      </div>
+      <nav class="admin-nav" aria-label="Quản trị">
+        <button type="button" class="is-active" data-nav="registrations">Đăng ký</button>
+        <button type="button" data-nav="zalo-mapping">Mapping Zalo</button>
+        <button type="button" data-nav="settings">Giao diện & nội dung</button>
+      </nav>
+      <div class="sidebar-actions">
+        <a href="/" target="_blank" rel="noreferrer">Mở website</a>
+        <button type="button" data-logout>Đăng xuất</button>
+      </div>
+    </aside>
+
+    <main class="admin-main">
+      <header class="admin-topbar">
+        <div class="topbar-heading">
+          <h1 data-screen-title>Đăng ký</h1>
+          <div class="topbar-meta">
+            <span data-updated>Đang tải dữ liệu…</span>
+            <span class="sync-status" data-sync-status aria-live="polite"></span>
+            <span class="change-indicator" data-change-indicator hidden></span>
+          </div>
+        </div>
+        <div class="topbar-actions">
+          <button class="secondary-button refresh-button" type="button" data-refresh>Đồng bộ</button>
+          <button class="secondary-button logout-mobile" type="button" data-logout>Thoát</button>
+          <a href="/" target="_blank" rel="noreferrer">Xem trang public</a>
+        </div>
+      </header>
+
+      <div class="toast-region" data-toast-region aria-live="polite" aria-relevant="additions text"></div>
+
+      <section class="screen" data-screen="registrations">
+        <div class="screen-title-row">
+          <div>
+            <h2>Đăng ký thành viên</h2>
+            <p>Duyệt nhanh những bạn đã hoàn thành form.</p>
+          </div>
+        </div>
+
+        <div class="status-tabs" role="group" aria-label="Lọc trạng thái đăng ký">
+          <button class="is-active" type="button" data-status-filter="all" aria-pressed="true">Tất cả <span data-count-status="all">0</span></button>
+          <button type="button" data-status-filter="new" aria-pressed="false">Chờ duyệt <span data-count-status="new">0</span></button>
+          <button type="button" data-status-filter="approved" aria-pressed="false">Đã duyệt <span data-count-status="approved">0</span></button>
+          <button type="button" data-status-filter="rejected" aria-pressed="false">Từ chối <span data-count-status="rejected">0</span></button>
+        </div>
+
+        <div class="registration-toolbar">
+          <div class="registration-search">
+            <input type="search" data-search placeholder="Tìm tên Zalo…" autocomplete="off">
+            <span data-registration-status></span>
+          </div>
+          <div class="registration-controls">
+            <label>
+              <span>Sắp xếp</span>
+              <select data-sort>
+                <option value="newest">Mới nhất</option>
+                <option value="oldest">Cũ nhất</option>
+              </select>
+            </label>
+            <label>
+              <span>Hiển thị</span>
+              <select data-page-size>
+                <option value="25">25 / trang</option>
+                <option value="50">50 / trang</option>
+                <option value="100">100 / trang</option>
+              </select>
+            </label>
+          </div>
+        </div>
+
+        <div class="bulk-bar" data-bulk-bar hidden>
+          <strong><span data-selected-count>0</span> đã chọn</strong>
+          <div>
+            <span class="bulk-hint">Duyệt hoặc từ chối từng hồ sơ để tùy chỉnh email gửi riêng.</span>
+            <button class="bulk-button" type="button" data-bulk-status="new">Đưa về chờ duyệt</button>
+            <button class="bulk-button" type="button" data-clear-selection>Bỏ chọn</button>
+          </div>
+        </div>
+
+        <div class="registration-table">
+          <div class="registration-head">
+            <label class="select-cell">
+              <input type="checkbox" data-select-page aria-label="Chọn tất cả trên trang">
+            </label>
+            <span>Thành viên</span><span>Thông tin</span><span>Mong muốn</span><span>Ngày gửi</span><span>Trạng thái</span>
+          </div>
+          <div data-registration-list></div>
+        </div>
+
+        <nav class="pagination" aria-label="Phân trang đăng ký">
+          <button class="secondary-button" type="button" data-page-prev>← Trước</button>
+          <span data-page-info>Trang 1 / 1</span>
+          <button class="secondary-button" type="button" data-page-next>Sau →</button>
+        </nav>
+      </section>
+
+      <section class="screen" data-screen="zalo-mapping" hidden>
+        <div class="screen-title-row">
+          <div>
+            <h2>Đối chiếu thành viên Zalo</h2>
+            <p>Chọn nhóm, kiểm tra gợi ý theo tên và xác nhận UID trước khi đồng bộ hồ sơ sang Draft.</p>
+          </div>
+          <div class="settings-actions">
+            <button class="secondary-button" type="button" data-zalo-load-groups>Tải nhóm Zalo</button>
+            <button class="secondary-button" type="button" data-zalo-reload disabled>Tải lại danh bạ</button>
+          </div>
+        </div>
+
+        <div class="zalo-mapping-toolbar">
+          <label>
+            <span>Nhóm Zalo cần đối chiếu</span>
+            <select data-zalo-group disabled>
+              <option value="">Tải danh sách nhóm từ Draft…</option>
+            </select>
+          </label>
+          <p class="zalo-directory-status" data-zalo-directory-status role="status" aria-live="polite">Chưa tải danh sách nhóm.</p>
+        </div>
+
+        <div class="zalo-mapping-summary" aria-live="polite">
+          <div><strong data-zalo-count-total>0</strong><span>Hồ sơ Form</span></div>
+          <div><strong data-zalo-count-exact>0</strong><span>Khớp duy nhất</span></div>
+          <div><strong data-zalo-count-review>0</strong><span>Cần xác nhận</span></div>
+          <div><strong data-zalo-count-saved>0</strong><span>UID đã lưu</span></div>
+          <div><strong data-zalo-count-selected>0</strong><span>Được chọn</span></div>
+        </div>
+
+        <div class="zalo-mapping-note">
+          <strong>Nguyên tắc mapping</strong>
+          <p>Khớp tên duy nhất được tự đề xuất. Tên trùng hoặc gần giống phải chọn đúng thành viên. UID đã lưu được ưu tiên hơn tên hiển thị mới. Mapping không phụ thuộc trạng thái duyệt; thời gian tham gia và mong muốn vẫn chỉ lưu trên Form.</p>
+        </div>
+
+        <div class="zalo-mapping-list" data-zalo-mapping-list>
+          <p class="empty-row">Tải danh sách nhóm Zalo để bắt đầu đối chiếu.</p>
+        </div>
+
+        <div class="zalo-mapping-footer">
+          <p data-zalo-sync-message role="status" aria-live="polite">Chưa có hồ sơ được chọn để đồng bộ.</p>
+          <button class="primary-button" type="button" data-zalo-sync disabled>Đồng bộ hồ sơ đã chọn sang Draft</button>
+        </div>
+      </section>
+
+      <section class="screen" data-screen="settings" hidden>
+        <div class="screen-title-row">
+          <div>
+            <h2>Giao diện & nội dung</h2>
+            <p>Thay lịch sân, người liên hệ, nội dung và lựa chọn form mà không cần sửa code.</p>
+          </div>
+          <div class="settings-actions">
+            <button class="secondary-button" type="button" data-revert-config disabled>Hoàn tác</button>
+            <button class="primary-button" type="button" data-save-config disabled>Lưu thay đổi</button>
+          </div>
+        </div>
+        <section class="change-tracker" data-change-tracker aria-live="polite" aria-atomic="true">
+          <div class="change-tracker-header">
+            <div>
+              <strong data-change-summary>Chưa có thay đổi chưa lưu</strong>
+              <p data-change-hint>Cấu hình đã đồng bộ với website public.</p>
+            </div>
+            <span class="change-count" data-change-count>0</span>
+          </div>
+          <ul class="change-list" data-change-list hidden></ul>
+        </section>
+        <p class="save-status" data-save-status aria-live="polite"></p>
+
+        <div class="settings-stack">
+          <section class="settings-section">
+            <div class="settings-label">
+              <h2>Trang chủ</h2>
+              <p>Hai dòng headline và phần giới thiệu đầu trang.</p>
+            </div>
+            <div class="settings-panel">
+              <label><span>Dòng tiêu đề 1</span><input data-bind="hero.titleLine1" maxlength="50"></label>
+              <label><span>Dòng tiêu đề 2</span><input data-bind="hero.titleLine2" maxlength="50"></label>
+              <label><span>Mô tả</span><textarea data-bind="hero.lead" rows="4" maxlength="320"></textarea></label>
+            </div>
+          </section>
+
+          <section class="settings-section">
+            <div class="settings-label">
+              <h2>Lịch sân</h2>
+              <p>Thêm T4/T6 hoặc đổi giờ bất kỳ lúc nào. Website public tự cập nhật.</p>
+            </div>
+            <div class="settings-panel">
+              <div class="repeat-list" data-schedule-editor></div>
+              <button class="text-button" type="button" data-add-schedule>+ Thêm buổi chơi</button>
+            </div>
+          </section>
+
+          <section class="settings-section">
+            <div class="settings-label">
+              <h2>Tinh thần nhóm</h2>
+              <p>Các nguyên tắc hiển thị ngay dưới hero.</p>
+            </div>
+            <div class="settings-panel">
+              <div class="repeat-list" data-principles-editor></div>
+              <button class="text-button" type="button" data-add-principle>+ Thêm nguyên tắc</button>
+            </div>
+          </section>
+
+          <section class="settings-section">
+            <div class="settings-label">
+              <h2>Người liên hệ</h2>
+              <p>Thêm Trưởng nhóm, Phó nhóm hoặc người phụ trách khác. Số điện thoại tạo link Zalo tự động.</p>
+            </div>
+            <div class="settings-panel">
+              <div class="repeat-list" data-contacts-editor></div>
+              <button class="text-button" type="button" data-add-contact>+ Thêm người liên hệ</button>
+            </div>
+          </section>
+
+          <section class="settings-section">
+            <div class="settings-label">
+              <h2>Tuỳ chọn form</h2>
+              <p>Chọn nhóm bằng dropdown rồi thêm/xóa option. Validation backend dùng chính danh sách này.</p>
+            </div>
+            <div class="settings-panel">
+              <label>
+                <span>Nhóm lựa chọn</span>
+                <select data-option-category>
+                  <option value="duration">Thời gian tham gia</option>
+                  <option value="gender">Giới tính</option>
+                  <option value="position">Vị trí chơi</option>
+                  <option value="level">Trình độ</option>
+                </select>
+              </label>
+              <div class="repeat-list option-list" data-options-editor></div>
+              <button class="text-button" type="button" data-add-option>+ Thêm lựa chọn</button>
+            </div>
+          </section>
+
+          <section class="settings-section">
+            <div class="settings-label">
+              <h2>Form & xác nhận</h2>
+              <p>Nội dung giới thiệu form và lời nhắn sau khi gửi thành công.</p>
+            </div>
+            <div class="settings-panel">
+              <label><span>Tiêu đề form</span><input data-bind="signup.title" maxlength="90"></label>
+              <label><span>Mô tả form</span><textarea data-bind="signup.intro" rows="3" maxlength="320"></textarea></label>
+              <label><span>Ghi chú riêng tư</span><input data-bind="signup.privacyNote" maxlength="180"></label>
+              <label><span>Tiêu đề sau khi gửi</span><input data-bind="signup.successTitle" maxlength="90"></label>
+              <label><span>Lời nhắn sau khi gửi</span><textarea data-bind="signup.successMessage" rows="4" maxlength="360"></textarea></label>
+            </div>
+          </section>
+
+          <section class="settings-section" data-mail-sender-settings>
+            <div class="settings-label">
+              <h2>Gửi email miễn phí qua Google</h2>
+              <p>Dùng Google Apps Script và Gmail của chủ sở hữu script. Không cần App Password, không cần SMTP và không cần nâng gói Render.</p>
+            </div>
+            <div class="settings-panel mail-sender-panel">
+              <div class="mail-sender-status" data-mail-sender-status aria-live="polite">Đang kiểm tra Google Apps Script…</div>
+              <label>
+                <span>Tài khoản Gmail gửi đi (tự lấy từ Google Apps Script)</span>
+                <input type="email" data-mail-sender-email maxlength="254" placeholder="Chưa kết nối" autocomplete="off" readonly>
+              </label>
+              <p class="mail-sender-help">Địa chỉ gửi là tài khoản đã triển khai Apps Script với lựa chọn “Thực thi với tư cách tôi”. Hạn mức còn lại được Google trả về trực tiếp theo tài khoản.</p>
+              <div class="mail-test-grid">
+                <label>
+                  <span>Email nhận thư thử</span>
+                  <input type="email" data-mail-test-recipient maxlength="254" placeholder="Email của bạn để nhận thư thử" autocomplete="email">
+                </label>
+                <div class="mail-sender-actions">
+                  <button class="secondary-button" type="button" data-mail-verify>Kiểm tra kết nối</button>
+                  <button class="secondary-button" type="button" data-mail-send-test>Gửi email thử</button>
+                </div>
+              </div>
+              <p class="mail-sender-message" data-mail-sender-message aria-live="polite"></p>
+              <p class="mail-sender-note">Cấu hình kỹ thuật được đặt ở máy chủ Render: MAILER_WEB_APP_URL và MAILER_SHARED_SECRET. Khóa bí mật chỉ nằm ở Render và Script Properties, không đưa vào trình duyệt hoặc cơ sở dữ liệu. Email thử chỉ gửi đến địa chỉ bạn nhập ở trên.</p>
+            </div>
+          </section>
+
+          <section class="settings-section" data-email-template-settings>
+            <div class="settings-label">
+              <h2>Email duyệt & từ chối</h2>
+              <p>Chỉnh nội dung, cách trình bày, logo và màu sắc của email. Có thể xem trước trước khi lưu.</p>
+            </div>
+            <div class="settings-panel email-settings-panel">
+              <div class="email-template-tabs" role="tablist" aria-label="Chọn mẫu email">
+                <button type="button" class="is-active" data-email-template-tab="approved" role="tab" aria-selected="true">Chấp nhận</button>
+                <button type="button" data-email-template-tab="rejected" role="tab" aria-selected="false">Từ chối</button>
+              </div>
+              <div class="email-template-fields">
+                <label><span>Tiêu đề email (Subject)</span><input data-email-bind="subject" maxlength="180"></label>
+                <label><span>Dòng xem trước trong hộp thư (Preheader)</span><input data-email-bind="preheader" maxlength="180"></label>
+                <label><span>Tiêu đề chính trong email</span><input data-email-bind="title" maxlength="120"></label>
+                <label class="email-profile-toggle"><input type="checkbox" data-email-bind="showProfile"> Hiển thị thông tin ứng viên đã đăng ký</label>
+              </div>
+              <div class="email-builder-grid">
+                <div class="email-editor-column">
+                  <div class="email-editor-heading">
+                    <strong>Nội dung email</strong>
+                    <span>Admin có thể định dạng trực tiếp.</span>
+                  </div>
+                  <div class="email-editor-toolbar" role="toolbar" aria-label="Định dạng nội dung email">
+                    <button type="button" data-email-command="bold" aria-label="In đậm"><strong>B</strong></button>
+                    <button type="button" data-email-command="italic" aria-label="In nghiêng"><em>I</em></button>
+                    <button type="button" data-email-command="underline" aria-label="Gạch chân"><u>U</u></button>
+                    <button type="button" data-email-command="insertUnorderedList" aria-label="Danh sách">• Danh sách</button>
+                    <button type="button" data-email-command="createLink">Chèn liên kết</button>
+                  </div>
+                  <div class="email-rich-editor" data-email-body-editor contenteditable="true" role="textbox" aria-multiline="true" aria-label="Nội dung mẫu email"></div>
+                  <div class="email-token-help">
+                    <strong>Biến có thể chèn</strong>
+                    <div>
+                      <button type="button" data-email-token="{{zalo_name}}">Tên Zalo</button>
+                      <button type="button" data-email-token="{{duration}}">Thời gian</button>
+                      <button type="button" data-email-token="{{gender}}">Giới tính</button>
+                      <button type="button" data-email-token="{{position}}">Vị trí</button>
+                      <button type="button" data-email-token="{{level}}">Trình độ</button>
+                      <button type="button" data-email-token="{{goal}}">Mong muốn</button>
+                      <button type="button" data-email-token="{{created_at}}">Ngày đăng ký</button>
+                      <button type="button" data-email-token="{{reason}}">Lý do từ chối</button>
+                    </div>
+                    <p>Biến sẽ tự thay bằng dữ liệu của đúng ứng viên khi gửi email. Trong mẫu từ chối, giữ biến {{reason}} để chèn lý do admin nhập cho từng hồ sơ.</p>
+                  </div>
+                </div>
+                <div class="email-preview-column">
+                  <div class="email-editor-heading"><strong>Xem trước email</strong><span>Mô phỏng trên màn hình điện thoại.</span></div>
+                  <iframe class="email-preview-frame" data-email-preview title="Xem trước mẫu email" sandbox=""></iframe>
+                </div>
+              </div>
+              <div class="email-design-editor">
+                <div class="email-editor-heading"><strong>Nhận diện thương hiệu</strong><span>Áp dụng cho cả email chấp nhận và từ chối.</span></div>
+                <div class="email-design-grid">
+                  <label><span>Đường dẫn logo HTTPS</span><input type="url" data-email-design="logoUrl" placeholder="https://.../zyro-logo.webp"></label>
+                  <label><span>Tên thương hiệu</span><input data-email-design="brandName" maxlength="80"></label>
+                  <label><span>Slogan</span><input data-email-design="tagline" maxlength="120" placeholder="Để trống để ẩn slogan"></label>
+                  <label><span>Màu nền đầu email</span><input type="color" data-email-design="headerColor"></label>
+                  <label><span>Màu nhấn</span><input type="color" data-email-design="accentColor"></label>
+                  <label class="email-footer-field"><span>Chân email</span><textarea data-email-design="footerText" rows="2" maxlength="240"></textarea></label>
+                </div>
+                <p class="email-design-note">Logo trong email cần là đường dẫn HTTPS công khai để Gmail và các ứng dụng email tải được ảnh.</p>
+              </div>
+            </div>
+          </section>
+        </div>
+        <div class="mobile-settings-savebar" data-mobile-settings-savebar>
+          <p data-mobile-save-summary>Chưa có thay đổi chưa lưu</p>
+          <div class="mobile-settings-savebar-actions">
+            <button class="secondary-button" type="button" data-mobile-revert-config disabled>Hoàn tác</button>
+            <button class="primary-button" type="button" data-mobile-save-config disabled>Lưu thay đổi</button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <dialog class="confirm-dialog" data-confirm-dialog aria-labelledby="confirm-title" aria-describedby="confirm-message">
+    <div class="confirm-dialog-content">
+      <h2 id="confirm-title" data-confirm-title>Tiếp tục?</h2>
+      <p id="confirm-message" data-confirm-message></p>
+      <div class="confirm-actions">
+        <button class="secondary-button" type="button" data-confirm-cancel>Hủy</button>
+        <button class="danger-button" type="button" data-confirm-accept>Tiếp tục</button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog class="email-compose-dialog" data-email-dialog aria-labelledby="email-compose-title">
+    <form class="email-compose-form" data-email-compose-form method="dialog">
+      <header class="email-compose-header">
+        <div>
+          <span class="detail-label">GỬI THÔNG BÁO THÀNH VIÊN</span>
+          <h2 id="email-compose-title" data-email-compose-title>Thông báo kết quả</h2>
+          <p data-email-compose-description></p>
+        </div>
+        <button class="drawer-close" type="button" data-email-compose-close aria-label="Đóng">×</button>
+      </header>
+      <div class="email-compose-content">
+        <div class="email-compose-recipient">
+          <label><span>Email người nhận</span><input type="email" data-compose-recipient maxlength="254" placeholder="ban@example.com"></label>
+          <label class="email-compose-send-toggle"><input type="checkbox" data-compose-send> Gửi email cho ứng viên</label>
+          <p data-compose-email-help>Chưa có email trong hồ sơ. Có thể nhập email tại đây hoặc chỉ cập nhật trạng thái mà không gửi email.</p>
+        </div>
+        <section class="email-compose-reject-mode" data-compose-reject-options hidden>
+          <strong>Cách gửi thông báo từ chối</strong>
+          <label><input type="radio" name="rejectEmailMode" value="template" data-compose-mode checked> Dùng mẫu từ chối (có thể bổ sung lý do riêng)</label>
+          <label><input type="radio" name="rejectEmailMode" value="custom" data-compose-mode> Tự soạn nội dung riêng cho ứng viên</label>
+        </section>
+        <div class="email-compose-fields" data-compose-template-fields hidden>
+          <label><span>Lý do bổ sung (không bắt buộc)</span><textarea data-compose-reason rows="3" maxlength="700" placeholder="Để trống để dùng lý do mặc định trong mẫu; nếu nhập, hãy viết ít nhất 5 ký tự."></textarea></label>
+        </div>
+        <div class="email-compose-fields" data-compose-custom-fields>
+          <label><span>Tiêu đề email</span><input data-compose-subject maxlength="180"></label>
+          <div class="email-editor-heading"><strong>Nội dung gửi riêng</strong><span>Có thể chỉnh sửa nội dung cho đúng tình huống.</span></div>
+          <div class="email-editor-toolbar" role="toolbar" aria-label="Định dạng email gửi riêng">
+            <button type="button" data-compose-command="bold"><strong>B</strong></button>
+            <button type="button" data-compose-command="italic"><em>I</em></button>
+            <button type="button" data-compose-command="underline"><u>U</u></button>
+            <button type="button" data-compose-command="insertUnorderedList">• Danh sách</button>
+          </div>
+          <div class="email-rich-editor compose-rich-editor" data-compose-body contenteditable="true" role="textbox" aria-multiline="true" aria-label="Nội dung email gửi riêng"></div>
+          <div class="email-token-help compact-token-help"><strong>Biến:</strong> <button type="button" data-compose-token="{{zalo_name}}">Tên Zalo</button> <button type="button" data-compose-token="{{duration}}">Thời gian</button> <button type="button" data-compose-token="{{reason}}">Lý do</button></div>
+        </div>
+        <div class="email-compose-preview-wrap">
+          <div class="email-editor-heading"><strong>Xem trước nội dung gửi</strong><span>Email chỉ gửi sau khi admin xác nhận.</span></div>
+          <iframe class="email-preview-frame compose-preview-frame" data-compose-preview title="Xem trước email gửi ứng viên" sandbox=""></iframe>
+        </div>
+      </div>
+      <footer class="email-compose-actions">
+        <button class="secondary-button" type="button" data-email-compose-cancel>Hủy</button>
+        <button class="primary-button" type="submit" data-email-compose-confirm>Cập nhật trạng thái</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <div class="detail-backdrop" data-detail-backdrop hidden></div>
+  <aside class="detail-drawer" data-detail-drawer hidden role="dialog" aria-modal="true" aria-labelledby="detail-title">
+    <header class="detail-header">
+      <div>
+        <span class="detail-label">Chi tiết đăng ký</span>
+        <h2 id="detail-title" data-detail-name></h2>
+        <p data-detail-date></p>
+      </div>
+      <button class="drawer-close" type="button" data-detail-close aria-label="Đóng">×</button>
+    </header>
+
+    <div class="detail-body">
+      <section class="detail-section">
+        <h3>Thông tin người chơi</h3>
+        <dl class="detail-grid">
+          <div><dt>Email nhận kết quả</dt><dd data-detail-email></dd></div>
+          <div><dt>Thời gian</dt><dd data-detail-duration></dd></div>
+          <div><dt>Giới tính</dt><dd data-detail-gender></dd></div>
+          <div><dt>Vị trí</dt><dd data-detail-position></dd></div>
+          <div><dt>Trình độ</dt><dd data-detail-level></dd></div>
+        </dl>
+      </section>
+
+      <section class="detail-section">
+        <div class="detail-section-title">
+          <h3>Mong muốn khi tham gia</h3>
+          <span data-detail-goal-count>0 ký tự</span>
+        </div>
+        <p class="detail-goal" data-detail-goal></p>
+      </section>
+    </div>
+
+    <footer class="detail-actions">
+      <select data-detail-status aria-label="Trạng thái đăng ký">
+        <option value="new">Chờ duyệt</option>
+        <option value="approved">Đã duyệt</option>
+        <option value="rejected">Từ chối</option>
+      </select>
+      <button class="primary-button" type="button" data-detail-approve>Duyệt thành viên</button>
+    </footer>
+  </aside>
+
+  <script src="/admin.js?v=20261103-zalo-mapping" type="module"></script>
+</body>
+</html>
+
