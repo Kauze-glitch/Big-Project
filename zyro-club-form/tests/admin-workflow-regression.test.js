@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { runInNewContext } from "node:vm";
 
 const root = new URL("../", import.meta.url);
 
@@ -36,6 +37,42 @@ test("settings screen exposes a persistent save and revert bar on desktop and mo
   assert.match(js, /mobileSaveButton\?\.addEventListener\("click", \(\) => saveButton\.click\(\)\)/);
   assert.match(js, /mobileRevertButton\?\.addEventListener\("click", \(\) => revertButton\.click\(\)\)/);
   assert.match(css, /\.mobile-settings-savebar\s*\{[\s\S]*?position: fixed;[\s\S]*?bottom: 0;[\s\S]*?left: 224px;[\s\S]*?display: grid;/);\n  assert.match(css, /@media \(max-width: 900px\)\s*\{[\s\S]*?\.mobile-settings-savebar \{ left: 0;/);\n  assert.doesNotMatch(css, /\.mobile-settings-savebar\s*\{\s*display: none;/);\n  assert.match(html, /data-email-design="tagline" maxlength="120" placeholder="Để trống để ẩn slogan"/);
+});
+
+test("email template defaults preserve live editor references and an intentionally empty slogan", async () => {
+  const source = await readFile(new URL("public/admin.js", root), "utf8");
+  const defaults = source.match(/const defaultEmailTemplates = \{[\\s\\S]*?\\n\};/);
+  const ensure = source.match(/function ensureEmailTemplates\(config\) \{[\\s\\S]*?\\n\}\n\nfunction authHeaders/);
+  assert.ok(defaults, "email defaults are present");
+  assert.ok(ensure, "email template initializer is present");
+  const ensureSource = ensure[0].replace(/\n\nfunction authHeaders$/, "");
+  const initialize = runInNewContext(`${defaults[0]}\n${ensureSource}\nensureEmailTemplates`);
+
+  const config = {
+    emailTemplates: {
+      design: { tagline: "PLAY TOGETHER. GROW TOGETHER." },
+      approved: { title: "Approved" },
+      rejected: { title: "Rejected" },
+    },
+  };
+  const templatesRef = config.emailTemplates;
+  const designRef = config.emailTemplates.design;
+  initialize(config);
+  assert.strictEqual(config.emailTemplates, templatesRef);
+  assert.strictEqual(config.emailTemplates.design, designRef);
+
+  config.emailTemplates.design.tagline = "";
+  initialize(config);
+  assert.equal(config.emailTemplates.design.tagline, "");
+  assert.strictEqual(config.emailTemplates, templatesRef);
+  assert.strictEqual(config.emailTemplates.design, designRef);
+});
+
+test("email editor input handlers always update the current config object", async () => {
+  const source = await readFile(new URL("public/admin.js", root), "utf8");
+  assert.match(source, /const currentTemplate = state\.config\?\.emailTemplates\?\.\[state\.emailTemplateKey\]/);
+  assert.match(source, /const currentDesign = state\.config\?\.emailTemplates\?\.design/);
+  assert.doesNotMatch(source, /templates\.design\[key\] = input\.value/);
 });
 
 test("a retry after a confirmed send reuses the sent outbox receipt instead of sending again", async () => {
