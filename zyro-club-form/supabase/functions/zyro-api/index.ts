@@ -86,7 +86,9 @@ function sanitizeEmailTemplates(input: any) {
     design: {
       logoUrl: safeLogoUrl,
       brandName: text(designInput.brandName, 80) || DEFAULT_EMAIL_TEMPLATES.design.brandName,
-      tagline: text(designInput.tagline, 120) || DEFAULT_EMAIL_TEMPLATES.design.tagline,
+      tagline: typeof designInput.tagline === "string"
+        ? text(designInput.tagline, 120)
+        : DEFAULT_EMAIL_TEMPLATES.design.tagline,
       headerColor: color(designInput.headerColor, DEFAULT_EMAIL_TEMPLATES.design.headerColor),
       accentColor: color(designInput.accentColor, DEFAULT_EMAIL_TEMPLATES.design.accentColor),
       footerText: text(designInput.footerText, 240) || DEFAULT_EMAIL_TEMPLATES.design.footerText
@@ -138,13 +140,16 @@ function renderDecisionEmail(config: any, template: any, registration: any, reas
   const logo = logoUrl
     ? '<img src="' + escapeHtml(logoUrl) + '" alt="ZYRO" width="112" style="display:block;width:112px;max-width:100%;height:auto;margin:0 auto 10px;">'
     : "";
+  const tagline = design.tagline
+    ? '<div style="margin-top:7px;color:#dbe7f5;font-size:10px;letter-spacing:.13em;">' + escapeHtml(design.tagline) + '</div>'
+    : "";
   return '<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>' +
     '<body style="margin:0;padding:24px 10px;background:#eef2f7;font-family:Arial,Helvetica,sans-serif;color:#17263c;">' +
     '<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">' + escapeHtml(template.preheader) + '</div>' +
     '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:600px;margin:0 auto;border-collapse:separate;border-spacing:0;background:#ffffff;border-radius:18px;overflow:hidden;">' +
     '<tr><td align="center" style="padding:26px 24px 24px;background:' + design.headerColor + ';">' + logo +
     '<div style="color:#ffffff;font-size:14px;font-weight:700;letter-spacing:.12em;">' + escapeHtml(design.brandName) + '</div>' +
-    '<div style="margin-top:7px;color:#dbe7f5;font-size:10px;letter-spacing:.13em;">' + escapeHtml(design.tagline) + '</div></td></tr>' +
+    tagline + '</td></tr>' +
     '<tr><td style="padding:30px 28px 20px;"><div style="width:42px;height:4px;margin-bottom:18px;background:' + design.accentColor + ';border-radius:8px;"></div>' +
     '<h1 style="margin:0 0 18px;color:#0b2d5f;font-size:25px;line-height:1.25;">' + escapeHtml(template.title) + '</h1>' +
     '<div style="font-size:15px;line-height:1.75;color:#475569;">' + body + '</div>' + profile +
