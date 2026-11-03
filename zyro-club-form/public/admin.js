@@ -1,4 +1,5 @@
 const apiBase = "https://grhdawkxnrkgkahegnnd.supabase.co/functions/v1/zyro-api";
+const mailerApiBase = "https://zyro-club-form.onrender.com/api/admin";
 
 const state = {
   auth: "",
@@ -23,6 +24,7 @@ const state = {
   saveError: "",
   deleting: new Set(),
   requestSequence: 0,
+  mailSenderConfigured: false,
 };
 
 const loginView = document.querySelector("[data-login-view]");
@@ -77,6 +79,15 @@ const composeSubject = document.querySelector("[data-compose-subject]");
 const composeBody = document.querySelector("[data-compose-body]");
 const composePreview = document.querySelector("[data-compose-preview]");
 const composeConfirm = document.querySelector("[data-email-compose-confirm]");
+const mailSenderStatus = document.querySelector("[data-mail-sender-status]");
+const mailSenderEmail = document.querySelector("[data-mail-sender-email]");
+const mailAppPassword = document.querySelector("[data-mail-app-password]");
+const mailPasswordToggle = document.querySelector("[data-mail-password-toggle]");
+const mailTestRecipient = document.querySelector("[data-mail-test-recipient]");
+const mailSaveButton = document.querySelector("[data-mail-save]");
+const mailVerifyButton = document.querySelector("[data-mail-verify]");
+const mailSendTestButton = document.querySelector("[data-mail-send-test]");
+const mailSenderMessage = document.querySelector("[data-mail-sender-message]");
 
 const statusLabels = {
   new: "Chờ duyệt",
@@ -137,6 +148,132 @@ async function api(path, options = {}, needsAuth = false) {
   }
   return body;
 }
+
+async function mailerApi(path, options = {}) {
+  const response = await fetch(mailerApiBase + path, {
+    cache: "no-store",
+    ...options,
+    headers: authHeaders(options.headers || {}),
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const error = new Error(body.message || "Không kết nối được dịch vụ email.");
+    error.status = response.status;
+    throw error;
+  }
+  return body;
+}
+
+function setMailSenderMessage(message, stateName = "") {
+  mailSenderMessage.textContent = message;
+  mailSenderMessage.dataset.state = stateName;
+}
+
+async function loadMailSenderSettings() {
+  if (!state.auth) return;
+  mailSenderStatus.textContent = "Đang tải cấu hình Gmail…";
+  mailSenderStatus.dataset.state = "";
+  try {
+    const data = await mailerApi("/email-settings");
+    state.mailSenderConfigured = Boolean(data.configured);
+    mailSenderEmail.value = data.senderEmail || "";
+    mailAppPassword.value = "";
+    mailAppPassword.placeholder = data.configured
+      ? "Để trống nếu giữ App Password hiện tại"
+      : "Nhập App Password 16 ký tự";
+    mailSenderStatus.dataset.state = data.configured ? "ready" : "missing";
+    mailSenderStatus.textContent = data.configured
+      ? "Đã cấu hình Gmail gửi đi: " + data.senderEmail + (data.updatedAt ? " · cập nhật " + new Date(data.updatedAt).toLocaleString("vi-VN") : "")
+      : "Chưa cấu hình Gmail. Nhập địa chỉ gửi và App Password để bắt đầu.";
+  } catch (error) {
+    mailSenderStatus.dataset.state = "error";
+    mailSenderStatus.textContent = error.message || "Chưa tải được cấu hình Gmail.";
+  }
+}
+
+async function saveMailSenderSettings() {
+  const senderEmail = mailSenderEmail.value.trim().toLowerCase();
+  const appPassword = mailAppPassword.value.replace(/\s/g, "");
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(senderEmail)) {
+    setMailSenderMessage("Nhập địa chỉ Gmail gửi đi hợp lệ.", "error");
+    mailSenderEmail.focus();
+    return;
+  }
+  if (appPassword && !/^[A-Za-z0-9]{16}$/.test(appPassword)) {
+    setMailSenderMessage("App Password phải gồm đúng 16 ký tự.", "error");
+    mailAppPassword.focus();
+    return;
+  }
+  if (!state.mailSenderConfigured && !appPassword) {
+    setMailSenderMessage("Lần đầu cấu hình cần nhập App Password Gmail.", "error");
+    mailAppPassword.focus();
+    return;
+  }
+
+  mailSaveButton.disabled = true;
+  mailSaveButton.textContent = "Đang lưu…";
+  setMailSenderMessage("Đang mã hóa và lưu cấu hình Gmail…", "loading");
+  try {
+    await mailerApi("/email-settings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ senderEmail, appPassword }),
+    });
+    mailAppPassword.value = "";
+    await loadMailSenderSettings();
+    setMailSenderMessage("Đã lưu tài khoản gửi email. App Password không được hiển thị lại.", "success");
+  } catch (error) {
+    setMailSenderMessage(error.message || "Không lưu được cấu hình Gmail.", "error");
+  } finally {
+    mailSaveButton.disabled = false;
+    mailSaveButton.textContent = "Lưu tài khoản";
+  }
+}
+
+async function verifyMailSender() {
+  mailVerifyButton.disabled = true;
+  mailVerifyButton.textContent = "Đang kiểm tra…";
+  setMailSenderMessage("Đang kiểm tra đăng nhập Gmail SMTP…", "loading");
+  try {
+    const result = await mailerApi("/email-settings/test", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "{}",
+    });
+    setMailSenderMessage(result.message || "Kết nối Gmail SMTP thành công.", "success");
+  } catch (error) {
+    setMailSenderMessage(error.message || "Không kiểm tra được kết nối Gmail.", "error");
+  } finally {
+    mailVerifyButton.disabled = false;
+    mailVerifyButton.textContent = "Kiểm tra kết nối";
+  }
+}
+
+async function sendTestMail() {
+  const to = mailTestRecipient.value.trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) {
+    setMailSenderMessage("Nhập email của bạn để nhận thư thử.", "error");
+    mailTestRecipient.focus();
+    return;
+  }
+  mailSendTestButton.disabled = true;
+  mailSendTestButton.textContent = "Đang gửi…";
+  setMailSenderMessage("Đang gửi email thử đến " + to + "…", "loading");
+  try {
+    const result = await mailerApi("/email-settings/test-send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ to }),
+    });
+    setMailSenderMessage("Đã gửi email thử đến " + to + ". Hãy kiểm tra cả hộp thư Spam nếu chưa thấy.", "success");
+  } catch (error) {
+    setMailSenderMessage(error.message || "Không gửi được email thử.", "error");
+  } finally {
+    mailSendTestButton.disabled = false;
+    mailSendTestButton.textContent = "Gửi email thử";
+  }
+}
+
 
 function clone(value) {
   return structuredClone(value);
@@ -1166,6 +1303,7 @@ async function loadData() {
   markSaved(state.updatedAt, state.savedConfig);
   setSyncStatus("Đã đồng bộ", "success");
   await loadRegistrations({ throwOnError: true, silent: true });
+  await loadMailSenderSettings();
 }
 
 async function refreshAll() {
@@ -1274,6 +1412,8 @@ document.querySelectorAll("[data-logout]").forEach((button) => button.addEventLi
     if (!accepted) return;
   }
   state.auth = "";
+  mailAppPassword.value = "";
+  state.mailSenderConfigured = false;
   state.selected.clear();
   if (state.savedConfig) state.config = clone(state.savedConfig);
   state.dirtyChanges = [];
@@ -1484,6 +1624,16 @@ composeReason.addEventListener("input", updateComposePreview);
 composeSubject.addEventListener("input", updateComposePreview);
 composeBody.addEventListener("input", updateComposePreview);
 emailComposeForm.addEventListener("submit", submitDecision);
+
+mailSaveButton.addEventListener("click", saveMailSenderSettings);
+mailVerifyButton.addEventListener("click", verifyMailSender);
+mailSendTestButton.addEventListener("click", sendTestMail);
+mailPasswordToggle.addEventListener("click", () => {
+  const showing = mailAppPassword.type === "text";
+  mailAppPassword.type = showing ? "password" : "text";
+  mailPasswordToggle.textContent = showing ? "Hiện" : "Ẩn";
+});
+
 document.querySelector("[data-email-compose-close]").addEventListener("click", closeEmailComposer);
 document.querySelector("[data-email-compose-cancel]").addEventListener("click", closeEmailComposer);
 emailDialog.addEventListener("close", () => { state.pendingDecision = null; });
