@@ -634,6 +634,7 @@ Deno.serve(async (req) => {
       }
 
       const body = await req.json();
+      const hasEmail = Object.prototype.hasOwnProperty.call(body ?? {}, "email");
       const status = body?.status;
       if (!["approved", "rejected"].includes(status)) {
         return json({ message: "Quyết định không hợp lệ." }, 400);
