@@ -9,8 +9,6 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const port = Number(process.env.PORT || 3000);
 const isProduction = process.env.NODE_ENV === "production";
-const adminUser = process.env.ADMIN_USER || "zyro";
-const adminPassword = process.env.ADMIN_PASSWORD || "change-me";
 const apiUrl = (process.env.ZYRO_API_URL || "https://grhdawkxnrkgkahegnnd.supabase.co/functions/v1/zyro-api").replace(/\/$/, "");
 const edgeSecret = process.env.ZYRO_EDGE_SECRET || "";
 const mailEncryptionSecret = process.env.MAIL_SETTINGS_ENCRYPTION_KEY || "";
@@ -20,9 +18,6 @@ if (isProduction && !edgeSecret) {
 }
 if (isProduction && !mailEncryptionSecret) {
   throw new Error("MAIL_SETTINGS_ENCRYPTION_KEY is required in production.");
-}
-if (isProduction && (!process.env.ADMIN_PASSWORD || process.env.ADMIN_PASSWORD === "change-me")) {
-  throw new Error("Set a strong ADMIN_PASSWORD before starting in production.");
 }
 
 app.disable("x-powered-by");
@@ -42,22 +37,7 @@ function submitRateLimit(req, res, next) {
 }
 
 function requireAdmin(req, res, next) {
-  const auth = req.headers.authorization || "";
-  if (!auth.startsWith("Basic ")) {
-    res.set("WWW-Authenticate", 'Basic realm="ZYRO Admin"');
-    return res.status(401).send("Cần đăng nhập quản trị.");
-  }
-  const decoded = Buffer.from(auth.slice(6), "base64").toString("utf8");
-  const separator = decoded.indexOf(":");
-  const user = separator >= 0 ? decoded.slice(0, separator) : "";
-  const password = separator >= 0 ? decoded.slice(separator + 1) : "";
-  const userOk = timingSafeEqual(user, adminUser);
-  const passwordOk = timingSafeEqual(password, adminPassword);
-  if (!userOk || !passwordOk) {
-    res.set("WWW-Authenticate", 'Basic realm="ZYRO Admin"');
-    return res.status(401).send("Sai tài khoản quản trị.");
-  }
-  next();
+  return requireEdgeAdmin(req, res, next);
 }
 
 function timingSafeEqual(a, b) {
@@ -321,9 +301,11 @@ app.post("/api/registrations", submitRateLimit, async (req, res, next) => {
 });
 
 app.get("/admin", requireAdmin, (_req, res) => res.sendFile(path.join(__dirname, "private", "admin.html")));
-app.get("/api/admin/registrations", requireAdmin, async (_req, res, next) => {
+app.get("/api/admin/registrations", requireAdmin, async (req, res, next) => {
   try {
-    res.json(await edgeFetch("/registrations"));
+    res.json(await edgeFetch("/registrations", {
+      headers: { Authorization: req.headers.authorization },
+    }));
   } catch (error) {
     next(error);
   }
@@ -336,6 +318,7 @@ app.patch("/api/admin/registrations/:id", requireAdmin, async (req, res, next) =
     res.json(await edgeFetch(`/registrations/${encodeURIComponent(req.params.id)}`, {
       method: "PATCH",
       body: JSON.stringify({ status: req.body.status }),
+      headers: { Authorization: req.headers.authorization },
     }));
   } catch (error) {
     next(error);
