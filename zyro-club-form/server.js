@@ -7,15 +7,9 @@ import { validateRegistration } from "./lib/validation.js";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const port = Number(process.env.PORT || 3000);
-const isProduction = process.env.NODE_ENV === "production";
 const apiUrl = (process.env.ZYRO_API_URL || "https://grhdawkxnrkgkahegnnd.supabase.co/functions/v1/zyro-api").replace(/\/$/, "");
-const edgeSecret = process.env.ZYRO_EDGE_SECRET || "";
 const mailerWebAppUrl = String(process.env.MAILER_WEB_APP_URL || "").trim();
 const mailerSharedSecret = String(process.env.MAILER_SHARED_SECRET || "").trim();
-
-if (isProduction && !edgeSecret) {
-  throw new Error("ZYRO_EDGE_SECRET is required in production.");
-}
 
 app.disable("x-powered-by");
 app.set("trust proxy", 1);
@@ -115,7 +109,6 @@ async function edgeFetch(pathname, options = {}) {
     ...options,
     headers: {
       "Content-Type": "application/json",
-      "x-zyro-secret": edgeSecret,
       ...(options.headers || {}),
     },
   });

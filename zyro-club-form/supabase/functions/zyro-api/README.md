@@ -2,7 +2,7 @@
 
 Project: `grhdawkxnrkgkahegnnd`  
 Function: `zyro-api`  
-`verify_jwt`: `false`; the function validates the existing Admin Basic Auth and the private `ZYRO_EDGE_SECRET` on server-to-server calls.
+`verify_jwt`: `false`; the function validates the existing Admin Basic Auth on protected routes. The public health check does not require an extra server secret.
 
 ## Decision email workflow
 
@@ -18,7 +18,6 @@ Function: `zyro-api`
 ## Required Render environment variables
 
 - `ZYRO_API_URL` — this Supabase function URL.
-- `ZYRO_EDGE_SECRET` — shared secret required by the function for Render server-to-server requests.
 - `MAILER_WEB_APP_URL` — deployed Apps Script Web App URL ending in `/exec`.
 - `MAILER_SHARED_SECRET` — same random secret stored in Apps Script Script Properties as `ZYRO_MAILER_SECRET`.
 
