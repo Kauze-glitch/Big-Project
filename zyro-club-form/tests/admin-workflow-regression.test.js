@@ -43,10 +43,13 @@ test("email template defaults preserve live editor references and an intentional
   const source = await readFile(new URL("public/admin.js", root), "utf8");
   const defaults = source.match(/const defaultEmailTemplates = \{[\\s\\S]*?\\n\};/);
   const ensure = source.match(/function ensureEmailTemplates\(config\) \{[\\s\\S]*?\\n\}\n\nfunction authHeaders/);
+  const collect = source.match(/function collectConfigChanges\(before, after, path = \[\], changes = \[\]\) \{[\\s\\S]*?\\n\}\n\nfunction configChangeLabel/);
   assert.ok(defaults, "email defaults are present");
   assert.ok(ensure, "email template initializer is present");
+  assert.ok(collect, "dirty-change collector is present");
   const ensureSource = ensure[0].replace(/\n\nfunction authHeaders$/, "");
-  const initialize = runInNewContext(`${defaults[0]}\n${ensureSource}\nensureEmailTemplates`);
+  const collectSource = collect[0].replace(/\n\nfunction configChangeLabel$/, "");
+  const helpers = runInNewContext(`${defaults[0]}\n${ensureSource}\n${collectSource}\n({ ensureEmailTemplates, collectConfigChanges })`);
 
   const config = {
     emailTemplates: {
@@ -55,15 +58,22 @@ test("email template defaults preserve live editor references and an intentional
       rejected: { title: "Rejected" },
     },
   };
+  const handlerTemplates = helpers.ensureEmailTemplates(config);
+  const savedConfig = structuredClone(config);
   const templatesRef = config.emailTemplates;
   const designRef = config.emailTemplates.design;
-  initialize(config);
+
+  // Preview rendering calls ensureEmailTemplates again between binding and editing.
+  helpers.ensureEmailTemplates(config);
   assert.strictEqual(config.emailTemplates, templatesRef);
   assert.strictEqual(config.emailTemplates.design, designRef);
 
-  config.emailTemplates.design.tagline = "";
-  initialize(config);
+  // Simulate the already-bound Slogan input clearing its value after preview render.
+  handlerTemplates.design.tagline = "";
   assert.equal(config.emailTemplates.design.tagline, "");
+  const changes = helpers.collectConfigChanges(savedConfig, config);
+  assert.equal(changes.length, 1, "clearing Slogan must enable Save");
+  assert.equal(changes[0].path.join("."), "emailTemplates.design.tagline");
   assert.strictEqual(config.emailTemplates, templatesRef);
   assert.strictEqual(config.emailTemplates.design, designRef);
 });
