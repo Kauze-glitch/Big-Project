@@ -47,6 +47,9 @@ const pageNext = document.querySelector("[data-page-next]");
 const saveStatus = document.querySelector("[data-save-status]");
 const saveButton = document.querySelector("[data-save-config]");
 const revertButton = document.querySelector("[data-revert-config]");
+const mobileSaveButton = document.querySelector("[data-mobile-save-config]");
+const mobileRevertButton = document.querySelector("[data-mobile-revert-config]");
+const mobileSaveSummary = document.querySelector("[data-mobile-save-summary]");
 const refreshButton = document.querySelector("[data-refresh]");
 const syncStatus = document.querySelector("[data-sync-status]");
 const changeIndicator = document.querySelector("[data-change-indicator]");
@@ -375,6 +378,14 @@ function updateChangeTracker() {
   changeIndicator.textContent = count ? `${count} chưa lưu` : "";
   saveButton.disabled = !state.dirty || state.savingConfig;
   revertButton.disabled = !state.dirty || state.savingConfig;
+  if (mobileSaveButton) {
+    mobileSaveButton.disabled = !state.dirty || state.savingConfig;
+    mobileSaveButton.textContent = state.savingConfig ? "Đang lưu…" : "Lưu thay đổi";
+  }
+  if (mobileRevertButton) mobileRevertButton.disabled = !state.dirty || state.savingConfig;
+  if (mobileSaveSummary) {
+    mobileSaveSummary.textContent = count ? `${count} mục chưa lưu` : "Cấu hình đã lưu";
+  }
 
   if (state.savingConfig) {
     saveStatus.textContent = "Đang lưu cấu hình…";
@@ -1663,3 +1674,6 @@ saveButton.addEventListener("click", async () => {
     updateChangeTracker();
   }
 });
+
+mobileSaveButton?.addEventListener("click", () => saveButton.click());
+mobileRevertButton?.addEventListener("click", () => revertButton.click());
