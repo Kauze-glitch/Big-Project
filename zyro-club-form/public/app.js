@@ -178,6 +178,12 @@ function validateStep(index) {
     const message = value("goal").length >= 3 ? "" : "Viết vài chữ về điều bạn mong muốn khi vào sân nhé.";
     setError("goal", message);
     valid = !message;
+    const email = value("email");
+    const emailMessage = !email || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+      ? ""
+      : "Email chưa đúng định dạng. Bạn kiểm tra lại nhé.";
+    setError("email", emailMessage);
+    if (emailMessage) valid = false;
   }
   return valid;
 }
@@ -237,6 +243,7 @@ form.addEventListener("submit", async (event) => {
     position: value("position"),
     level: value("level"),
     goal: value("goal"),
+    email: value("email"),
   };
 
   try {
@@ -266,4 +273,3 @@ form.addEventListener("submit", async (event) => {
 
 await loadConfig();
 renderStep(0, false);
-
