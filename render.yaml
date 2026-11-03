@@ -15,6 +15,14 @@ services:
         fromDatabase:
           name: zyro-form-db
           property: connectionString
+      - key: ZYRO_API_URL
+        value: https://grhdawkxnrkgkahegnnd.supabase.co/functions/v1/zyro-api
+      - key: ZYRO_EDGE_SECRET
+        sync: false
+      - key: MAILER_WEB_APP_URL
+        sync: false
+      - key: MAILER_SHARED_SECRET
+        sync: false
       - key: ADMIN_USER
         sync: false
       - key: ADMIN_PASSWORD

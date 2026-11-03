@@ -9,6 +9,7 @@ const SERVICE_KEY = secretKeysRaw
 
 const ADMIN_USER = "zyro";
 const ADMIN_PASSWORD_SHA256 = "b6b452af25494254c43f6a7b775f5c70028d165f17a7aef91bfdb610134c5075";
+const ZYRO_EDGE_SECRET = Deno.env.get("ZYRO_EDGE_SECRET") ?? "";
 
 
 const DEFAULT_EMAIL_TEMPLATES = {
@@ -154,7 +155,7 @@ function renderDecisionEmail(config: any, template: any, registration: any, reas
 
 async function sendDecisionEmail(to: string, subject: string, html: string, idempotencyKey: string, authorization: string) {
   const mailerUrl = text(Deno.env.get("ZYRO_MAILER_URL"), 500).replace(/\/$/, "") || "https://zyro-club-form.onrender.com";
-  if (!authorization.startsWith("Basic ")) throw new Error("Thiếu xác thực quản trị khi chuyển email đến Gmail SMTP.");
+  if (!authorization.startsWith("Basic ")) throw new Error("Thiếu xác thực quản trị khi chuyển email đến Google Apps Script.");
   const response = await fetch(mailerUrl + "/api/admin/send-email", {
     method: "POST",
     headers: {
@@ -171,13 +172,13 @@ async function sendDecisionEmail(to: string, subject: string, html: string, idem
   });
   const result = await response.json().catch(() => ({}));
   if (!response.ok) {
-    const error = new Error(text(result?.message, 500) || "Gmail SMTP trả về HTTP " + response.status + ".");
+    const error = new Error(text(result?.message, 500) || "Google Apps Script Mail Relay trả về HTTP " + response.status + ".");
     (error as any).deliveryStatus = result?.deliveryStatus === "uncertain" ? "uncertain" : "pending";
     throw error;
   }
   const messageId = text(result?.messageId, 180);
   if (!messageId) {
-    const error = new Error("Gmail SMTP chưa trả về mã xác nhận gửi email.");
+    const error = new Error("Google Apps Script chưa trả về mã xác nhận tiếp nhận email.");
     (error as any).deliveryStatus = "uncertain";
     throw error;
   }
@@ -207,7 +208,7 @@ async function sha256(value: string) {
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-const SMTP_IDEMPOTENCY_WINDOW_MS = 23 * 60 * 60 * 1000;
+const MAIL_IDEMPOTENCY_WINDOW_MS = 23 * 60 * 60 * 1000;
 
 async function getOrCreateDecisionEmailOutbox(idempotencyKey: string, registrationId: string, decisionStatus: string) {
   const columns = "idempotency_key,registration_id,decision_status,delivery_status,provider_message_id,created_at";
@@ -289,6 +290,20 @@ async function isAdmin(req: Request) {
   } catch {
     return false;
   }
+}
+
+function constantTimeEquals(left: string, right: string) {
+  const a = new TextEncoder().encode(left);
+  const b = new TextEncoder().encode(right);
+  if (a.length !== b.length) return false;
+  let mismatch = 0;
+  for (let index = 0; index < a.length; index++) mismatch |= a[index] ^ b[index];
+  return mismatch === 0;
+}
+
+function hasValidEdgeSecret(req: Request) {
+  const provided = req.headers.get("x-zyro-secret") ?? "";
+  return Boolean(ZYRO_EDGE_SECRET) && constantTimeEquals(provided, ZYRO_EDGE_SECRET);
 }
 
 function unauthorized() {
@@ -473,81 +488,15 @@ Deno.serve(async (req) => {
     const isHealth = pathname === "/health" || pathname.endsWith("/zyro-api/health");
     const isEmailSettings = pathname === "/email-settings" || pathname.endsWith("/zyro-api/email-settings");
 
-    if (req.method === "GET" && isHealth) return json({ ok: true });
+    if (req.method === "GET" && isHealth) {
+      if (!hasValidEdgeSecret(req)) return json({ message: "Forbidden" }, 403);
+      return json({ ok: true });
+    }
 
-    if ((req.method === "GET" || req.method === "PATCH") && isEmailSettings) {
+    if (req.method === "GET" && isEmailSettings) {
+      if (!hasValidEdgeSecret(req)) return json({ message: "Forbidden" }, 403);
       if (!(await isAdmin(req))) return unauthorized();
-
-      if (req.method === "GET") {
-        const { data, error } = await supabase
-          .from("zyro_email_settings")
-          .select("sender_email,encrypted_app_password,updated_at")
-          .eq("id", "main")
-          .maybeSingle();
-        if (error) throw error;
-        return json({
-          senderEmail: data?.sender_email || "",
-          encryptedAppPassword: data?.encrypted_app_password || null,
-          configured: Boolean(data?.encrypted_app_password),
-          updatedAt: data?.updated_at || null
-        });
-      }
-
-      const body = await req.json();
-      const senderEmail = text(body?.senderEmail, 254).toLowerCase();
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(senderEmail)) {
-        return json({ message: "Địa chỉ Gmail gửi đi không hợp lệ." }, 400);
-      }
-
-      const input = body?.encryptedAppPassword;
-      let encryptedAppPassword: Record<string, unknown> | null = null;
-      if (input !== undefined && input !== null) {
-        const iv = text(input?.iv, 32);
-        const tag = text(input?.tag, 32);
-        const encryptedData = text(input?.data, 128);
-        const isBase64 = (value: string) => /^[A-Za-z0-9+/]+={0,2}$/.test(value);
-        if (
-          input?.version !== 1 ||
-          iv.length !== 16 ||
-          tag.length !== 24 ||
-          encryptedData.length !== 24 ||
-          !isBase64(iv) ||
-          !isBase64(tag) ||
-          !isBase64(encryptedData)
-        ) {
-          return json({ message: "Dữ liệu App Password đã mã hóa không hợp lệ." }, 400);
-        }
-        encryptedAppPassword = { version: 1, iv, tag, data: encryptedData };
-      }
-
-      const { data: existing, error: readError } = await supabase
-        .from("zyro_email_settings")
-        .select("encrypted_app_password")
-        .eq("id", "main")
-        .maybeSingle();
-      if (readError) throw readError;
-      if (!encryptedAppPassword && !existing?.encrypted_app_password) {
-        return json({ message: "Lần đầu cấu hình cần App Password Gmail." }, 400);
-      }
-
-      const row: Record<string, unknown> = {
-        id: "main",
-        sender_email: senderEmail,
-        updated_at: new Date().toISOString()
-      };
-      row.encrypted_app_password = encryptedAppPassword ?? existing?.encrypted_app_password;
-      const { data, error } = await supabase
-        .from("zyro_email_settings")
-        .upsert(row, { onConflict: "id" })
-        .select("sender_email,encrypted_app_password,updated_at")
-        .single();
-      if (error) throw error;
-      return json({
-        ok: true,
-        senderEmail: data.sender_email,
-        configured: Boolean(data.encrypted_app_password),
-        updatedAt: data.updated_at
-      });
+      return json({ authorized: true });
     }
 
 
@@ -772,23 +721,23 @@ Deno.serve(async (req) => {
 
         if (outbox.delivery_status === "sent") {
           if (!outbox.provider_message_id) {
-            return json({ message: "Bản ghi gửi email thiếu mã xác nhận từ nhà cung cấp. Hệ thống tạm dừng để tránh gửi trùng; cần kiểm tra lịch sử Gmail SMTP." }, 409);
+          return json({ message: "Bản ghi gửi email thiếu mã xác nhận từ Google Apps Script. Hệ thống tạm dừng để tránh gửi trùng; hãy kiểm tra Gmail mục Đã gửi của tài khoản triển khai Apps Script." }, 409);
           }
           providerMessageId = outbox.provider_message_id;
           emailSent = true;
         } else if (outbox.delivery_status === "uncertain") {
-          return json({ message: "Yêu cầu gửi email trước đó chưa xác định được kết quả. Hệ thống tạm dừng gửi lại để tránh gửi trùng; hãy kiểm tra lịch sử Gmail SMTP trước khi xử lý tiếp." }, 409);
+          return json({ message: "Yêu cầu gửi email trước đó chưa xác định được kết quả. Hệ thống tạm dừng gửi lại để tránh gửi trùng; hãy kiểm tra Gmail mục Đã gửi của tài khoản triển khai Apps Script trước khi xử lý tiếp." }, 409);
         } else if (outbox.delivery_status !== "pending") {
           return json({ message: "Trạng thái gửi email không hợp lệ. Hệ thống tạm dừng để tránh gửi trùng." }, 409);
         } else {
           const createdAt = Date.parse(outbox.created_at);
-          if (!Number.isFinite(createdAt) || Date.now() - createdAt >= SMTP_IDEMPOTENCY_WINDOW_MS) {
+          if (!Number.isFinite(createdAt) || Date.now() - createdAt >= MAIL_IDEMPOTENCY_WINDOW_MS) {
             try {
               await markDecisionEmailOutboxUncertain(idempotencyKey);
             } catch (stateError) {
               console.error("Unable to mark stale decision email as uncertain", stateError);
             }
-            return json({ message: "Yêu cầu gửi email trước đó đã quá thời hạn chống gửi trùng an toàn. Hệ thống không tự gửi lại; hãy kiểm tra lịch sử Gmail SMTP trước khi quyết định tiếp." }, 409);
+            return json({ message: "Yêu cầu gửi email trước đó đã quá thời hạn chống gửi trùng an toàn. Hệ thống không tự gửi lại; hãy kiểm tra Gmail mục Đã gửi của tài khoản triển khai Apps Script trước khi quyết định tiếp." }, 409);
           }
 
           try {
@@ -799,11 +748,11 @@ Deno.serve(async (req) => {
               try {
                 await markDecisionEmailOutboxUncertain(idempotencyKey);
               } catch (stateError) {
-                console.error("Unable to mark uncertain Gmail SMTP delivery", stateError);
+              console.error("Unable to mark uncertain Google Apps Script delivery", stateError);
               }
             }
             return json({
-              message: mailError instanceof Error ? mailError.message : "Không gửi được email qua Gmail SMTP.",
+              message: mailError instanceof Error ? mailError.message : "Không gửi được email qua Google Apps Script.",
               emailSent: false,
               deliveryStatus
             }, 503);
@@ -812,9 +761,9 @@ Deno.serve(async (req) => {
           try {
             await markDecisionEmailOutboxSent(idempotencyKey, providerMessageId);
           } catch (stateError) {
-            console.error("Gmail SMTP accepted email but outbox confirmation could not be saved", stateError);
+            console.error("Google Apps Script accepted email but outbox confirmation could not be saved", stateError);
             return json({
-              message: `Gmail SMTP đã xác nhận email (mã ${providerMessageId}) nhưng hệ thống chưa lưu được trạng thái gửi. Hãy giữ nguyên email và nội dung rồi xử lý lại trong 23 giờ; hệ thống sẽ dùng cùng mã chống gửi trùng.`,
+              message: `Google Apps Script đã tiếp nhận email (mã ${providerMessageId}) nhưng hệ thống chưa lưu được trạng thái gửi. Hãy giữ nguyên email và nội dung rồi xử lý lại trong 23 giờ; hệ thống sẽ dùng cùng mã chống gửi trùng.`,
               emailSent: true,
               providerMessageId,
               deliveryStatus: "pending"
@@ -834,9 +783,9 @@ Deno.serve(async (req) => {
         .maybeSingle();
       if (updateError) {
         if (emailSent) {
-          console.error("Email was accepted but registration decision could not be saved", updateError);
+          console.error("Email was accepted by Google Apps Script but registration decision could not be saved", updateError);
           return json({
-            message: `Email đã được Gmail SMTP xác nhận (mã ${providerMessageId}) nhưng trạng thái hồ sơ chưa cập nhật. Hãy mở lại hồ sơ và thực hiện lại cùng quyết định, giữ nguyên email và nội dung; hệ thống sẽ không gửi lại email.`,
+            message: `Google Apps Script đã tiếp nhận email (mã ${providerMessageId}) nhưng trạng thái hồ sơ chưa cập nhật. Hãy mở lại hồ sơ và thực hiện lại cùng quyết định, giữ nguyên email và nội dung; hệ thống sẽ không gửi lại email.`,
             emailSent: true,
             providerMessageId
           }, 503);

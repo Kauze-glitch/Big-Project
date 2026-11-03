@@ -81,10 +81,7 @@ const composePreview = document.querySelector("[data-compose-preview]");
 const composeConfirm = document.querySelector("[data-email-compose-confirm]");
 const mailSenderStatus = document.querySelector("[data-mail-sender-status]");
 const mailSenderEmail = document.querySelector("[data-mail-sender-email]");
-const mailAppPassword = document.querySelector("[data-mail-app-password]");
-const mailPasswordToggle = document.querySelector("[data-mail-password-toggle]");
 const mailTestRecipient = document.querySelector("[data-mail-test-recipient]");
-const mailSaveButton = document.querySelector("[data-mail-save]");
 const mailVerifyButton = document.querySelector("[data-mail-verify]");
 const mailSendTestButton = document.querySelector("[data-mail-send-test]");
 const mailSenderMessage = document.querySelector("[data-mail-sender-message]");
@@ -171,78 +168,36 @@ function setMailSenderMessage(message, stateName = "") {
 
 async function loadMailSenderSettings() {
   if (!state.auth) return;
-  mailSenderStatus.textContent = "Đang tải cấu hình Gmail…";
+  mailSenderStatus.textContent = "Đang kiểm tra Google Apps Script…";
   mailSenderStatus.dataset.state = "";
   try {
     const data = await mailerApi("/email-settings");
     state.mailSenderConfigured = Boolean(data.configured);
     mailSenderEmail.value = data.senderEmail || "";
-    mailAppPassword.value = "";
-    mailAppPassword.placeholder = data.configured
-      ? "Để trống nếu giữ App Password hiện tại"
-      : "Nhập App Password 16 ký tự";
     mailSenderStatus.dataset.state = data.configured ? "ready" : "missing";
     mailSenderStatus.textContent = data.configured
-      ? "Đã cấu hình Gmail gửi đi: " + data.senderEmail + (data.updatedAt ? " · cập nhật " + new Date(data.updatedAt).toLocaleString("vi-VN") : "")
-      : "Chưa cấu hình Gmail. Nhập địa chỉ gửi và App Password để bắt đầu.";
+      ? "Google Apps Script đã kết nối" + (data.senderEmail ? ": " + data.senderEmail : "") + (Number.isFinite(data.remainingDailyQuota) ? " · còn " + data.remainingDailyQuota + " lượt nhận trong hạn mức hôm nay" : "")
+      : "Chưa cấu hình Google Apps Script Mail Relay trên Render.";
   } catch (error) {
     mailSenderStatus.dataset.state = "error";
-    mailSenderStatus.textContent = error.message || "Chưa tải được cấu hình Gmail.";
-  }
-}
-
-async function saveMailSenderSettings() {
-  const senderEmail = mailSenderEmail.value.trim().toLowerCase();
-  const appPassword = mailAppPassword.value.replace(/\s/g, "");
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(senderEmail)) {
-    setMailSenderMessage("Nhập địa chỉ Gmail gửi đi hợp lệ.", "error");
-    mailSenderEmail.focus();
-    return;
-  }
-  if (appPassword && !/^[A-Za-z0-9]{16}$/.test(appPassword)) {
-    setMailSenderMessage("App Password phải gồm đúng 16 ký tự.", "error");
-    mailAppPassword.focus();
-    return;
-  }
-  if (!state.mailSenderConfigured && !appPassword) {
-    setMailSenderMessage("Lần đầu cấu hình cần nhập App Password Gmail.", "error");
-    mailAppPassword.focus();
-    return;
-  }
-
-  mailSaveButton.disabled = true;
-  mailSaveButton.textContent = "Đang lưu…";
-  setMailSenderMessage("Đang mã hóa và lưu cấu hình Gmail…", "loading");
-  try {
-    await mailerApi("/email-settings", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ senderEmail, appPassword }),
-    });
-    mailAppPassword.value = "";
-    await loadMailSenderSettings();
-    setMailSenderMessage("Đã lưu tài khoản gửi email. App Password không được hiển thị lại.", "success");
-  } catch (error) {
-    setMailSenderMessage(error.message || "Không lưu được cấu hình Gmail.", "error");
-  } finally {
-    mailSaveButton.disabled = false;
-    mailSaveButton.textContent = "Lưu tài khoản";
+    mailSenderStatus.textContent = error.message || "Chưa kết nối được Google Apps Script.";
   }
 }
 
 async function verifyMailSender() {
   mailVerifyButton.disabled = true;
   mailVerifyButton.textContent = "Đang kiểm tra…";
-  setMailSenderMessage("Đang kiểm tra đăng nhập Gmail SMTP…", "loading");
+  setMailSenderMessage("Đang kiểm tra kết nối HTTPS tới Google Apps Script…", "loading");
   try {
     const result = await mailerApi("/email-settings/test", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: "{}",
     });
-    setMailSenderMessage(result.message || "Kết nối Gmail SMTP thành công.", "success");
+    setMailSenderMessage(result.message || "Kết nối Google Apps Script thành công.", "success");
+    await loadMailSenderSettings();
   } catch (error) {
-    setMailSenderMessage(error.message || "Không kiểm tra được kết nối Gmail.", "error");
+    setMailSenderMessage(error.message || "Không kiểm tra được Google Apps Script.", "error");
   } finally {
     mailVerifyButton.disabled = false;
     mailVerifyButton.textContent = "Kiểm tra kết nối";
@@ -265,9 +220,10 @@ async function sendTestMail() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ to }),
     });
-    setMailSenderMessage("Đã gửi email thử đến " + to + ". Hãy kiểm tra cả hộp thư Spam nếu chưa thấy.", "success");
+    setMailSenderMessage(result.message || ("Google đã tiếp nhận email thử đến " + to + ". Hãy kiểm tra cả hộp thư Spam nếu chưa thấy."), "success");
+    await loadMailSenderSettings();
   } catch (error) {
-    setMailSenderMessage(error.message || "Không gửi được email thử.", "error");
+    setMailSenderMessage(error.message || "Không gửi được email thử qua Google Apps Script.", "error");
   } finally {
     mailSendTestButton.disabled = false;
     mailSendTestButton.textContent = "Gửi email thử";
@@ -1412,7 +1368,6 @@ document.querySelectorAll("[data-logout]").forEach((button) => button.addEventLi
     if (!accepted) return;
   }
   state.auth = "";
-  mailAppPassword.value = "";
   state.mailSenderConfigured = false;
   state.selected.clear();
   if (state.savedConfig) state.config = clone(state.savedConfig);
@@ -1625,14 +1580,8 @@ composeSubject.addEventListener("input", updateComposePreview);
 composeBody.addEventListener("input", updateComposePreview);
 emailComposeForm.addEventListener("submit", submitDecision);
 
-mailSaveButton.addEventListener("click", saveMailSenderSettings);
 mailVerifyButton.addEventListener("click", verifyMailSender);
 mailSendTestButton.addEventListener("click", sendTestMail);
-mailPasswordToggle.addEventListener("click", () => {
-  const showing = mailAppPassword.type === "text";
-  mailAppPassword.type = showing ? "password" : "text";
-  mailPasswordToggle.textContent = showing ? "Hiện" : "Ẩn";
-});
 
 document.querySelector("[data-email-compose-close]").addEventListener("click", closeEmailComposer);
 document.querySelector("[data-email-compose-cancel]").addEventListener("click", closeEmailComposer);
