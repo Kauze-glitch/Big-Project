@@ -14,6 +14,8 @@ const state = {
   selected: new Set(),
   activeDetail: null,
   optionCategory: "duration",
+  emailTemplateKey: "approved",
+  pendingDecision: null,
   dirty: false,
   dirtyChanges: [],
   configRevision: 0,
@@ -60,12 +62,62 @@ const detailBackdrop = document.querySelector("[data-detail-backdrop]");
 const detailDrawer = document.querySelector("[data-detail-drawer]");
 const detailStatus = document.querySelector("[data-detail-status]");
 const detailAction = document.querySelector("[data-detail-approve]");
+const emailDialog = document.querySelector("[data-email-dialog]");
+const emailComposeForm = document.querySelector("[data-email-compose-form]");
+const emailComposeTitle = document.querySelector("[data-email-compose-title]");
+const emailComposeDescription = document.querySelector("[data-email-compose-description]");
+const composeRecipient = document.querySelector("[data-compose-recipient]");
+const composeSend = document.querySelector("[data-compose-send]");
+const composeEmailHelp = document.querySelector("[data-compose-email-help]");
+const composeRejectOptions = document.querySelector("[data-compose-reject-options]");
+const composeTemplateFields = document.querySelector("[data-compose-template-fields]");
+const composeCustomFields = document.querySelector("[data-compose-custom-fields]");
+const composeReason = document.querySelector("[data-compose-reason]");
+const composeSubject = document.querySelector("[data-compose-subject]");
+const composeBody = document.querySelector("[data-compose-body]");
+const composePreview = document.querySelector("[data-compose-preview]");
+const composeConfirm = document.querySelector("[data-email-compose-confirm]");
 
 const statusLabels = {
   new: "Chờ duyệt",
   approved: "Đã duyệt",
   rejected: "Từ chối",
 };
+
+const defaultEmailTemplates = {
+  design: {
+    logoUrl: "https://zyro-volleyball-club.onrender.com/assets/zyro-logo.webp",
+    brandName: "ZYRO VOLLEYBALL CLUB",
+    tagline: "PLAY TOGETHER. GROW TOGETHER.",
+    headerColor: "#0b2d5f",
+    accentColor: "#d71e32",
+    footerText: "Email tự động từ ZYRO Volleyball Club. Vui lòng không trả lời email này.",
+  },
+  approved: {
+    subject: "ZYRO | Đăng ký của bạn đã được chấp nhận!",
+    preheader: "Chào mừng bạn đến với ZYRO Volleyball Club.",
+    title: "Bạn đã được ZYRO chấp nhận!",
+    showProfile: true,
+    bodyHtml: "<p>Chào <strong>{{zalo_name}}</strong>! 🏐</p><p>Ban quản trị ZYRO đã xem xét và chấp nhận đơn đăng ký của bạn.</p><p>Yêu cầu tham gia nhóm Zalo hiện đang chờ phó nhóm phê duyệt. Bạn vui lòng chờ thông báo nhé!</p><p>Hẹn gặp bạn trên sân!</p>",
+  },
+  rejected: {
+    subject: "ZYRO | Phản hồi đăng ký thành viên",
+    preheader: "Cảm ơn bạn đã quan tâm đến ZYRO Volleyball Club.",
+    title: "Cảm ơn bạn đã quan tâm đến ZYRO",
+    showProfile: true,
+    bodyHtml: "<p>Chào <strong>{{zalo_name}}</strong>,</p><p>Sau khi xem xét thông tin đăng ký và mong muốn tham gia của bạn, Ban quản trị rất tiếc hiện tại chưa thể chấp nhận đăng ký.</p><p><strong>Lý do:</strong> {{reason}}</p><p>Cảm ơn bạn đã dành thời gian tìm hiểu và đăng ký tham gia ZYRO. Chúc bạn luôn có những trận đấu vui vẻ!</p>",
+  },
+};
+
+function ensureEmailTemplates(config) {
+  const current = config.emailTemplates || {};
+  config.emailTemplates = {
+    design: { ...defaultEmailTemplates.design, ...(current.design || {}) },
+    approved: { ...defaultEmailTemplates.approved, ...(current.approved || {}) },
+    rejected: { ...defaultEmailTemplates.rejected, ...(current.rejected || {}) },
+  };
+  return config.emailTemplates;
+}
 
 function authHeaders(extra = {}) {
   return { Authorization: state.auth, ...extra };
@@ -137,6 +189,7 @@ function configChangeLabel(change) {
     signup: "Form đăng ký",
     contacts: "Người liên hệ",
     formOptions: "Tuỳ chọn form",
+    emailTemplates: "Email duyệt & từ chối",
   };
   const fieldLabels = {
     titleLine1: "Tiêu đề dòng 1",
@@ -319,6 +372,266 @@ function optionLabel(category, value) {
   return state.config?.formOptions?.[category]?.find((item) => item.id === value)?.label || value || "Chưa có";
 }
 
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (character) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  })[character]);
+}
+
+function emailTokenValues(item = {}, reason = "") {
+  return {
+    zalo_name: escapeHtml(item.zaloName || "Minh Anh"),
+    duration: escapeHtml(optionLabel("duration", item.duration || "long")),
+    gender: escapeHtml(optionLabel("gender", item.gender || "female")),
+    position: escapeHtml(optionLabel("position", item.position || "attacker")),
+    level: escapeHtml(optionLabel("level", item.level || "newbie")),
+    goal: escapeHtml(item.goal || "Mình muốn chơi vui và làm quen những người bạn mới.").replace(/\n/g, "<br>"),
+    created_at: escapeHtml(item.createdAt ? formatDate(item.createdAt, true) : "03/11/2026"),
+    reason: escapeHtml(reason || "Hiện tại CLB ưu tiên những bạn có thể sinh hoạt cùng nhóm lâu dài."),
+  };
+}
+
+function renderEmailDocument(template, item = {}, reason = "", bodyOverride = null) {
+  const templates = ensureEmailTemplates(state.config || {});
+  const design = templates.design;
+  const headerColor = /^#[0-9a-f]{6}$/i.test(design.headerColor) ? design.headerColor : "#0b2d5f";
+  const accentColor = /^#[0-9a-f]{6}$/i.test(design.accentColor) ? design.accentColor : "#d71e32";
+  let logoUrl = String(design.logoUrl || "").trim();
+  if (!logoUrl) logoUrl = `${window.location.origin}/assets/zyro-logo.webp`;
+  else if (logoUrl.startsWith("/")) logoUrl = `${window.location.origin}${logoUrl}`;
+  const values = emailTokenValues(item, reason);
+  const sourceBody = bodyOverride ?? template.bodyHtml ?? "";
+  const body = String(sourceBody).replace(/\{\{([a-z_]+)\}\}/g, (_match, key) => values[key] ?? "");
+  const profile = template.showProfile ? `
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;background:#f1f5f9;border-radius:12px;margin:24px 0;">
+      <tr><td colspan="2" style="padding:18px 18px 10px;font:700 13px Arial,sans-serif;letter-spacing:.06em;color:#0b2d5f;">THÔNG TIN ĐĂNG KÝ</td></tr>
+      ${[["Tên Zalo",values.zalo_name],["Thời gian tham gia",values.duration],["Giới tính",values.gender],["Vị trí chơi",values.position],["Trình độ",values.level],["Ngày đăng ký",values.created_at]].map(([label,value]) => `<tr><td style="padding:7px 18px;color:#64748b;font:13px Arial,sans-serif;">${label}</td><td align="right" style="padding:7px 18px;color:#17263c;font:600 13px Arial,sans-serif;">${value}</td></tr>`).join("")}
+      <tr><td colspan="2" style="padding:10px 18px 6px;color:#64748b;font:12px Arial,sans-serif;">MONG MUỐN KHI THAM GIA</td></tr>
+      <tr><td colspan="2" style="padding:0 18px 18px;color:#334155;font:13px/1.6 Arial,sans-serif;">${values.goal}</td></tr>
+    </table>` : "";
+
+  return `<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(template.title || "ZYRO Volleyball Club")}</title></head>
+  <body style="margin:0;padding:24px 10px;background:#eef2f7;font-family:Arial,Helvetica,sans-serif;color:#17263c;">
+    <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">${escapeHtml(template.preheader || "Thông báo từ ZYRO Volleyball Club")}</div>
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:600px;margin:0 auto;border-collapse:separate;border-spacing:0;background:#ffffff;border-radius:18px;overflow:hidden;">
+      <tr><td align="center" style="padding:26px 24px 24px;background:${headerColor};">
+        <img src="${escapeHtml(logoUrl)}" alt="ZYRO" width="112" style="display:block;width:112px;max-width:100%;height:auto;margin:0 auto 10px;">
+        <div style="color:#ffffff;font-size:14px;font-weight:700;letter-spacing:.12em;">${escapeHtml(design.brandName || "ZYRO VOLLEYBALL CLUB")}</div>
+        <div style="margin-top:7px;color:#dbe7f5;font-size:10px;letter-spacing:.13em;">${escapeHtml(design.tagline || "PLAY TOGETHER. GROW TOGETHER.")}</div>
+      </td></tr>
+      <tr><td style="padding:30px 28px 20px;">
+        <div style="width:42px;height:4px;margin-bottom:18px;background:${accentColor};border-radius:8px;"></div>
+        <h1 style="margin:0 0 18px;color:#0b2d5f;font-size:25px;line-height:1.25;">${escapeHtml(template.title || "Thông báo từ ZYRO")}</h1>
+        <div style="font-size:15px;line-height:1.75;color:#475569;">${body}</div>
+        ${profile}
+        <div style="padding-top:18px;border-top:1px solid #e2e8f0;text-align:center;color:#0b2d5f;font-size:14px;font-weight:700;">ZYRO VOLLEYBALL CLUB</div>
+      </td></tr>
+      <tr><td align="center" style="padding:16px 24px 20px;background:#f8fafc;color:#64748b;font-size:11px;line-height:1.6;">${escapeHtml(design.footerText || "Email tự động từ ZYRO Volleyball Club.")}</td></tr>
+    </table>
+  </body></html>`;
+}
+
+function updateEmailTemplatePreview() {
+  if (!state.config?.emailTemplates) return;
+  const template = state.config.emailTemplates[state.emailTemplateKey];
+  const bodyEditor = document.querySelector("[data-email-body-editor]");
+  const preview = document.querySelector("[data-email-preview]");
+  if (template && bodyEditor && preview) {
+    preview.srcdoc = renderEmailDocument(template, {}, "", bodyEditor.innerHTML);
+  }
+}
+
+function renderEmailSettings() {
+  const templates = ensureEmailTemplates(state.config);
+  const template = templates[state.emailTemplateKey];
+  document.querySelectorAll("[data-email-template-tab]").forEach((button) => {
+    const active = button.dataset.emailTemplateTab === state.emailTemplateKey;
+    button.classList.toggle("is-active", active);
+    button.setAttribute("aria-selected", String(active));
+  });
+
+  document.querySelectorAll("[data-email-bind]").forEach((input) => {
+    const key = input.dataset.emailBind;
+    const value = template[key];
+    if (input.type === "checkbox") input.checked = Boolean(value);
+    else input.value = value || "";
+    input.oninput = () => {
+      template[key] = input.type === "checkbox" ? input.checked : input.value;
+      markDirty();
+      updateEmailTemplatePreview();
+    };
+    input.onchange = input.oninput;
+  });
+
+  const bodyEditor = document.querySelector("[data-email-body-editor]");
+  bodyEditor.innerHTML = template.bodyHtml || "";
+  bodyEditor.oninput = () => {
+    template.bodyHtml = bodyEditor.innerHTML;
+    markDirty();
+    updateEmailTemplatePreview();
+  };
+
+  document.querySelectorAll("[data-email-design]").forEach((input) => {
+    const key = input.dataset.emailDesign;
+    input.value = templates.design[key] || "";
+    input.oninput = () => {
+      templates.design[key] = input.value;
+      markDirty();
+      updateEmailTemplatePreview();
+    };
+    input.onchange = input.oninput;
+  });
+  updateEmailTemplatePreview();
+}
+
+function insertTextAtCursor(editor, text) {
+  editor.focus();
+  const selection = window.getSelection();
+  if (!selection || !selection.rangeCount || !editor.contains(selection.anchorNode)) {
+    editor.append(document.createTextNode(text));
+    return;
+  }
+  const range = selection.getRangeAt(0);
+  range.deleteContents();
+  const node = document.createTextNode(text);
+  range.insertNode(node);
+  range.setStartAfter(node);
+  range.collapse(true);
+  selection.removeAllRanges();
+  selection.addRange(range);
+  editor.dispatchEvent(new Event("input", { bubbles: true }));
+}
+
+function currentRejectMode() {
+  return document.querySelector("[data-compose-mode]:checked")?.value || "template";
+}
+
+function updateComposePreview() {
+  const pending = state.pendingDecision;
+  if (!pending || !state.config?.emailTemplates) return;
+  const isApproval = pending.status === "approved";
+  const mode = isApproval ? "template" : currentRejectMode();
+  const template = state.config.emailTemplates[isApproval ? "approved" : "rejected"];
+  const bodyOverride = isApproval || mode === "custom" ? composeBody.innerHTML : null;
+  composePreview.srcdoc = renderEmailDocument(template, pending.item, composeReason.value, bodyOverride);
+  composeEmailHelp.textContent = composeRecipient.value.trim()
+    ? `Email sẽ được gửi đến ${composeRecipient.value.trim()} khi bạn xác nhận.`
+    : "Chưa có email trong hồ sơ. Có thể nhập email tại đây hoặc chỉ cập nhật trạng thái mà không gửi email.";
+  composeConfirm.textContent = composeSend.checked
+    ? (isApproval ? "Gửi email & duyệt thành viên" : "Gửi email & từ chối")
+    : "Chỉ cập nhật trạng thái";
+  composeSend.disabled = !composeRecipient.value.trim();
+  if (!composeRecipient.value.trim()) composeSend.checked = false;
+}
+
+function updateComposeMode() {
+  const mode = currentRejectMode();
+  composeTemplateFields.hidden = mode !== "template";
+  composeCustomFields.hidden = mode !== "custom";
+  if (mode === "custom" && !composeBody.dataset.customInitialized) {
+    composeSubject.value = "ZYRO | Phản hồi riêng từ Ban quản trị";
+    composeBody.innerHTML = "<p>Chào <strong>{{zalo_name}}</strong>,</p><p></p><p>Thân mến,<br>Ban quản trị ZYRO Volleyball Club</p>";
+    composeBody.dataset.customInitialized = "true";
+  }
+  updateComposePreview();
+}
+
+function openDecisionComposer(item, nextStatus) {
+  if (!new Set(["approved", "rejected"]).has(nextStatus)) return;
+  state.pendingDecision = { item, status: nextStatus };
+  const isApproval = nextStatus === "approved";
+  const template = state.config.emailTemplates[isApproval ? "approved" : "rejected"];
+  emailComposeTitle.textContent = isApproval ? "Chấp nhận đăng ký" : "Từ chối đăng ký";
+  emailComposeDescription.textContent = `Bạn đang xử lý hồ sơ của ${item.zaloName}. Kiểm tra nội dung trước khi xác nhận.`;
+  composeRecipient.value = item.email || "";
+  composeSend.checked = Boolean(item.email);
+  composeSend.disabled = !item.email;
+  composeRejectOptions.hidden = isApproval;
+  composeTemplateFields.hidden = isApproval;
+  composeCustomFields.hidden = !isApproval;
+  composeReason.value = "";
+  composeSubject.value = template.subject;
+  composeBody.innerHTML = template.bodyHtml;
+  composeBody.dataset.customInitialized = isApproval ? "true" : "";
+  document.querySelectorAll("[data-compose-mode]").forEach((radio) => { radio.checked = radio.value === "template"; });
+  if (isApproval) composeCustomFields.hidden = false;
+  updateComposePreview();
+  emailDialog.showModal();
+  composeRecipient.focus();
+}
+
+function closeEmailComposer() {
+  if (emailDialog.open) emailDialog.close();
+  state.pendingDecision = null;
+}
+
+async function submitDecision(event) {
+  event.preventDefault();
+  const pending = state.pendingDecision;
+  if (!pending) return;
+  const email = composeRecipient.value.trim();
+  const sendEmail = composeSend.checked;
+  const isApproval = pending.status === "approved";
+  const mode = isApproval ? "template" : currentRejectMode();
+  const reason = composeReason.value.trim();
+  const subject = composeSubject.value.trim();
+  const bodyHtml = composeBody.innerHTML.trim();
+
+  if (sendEmail && (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) {
+    composeRecipient.setCustomValidity("Nhập email hợp lệ để gửi thông báo.");
+    composeRecipient.reportValidity();
+    composeRecipient.focus();
+    return;
+  }
+  composeRecipient.setCustomValidity("");
+  if (!isApproval && mode === "template" && sendEmail && reason.length < 5) {
+    composeReason.setCustomValidity("Nhập lý do cụ thể để ứng viên hiểu phản hồi của CLB.");
+    composeReason.reportValidity();
+    composeReason.focus();
+    return;
+  }
+  if (!isApproval && mode === "template" && sendEmail && !state.config.emailTemplates.rejected.bodyHtml.includes("{{reason}}")) {
+    notify("Mẫu từ chối cần có biến {{reason}} để đưa lý do riêng vào email. Hãy thêm biến này trong phần cài đặt mẫu.", "warning", 6500);
+    return;
+  }
+  composeReason.setCustomValidity("");
+  if ((isApproval || mode === "custom") && sendEmail && (!subject || !bodyHtml)) {
+    notify("Email cần có tiêu đề và nội dung trước khi gửi.", "warning");
+    return;
+  }
+
+  composeConfirm.disabled = true;
+  composeConfirm.textContent = sendEmail ? "Đang gửi email…" : "Đang cập nhật…";
+  try {
+    const body = await api(`/registrations/${encodeURIComponent(pending.item.id)}/decision`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        status: pending.status,
+        email,
+        sendEmail,
+        emailMode: mode,
+        reason,
+        subject: isApproval || mode === "custom" ? subject : undefined,
+        bodyHtml: isApproval || mode === "custom" ? bodyHtml : undefined,
+      }),
+    }, true);
+
+    pending.item.email = email;
+    applyStatusLocally(pending.item.id, pending.status);
+    const name = pending.item.zaloName;
+    closeEmailComposer();
+    if (!detailDrawer.hidden) closeDetail();
+    notify(body.emailSent ? `Đã gửi email và cập nhật trạng thái cho ${name}.` : `Đã cập nhật trạng thái của ${name}; không gửi email.`, "success");
+    void loadRegistrations({ keepSelection: true, silent: true });
+  } catch (error) {
+    notify(error.message || "Không xử lý được quyết định này.", "error", 6500);
+  } finally {
+    composeConfirm.disabled = false;
+    if (state.pendingDecision) updateComposePreview();
+  }
+}
+
 function markDirty() {
   state.configRevision += 1;
   state.dirtyChanges = state.savedConfig
@@ -393,6 +706,7 @@ function openDetail(item) {
   state.activeDetail = item;
   document.querySelector("[data-detail-name]").textContent = item.zaloName;
   document.querySelector("[data-detail-date]").textContent = `Gửi lúc ${formatDate(item.createdAt, true)}`;
+  document.querySelector("[data-detail-email]").textContent = item.email || "Chưa cung cấp";
   document.querySelector("[data-detail-duration]").textContent = optionLabel("duration", item.duration);
   document.querySelector("[data-detail-gender]").textContent = optionLabel("gender", item.gender);
   document.querySelector("[data-detail-position]").textContent = optionLabel("position", item.position);
@@ -476,6 +790,11 @@ function createRegistrationRow(item) {
     const previous = item.status;
     const nextStatus = select.value;
     if (nextStatus === previous) return;
+    if (nextStatus !== "new") {
+      select.value = previous;
+      openDecisionComposer(item, nextStatus);
+      return;
+    }
     select.disabled = true;
     row.setAttribute("aria-busy", "true");
     const loadingToast = notify(`Đang cập nhật trạng thái của ${item.zaloName}…`, "loading", 0);
@@ -652,11 +971,16 @@ async function loadRegistrations({ keepSelection = false, silent = false, throwO
 async function updateBulkStatus(status) {
   const ids = [...state.selected];
   if (!ids.length) return;
-  const label = status === "approved" ? "duyệt" : "từ chối";
-  if (status === "rejected" && !await confirmAction({
-    title: `Từ chối ${ids.length} đăng ký?`,
-    message: "Những đăng ký đã chọn sẽ chuyển sang trạng thái từ chối. Bạn có thể thay đổi trạng thái sau.",
-    confirmLabel: "Từ chối đăng ký",
+  if (status !== "new") {
+    notify("Để duyệt hoặc từ chối, hãy mở từng hồ sơ để chọn mẫu email và nội dung phù hợp.", "warning");
+    return;
+  }
+  const label = "đưa về chờ duyệt";
+  if (!await confirmAction({
+    title: `Đưa ${ids.length} hồ sơ về chờ duyệt?`,
+    message: "Các hồ sơ đã chọn sẽ trở lại trạng thái chờ duyệt. Thao tác này không gửi email.",
+    confirmLabel: "Đưa về chờ duyệt",
+    danger: false,
   })) return;
 
   const buttons = [...bulkBar.querySelectorAll("button")];
@@ -827,12 +1151,14 @@ function renderSettings() {
   renderPrinciplesEditor();
   renderContactsEditor();
   renderOptionsEditor();
+  renderEmailSettings();
 }
 
 async function loadData() {
   const configBody = await api("/config");
   state.config = clone(configBody.config);
-  state.savedConfig = clone(configBody.config);
+  ensureEmailTemplates(state.config);
+  state.savedConfig = clone(state.config);
   state.updatedAt = configBody.updatedAt;
   state.configRevision = 0;
   updatedLabel.textContent = state.updatedAt ? `Cập nhật ${new Date(state.updatedAt).toLocaleString("vi-VN")}` : "Đã đồng bộ";
@@ -861,7 +1187,8 @@ async function refreshAll() {
           return true;
         }
         state.config = clone(body.config);
-        state.savedConfig = clone(body.config);
+        ensureEmailTemplates(state.config);
+        state.savedConfig = clone(state.config);
         state.updatedAt = body.updatedAt;
         renderSettings();
         markSaved(body.updatedAt, body.config);
@@ -1040,6 +1367,10 @@ detailAction.addEventListener("click", async () => {
     closeDetail();
     return;
   }
+  if (nextStatus !== "new") {
+    openDecisionComposer(item, nextStatus);
+    return;
+  }
   detailAction.disabled = true;
   const loadingToast = notify("Đang cập nhật trạng thái đăng ký…", "loading", 0);
   try {
@@ -1091,6 +1422,71 @@ optionCategory.addEventListener("change", () => {
   state.optionCategory = optionCategory.value;
   renderOptionsEditor();
 });
+
+document.querySelectorAll("[data-email-template-tab]").forEach((button) => {
+  button.addEventListener("click", () => {
+    state.emailTemplateKey = button.dataset.emailTemplateTab;
+    renderEmailSettings();
+  });
+});
+
+document.querySelectorAll("[data-email-command]").forEach((button) => {
+  button.addEventListener("mousedown", (event) => event.preventDefault());
+  button.addEventListener("click", () => {
+    const editor = document.querySelector("[data-email-body-editor]");
+    const command = button.dataset.emailCommand;
+    if (command === "createLink") {
+      const url = window.prompt("Nhập đường dẫn HTTPS:");
+      if (!url || !/^https:\/\//i.test(url)) return;
+      editor.focus();
+      document.execCommand(command, false, url);
+    } else {
+      editor.focus();
+      document.execCommand(command, false, null);
+    }
+    editor.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+});
+
+document.querySelectorAll("[data-email-token]").forEach((button) => {
+  button.addEventListener("mousedown", (event) => event.preventDefault());
+  button.addEventListener("click", () => insertTextAtCursor(
+    document.querySelector("[data-email-body-editor]"),
+    button.dataset.emailToken,
+  ));
+});
+
+document.querySelectorAll("[data-compose-command]").forEach((button) => {
+  button.addEventListener("mousedown", (event) => event.preventDefault());
+  button.addEventListener("click", () => {
+    composeBody.focus();
+    document.execCommand(button.dataset.composeCommand, false, null);
+    composeBody.dispatchEvent(new Event("input", { bubbles: true }));
+    updateComposePreview();
+  });
+});
+
+document.querySelectorAll("[data-compose-token]").forEach((button) => {
+  button.addEventListener("mousedown", (event) => event.preventDefault());
+  button.addEventListener("click", () => {
+    insertTextAtCursor(composeBody, button.dataset.composeToken);
+    updateComposePreview();
+  });
+});
+
+document.querySelectorAll("[data-compose-mode]").forEach((radio) => {
+  radio.addEventListener("change", updateComposeMode);
+});
+
+composeRecipient.addEventListener("input", updateComposePreview);
+composeSend.addEventListener("change", updateComposePreview);
+composeReason.addEventListener("input", updateComposePreview);
+composeSubject.addEventListener("input", updateComposePreview);
+composeBody.addEventListener("input", updateComposePreview);
+emailComposeForm.addEventListener("submit", submitDecision);
+document.querySelector("[data-email-compose-close]").addEventListener("click", closeEmailComposer);
+document.querySelector("[data-email-compose-cancel]").addEventListener("click", closeEmailComposer);
+emailDialog.addEventListener("close", () => { state.pendingDecision = null; });
 
 document.querySelector("[data-add-option]").addEventListener("click", () => {
   const option = { id: id("option"), label: "Lựa chọn mới" };
@@ -1157,4 +1553,3 @@ saveButton.addEventListener("click", async () => {
     updateChangeTracker();
   }
 });
-1160
