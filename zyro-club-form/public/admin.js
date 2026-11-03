@@ -123,13 +123,24 @@ const defaultEmailTemplates = {
 };
 
 function ensureEmailTemplates(config) {
-  const current = config.emailTemplates || {};
-  config.emailTemplates = {
-    design: { ...defaultEmailTemplates.design, ...(current.design || {}) },
-    approved: { ...defaultEmailTemplates.approved, ...(current.approved || {}) },
-    rejected: { ...defaultEmailTemplates.rejected, ...(current.rejected || {}) },
-  };
-  return config.emailTemplates;
+  // Preserve object identity: editor handlers and the live preview share these references.
+  // Replacing config.emailTemplates here detaches already-bound inputs from state.config.
+  const templates = config.emailTemplates && typeof config.emailTemplates === "object"
+    ? config.emailTemplates
+    : {};
+
+  for (const [sectionKey, defaults] of Object.entries(defaultEmailTemplates)) {
+    const section = templates[sectionKey] && typeof templates[sectionKey] === "object"
+      ? templates[sectionKey]
+      : {};
+    for (const [key, value] of Object.entries(defaults)) {
+      if (!Object.prototype.hasOwnProperty.call(section, key)) section[key] = value;
+    }
+    templates[sectionKey] = section;
+  }
+
+  config.emailTemplates = templates;
+  return templates;
 }
 
 function authHeaders(extra = {}) {
@@ -565,7 +576,9 @@ function renderEmailSettings() {
     if (input.type === "checkbox") input.checked = Boolean(value);
     else input.value = value || "";
     input.oninput = () => {
-      template[key] = input.type === "checkbox" ? input.checked : input.value;
+      const currentTemplate = state.config?.emailTemplates?.[state.emailTemplateKey];
+      if (!currentTemplate) return;
+      currentTemplate[key] = input.type === "checkbox" ? input.checked : input.value;
       markDirty();
       updateEmailTemplatePreview();
     };
@@ -575,7 +588,9 @@ function renderEmailSettings() {
   const bodyEditor = document.querySelector("[data-email-body-editor]");
   bodyEditor.innerHTML = template.bodyHtml || "";
   bodyEditor.oninput = () => {
-    template.bodyHtml = bodyEditor.innerHTML;
+    const currentTemplate = state.config?.emailTemplates?.[state.emailTemplateKey];
+    if (!currentTemplate) return;
+    currentTemplate.bodyHtml = bodyEditor.innerHTML;
     markDirty();
     updateEmailTemplatePreview();
   };
@@ -584,7 +599,9 @@ function renderEmailSettings() {
     const key = input.dataset.emailDesign;
     input.value = templates.design[key] || "";
     input.oninput = () => {
-      templates.design[key] = input.value;
+      const currentDesign = state.config?.emailTemplates?.design;
+      if (!currentDesign) return;
+      currentDesign[key] = input.value;
       markDirty();
       updateEmailTemplatePreview();
     };
