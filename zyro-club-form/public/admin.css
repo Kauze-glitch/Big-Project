@@ -575,6 +575,39 @@ button:disabled { opacity: .52; cursor: not-allowed; }
 .option-list { margin-top: 2px; }
 
 .email-settings-panel { gap: 18px; }
+.mail-sender-panel { gap: 14px; }
+.mail-sender-status {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: white;
+  color: var(--muted);
+  font-size: 12px;
+}
+.mail-sender-status[data-state="ready"] {
+  border-color: #b9dcc8;
+  color: var(--positive);
+  background: #f5fbf7;
+}
+.mail-sender-status[data-state="missing"],
+.mail-sender-status[data-state="error"] {
+  border-color: var(--warning-border);
+  color: var(--warning);
+  background: var(--warning-bg);
+}
+.mail-password-field { display: flex; align-items: stretch; gap: 8px; }
+.mail-password-field input { min-width: 0; flex: 1; }
+.mail-password-field button { flex: 0 0 auto; min-width: 64px; }
+.mail-sender-help,
+.mail-sender-note,
+.mail-sender-message { margin: -4px 0 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
+.mail-test-grid { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: end; }
+.mail-sender-actions { display: flex; flex-wrap: wrap; gap: 7px; }
+.mail-sender-actions button { min-height: 40px; white-space: nowrap; }
+.mail-sender-message[data-state="success"] { color: var(--positive); }
+.mail-sender-message[data-state="error"] { color: var(--negative); }
+.mail-sender-message[data-state="loading"] { color: var(--navy); }
+
 .email-template-tabs { display: flex; gap: 8px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
 .email-template-tabs button {
   min-height: 40px;
@@ -756,6 +789,9 @@ button:disabled { opacity: .52; cursor: not-allowed; }
   .detail-actions button,
   .detail-actions select { min-height: 44px; }
   .detail-grid { grid-template-columns: 1fr; gap: 12px; }
+  .mail-test-grid { grid-template-columns: 1fr; }
+  .mail-sender-actions { display: grid; grid-template-columns: 1fr; }
+  .mail-sender-actions button { width: 100%; min-height: 44px; }
   .email-template-fields,
   .email-builder-grid,
   .email-design-grid { grid-template-columns: 1fr; }
