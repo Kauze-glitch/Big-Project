@@ -9,7 +9,6 @@ const SERVICE_KEY = secretKeysRaw
 
 const ADMIN_USER = "zyro";
 const ADMIN_PASSWORD_SHA256 = "b6b452af25494254c43f6a7b775f5c70028d165f17a7aef91bfdb610134c5075";
-const ZYRO_EDGE_SECRET = Deno.env.get("ZYRO_EDGE_SECRET") ?? "";
 
 
 const DEFAULT_EMAIL_TEMPLATES = {
@@ -292,20 +291,6 @@ async function isAdmin(req: Request) {
   }
 }
 
-function constantTimeEquals(left: string, right: string) {
-  const a = new TextEncoder().encode(left);
-  const b = new TextEncoder().encode(right);
-  if (a.length !== b.length) return false;
-  let mismatch = 0;
-  for (let index = 0; index < a.length; index++) mismatch |= a[index] ^ b[index];
-  return mismatch === 0;
-}
-
-function hasValidEdgeSecret(req: Request) {
-  const provided = req.headers.get("x-zyro-secret") ?? "";
-  return Boolean(ZYRO_EDGE_SECRET) && constantTimeEquals(provided, ZYRO_EDGE_SECRET);
-}
-
 function unauthorized() {
   return new Response(JSON.stringify({ message: "Unauthorized" }), {
     status: 401,
@@ -488,13 +473,9 @@ Deno.serve(async (req) => {
     const isHealth = pathname === "/health" || pathname.endsWith("/zyro-api/health");
     const isEmailSettings = pathname === "/email-settings" || pathname.endsWith("/zyro-api/email-settings");
 
-    if (req.method === "GET" && isHealth) {
-      if (!hasValidEdgeSecret(req)) return json({ message: "Forbidden" }, 403);
-      return json({ ok: true });
-    }
+    if (req.method === "GET" && isHealth) return json({ ok: true });
 
     if ((req.method === "GET" || req.method === "PATCH") && isEmailSettings) {
-      if (!hasValidEdgeSecret(req)) return json({ message: "Forbidden" }, 403);
       if (!(await isAdmin(req))) return unauthorized();
 
       if (req.method === "GET") {
