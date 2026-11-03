@@ -43,3 +43,14 @@ test("a retry after a confirmed send reuses the sent outbox receipt instead of s
   assert.match(source, /if \(outbox\.delivery_status === "sent"\)[\s\S]*?providerMessageId = outbox\.provider_message_id;[\s\S]*?emailSent = true;/);
   assert.match(source, /const idempotencyKey = "zyro-" \+ await sha256/);
 });
+
+test("an intentionally empty email slogan stays empty in storage and preview", async () => {
+  const [edge, admin] = await Promise.all([
+    readFile(new URL("supabase/functions/zyro-api/index.ts", root), "utf8"),
+    readFile(new URL("public/admin.js", root), "utf8"),
+  ]);
+  assert.match(edge, /tagline: typeof designInput\\.tagline === "string"\\s*\\?\\s*text\\(designInput\\.tagline, 120\\)\\s*:\\s*DEFAULT_EMAIL_TEMPLATES\\.design\\.tagline/);
+  assert.match(edge, /const tagline = design\\.tagline[\\s\\S]*?: "";/);
+  assert.match(admin, /const tagline = design\\.tagline[\\s\\S]*?: "";/);
+  assert.match(admin, /\\$\\{tagline\\}/);
+});
