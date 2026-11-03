@@ -92,6 +92,8 @@ const statusLabels = {
   rejected: "Từ chối",
 };
 
+const DEFAULT_REJECTION_REASON = "Hiện tại CLB ưu tiên những bạn có thể sinh hoạt cùng nhóm lâu dài.";
+
 const defaultEmailTemplates = {
   design: {
     logoUrl: "https://zyro-volleyball-club.onrender.com/assets/zyro-logo.webp",
@@ -480,7 +482,7 @@ function emailTokenValues(item = {}, reason = "") {
     level: escapeHtml(optionLabel("level", item.level || "newbie")),
     goal: escapeHtml(item.goal || "Mình muốn chơi vui và làm quen những người bạn mới.").replace(/\n/g, "<br>"),
     created_at: escapeHtml(item.createdAt ? formatDate(item.createdAt, true) : "03/11/2026"),
-    reason: escapeHtml(reason || "Hiện tại CLB ưu tiên những bạn có thể sinh hoạt cùng nhóm lâu dài."),
+    reason: escapeHtml(reason || DEFAULT_REJECTION_REASON),
   };
 }
 
@@ -619,6 +621,7 @@ function updateComposePreview() {
 
 function updateComposeMode() {
   const mode = currentRejectMode();
+  composeReason.setCustomValidity("");
   composeTemplateFields.hidden = mode !== "template";
   composeCustomFields.hidden = mode !== "custom";
   if (mode === "custom" && !composeBody.dataset.customInitialized) {
@@ -662,6 +665,8 @@ async function submitDecision(event) {
   event.preventDefault();
   const pending = state.pendingDecision;
   if (!pending) return;
+  composeRecipient.setCustomValidity("");
+  composeReason.setCustomValidity("");
   const email = composeRecipient.value.trim();
   const sendEmail = composeSend.checked;
   const isApproval = pending.status === "approved";
@@ -677,7 +682,7 @@ async function submitDecision(event) {
     return;
   }
   composeRecipient.setCustomValidity("");
-  if (!isApproval && mode === "template" && sendEmail && reason.length < 5) {
+  if (!isApproval && mode === "template" && sendEmail && reason.length > 0 && reason.length < 5) {
     composeReason.setCustomValidity("Nhập lý do cụ thể để ứng viên hiểu phản hồi của CLB.");
     composeReason.reportValidity();
     composeReason.focus();
@@ -1573,9 +1578,15 @@ document.querySelectorAll("[data-compose-mode]").forEach((radio) => {
   radio.addEventListener("change", updateComposeMode);
 });
 
-composeRecipient.addEventListener("input", updateComposePreview);
+composeRecipient.addEventListener("input", () => {
+  composeRecipient.setCustomValidity("");
+  updateComposePreview();
+});
 composeSend.addEventListener("change", updateComposePreview);
-composeReason.addEventListener("input", updateComposePreview);
+composeReason.addEventListener("input", () => {
+  composeReason.setCustomValidity("");
+  updateComposePreview();
+});
 composeSubject.addEventListener("input", updateComposePreview);
 composeBody.addEventListener("input", updateComposePreview);
 emailComposeForm.addEventListener("submit", submitDecision);
