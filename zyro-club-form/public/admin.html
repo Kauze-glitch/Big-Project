@@ -234,6 +234,41 @@
             </div>
           </section>
 
+          <section class="settings-section" data-mail-sender-settings>
+            <div class="settings-label">
+              <h2>Tài khoản gửi email</h2>
+              <p>Thiết lập Gmail dùng để gửi thông báo duyệt hoặc từ chối thành viên. Có thể thay đổi tài khoản và App Password bất cứ lúc nào.</p>
+            </div>
+            <div class="settings-panel mail-sender-panel">
+              <div class="mail-sender-status" data-mail-sender-status aria-live="polite">Đang tải cấu hình email…</div>
+              <label>
+                <span>Địa chỉ Gmail gửi đi</span>
+                <input type="email" data-mail-sender-email maxlength="254" placeholder="tenban@gmail.com" autocomplete="email" required>
+              </label>
+              <label>
+                <span>Google App Password</span>
+                <div class="mail-password-field">
+                  <input type="password" data-mail-app-password maxlength="24" placeholder="Nhập App Password 16 ký tự" autocomplete="new-password">
+                  <button class="secondary-button" type="button" data-mail-password-toggle>Hiện</button>
+                </div>
+              </label>
+              <p class="mail-sender-help">Dùng App Password do Google cấp, không phải mật khẩu đăng nhập Gmail. Nếu đã lưu, để trống ô này để giữ mật khẩu hiện tại. Mật khẩu được mã hóa trước khi lưu và không hiển thị lại.</p>
+              <div class="mail-test-grid">
+                <label>
+                  <span>Email nhận thư thử</span>
+                  <input type="email" data-mail-test-recipient maxlength="254" placeholder="Email của bạn để nhận thư thử" autocomplete="email">
+                </label>
+                <div class="mail-sender-actions">
+                  <button class="primary-button" type="button" data-mail-save>Lưu tài khoản</button>
+                  <button class="secondary-button" type="button" data-mail-verify>Kiểm tra kết nối</button>
+                  <button class="secondary-button" type="button" data-mail-send-test>Gửi email thử</button>
+                </div>
+              </div>
+              <p class="mail-sender-message" data-mail-sender-message aria-live="polite"></p>
+              <p class="mail-sender-note">Lưu ý: Google yêu cầu bật Xác minh 2 bước trước khi tạo App Password. Email thử chỉ gửi đến địa chỉ bạn nhập ở trên.</p>
+            </div>
+          </section>
+
           <section class="settings-section" data-email-template-settings>
             <div class="settings-label">
               <h2>Email duyệt & từ chối</h2>
