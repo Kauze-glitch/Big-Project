@@ -191,6 +191,27 @@ a { color: inherit; }
   font-weight: 500;
 }
 
+.email-contact-field {
+  display: grid;
+  gap: 8px;
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+}
+
+.email-contact-field input {
+  width: 100%;
+  min-height: 50px;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: white;
+  color: var(--text);
+}
+
+.email-contact-field .helper { margin: 0; font-size: 13px; }
+.email-contact-field .field-error { margin: 0; }
+
 .hero-brand {
   position: relative;
   min-height: 500px;
@@ -857,4 +878,3 @@ textarea {
     transition-duration: .01ms !important;
   }
 }
-
