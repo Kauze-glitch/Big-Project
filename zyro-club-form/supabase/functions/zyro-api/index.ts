@@ -1,5 +1,6 @@
 
 import { createClient } from "npm:@supabase/supabase-js@2.57.4";
+import { resolveRejectionReason } from "./rejection-reason.js";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const secretKeysRaw = Deno.env.get("SUPABASE_SECRET_KEYS");
@@ -661,10 +662,14 @@ Deno.serve(async (req) => {
       let template = isApproval ? config.emailTemplates.approved : config.emailTemplates.rejected;
       let subject = template.subject;
       let bodyHtml = template.bodyHtml;
-      const reason = text(body?.reason, 700);
-
-      if (sendEmail && !isApproval && mode === "template" && reason.length < 5) {
-        return json({ message: "Nhập lý do từ chối cụ thể trước khi gửi email." }, 400);
+      const providedReason = text(body?.reason, 700);
+      let reason = providedReason;
+      if (sendEmail && !isApproval && mode === "template") {
+        try {
+          reason = resolveRejectionReason(providedReason);
+        } catch {
+          return json({ message: "Lý do riêng cần có ít nhất 5 ký tự. Hoặc để trống để dùng lý do mặc định." }, 400);
+        }
       }
       if (sendEmail && !isApproval && mode === "template" && !template.bodyHtml.includes("{{reason}}")) {
         return json({ message: "Mẫu từ chối cần có biến {{reason}} để chèn lý do riêng." }, 400);
