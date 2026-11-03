@@ -505,6 +505,9 @@ function renderEmailDocument(template, item = {}, reason = "", bodyOverride = nu
   let logoUrl = String(design.logoUrl || "").trim();
   if (!logoUrl) logoUrl = `${window.location.origin}/assets/zyro-logo.webp`;
   else if (logoUrl.startsWith("/")) logoUrl = `${window.location.origin}${logoUrl}`;
+  const tagline = design.tagline
+    ? `<div style="margin-top:7px;color:#dbe7f5;font-size:10px;letter-spacing:.13em;">${escapeHtml(design.tagline)}</div>`
+    : "";
   const values = emailTokenValues(item, reason);
   const sourceBody = bodyOverride ?? template.bodyHtml ?? "";
   const body = String(sourceBody).replace(/\{\{([a-z_]+)\}\}/g, (_match, key) => values[key] ?? "");
@@ -523,7 +526,7 @@ function renderEmailDocument(template, item = {}, reason = "", bodyOverride = nu
       <tr><td align="center" style="padding:26px 24px 24px;background:${headerColor};">
         <img src="${escapeHtml(logoUrl)}" alt="ZYRO" width="112" style="display:block;width:112px;max-width:100%;height:auto;margin:0 auto 10px;">
         <div style="color:#ffffff;font-size:14px;font-weight:700;letter-spacing:.12em;">${escapeHtml(design.brandName || "ZYRO VOLLEYBALL CLUB")}</div>
-        <div style="margin-top:7px;color:#dbe7f5;font-size:10px;letter-spacing:.13em;">${escapeHtml(design.tagline || "PLAY TOGETHER. GROW TOGETHER.")}</div>
+        ${tagline}
       </td></tr>
       <tr><td style="padding:30px 28px 20px;">
         <div style="width:42px;height:4px;margin-bottom:18px;background:${accentColor};border-radius:8px;"></div>
