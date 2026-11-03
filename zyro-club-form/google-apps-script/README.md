@@ -36,7 +36,7 @@ In Render → `zyro-club-form` → **Environment**, add these two variables:
 - `MAILER_WEB_APP_URL` = the Apps Script web app URL ending in `/exec`.
 - `MAILER_SHARED_SECRET` = the secret copied from the `setupZyroMailerSecret` execution log.
 
-Keep the existing `ZYRO_API_URL` and `ZYRO_EDGE_SECRET` variables. Do not add the shared secret to any `VITE_`, `NEXT_PUBLIC_`, `PUBLIC_`, or browser-side variable. Save changes and let Render redeploy.
+Keep the existing `ZYRO_API_URL` variable. Do not add the shared secret to any `VITE_`, `NEXT_PUBLIC_`, `PUBLIC_`, or browser-side variable. Save changes and let Render redeploy.
 
 ## 5. Test from ZYRO Admin
 
