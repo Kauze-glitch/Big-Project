@@ -221,7 +221,26 @@ button:disabled { opacity: .52; cursor: not-allowed; }
 .screen-title-row h2 { margin: 0; font-size: 24px; line-height: 1.2; }
 .screen-title-row p { margin: 5px 0 0; color: var(--muted); }
 .settings-actions { display: flex; flex: 0 0 auto; gap: 8px; }
-.mobile-settings-savebar { display: none; }
+.screen[data-screen="settings"] { padding-bottom: 104px; }
+.mobile-settings-savebar {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 224px;
+  z-index: 1200;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 28px;
+  border-top: 1px solid var(--border);
+  background: rgba(255,255,255,.98);
+  box-shadow: 0 -8px 24px rgba(20,30,43,.12);
+  backdrop-filter: blur(12px);
+}
+.mobile-settings-savebar p { margin: 0; color: var(--muted); font-size: 13px; }
+.mobile-settings-savebar-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.mobile-settings-savebar-actions button { min-width: 132px; min-height: 44px; }
 
 .status-tabs {
   display: flex;
@@ -709,6 +728,7 @@ button:disabled { opacity: .52; cursor: not-allowed; }
 
 @media (max-width: 900px) {
   .admin-shell { grid-template-columns: 1fr; }
+  .mobile-settings-savebar { left: 0; padding-inline: 18px; }
   .admin-sidebar {
     position: sticky;
     z-index: 10;
@@ -814,22 +834,13 @@ button:disabled { opacity: .52; cursor: not-allowed; }
   .change-tracker { padding: 12px; }
   .toast-region { margin-inline: 18px; }
   .mobile-settings-savebar {
-    position: fixed;
-    right: 0;
-    bottom: 0;
-    left: 0;
-    z-index: 1200;
-    display: grid;
+    grid-template-columns: 1fr;
     gap: 8px;
     padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
-    border-top: 1px solid var(--border);
-    background: rgba(255,255,255,.98);
-    box-shadow: 0 -8px 24px rgba(20,30,43,.12);
-    backdrop-filter: blur(12px);
   }
-  .mobile-settings-savebar p { margin: 0; color: var(--muted); font-size: 12px; }
+  .mobile-settings-savebar p { font-size: 12px; }
   .mobile-settings-savebar-actions { display: grid; grid-template-columns: 1fr 1.4fr; gap: 8px; }
-  .mobile-settings-savebar-actions button { width: 100%; min-height: 46px; }
+  .mobile-settings-savebar-actions button { width: 100%; min-width: 0; min-height: 46px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
