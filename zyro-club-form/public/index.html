@@ -155,6 +155,12 @@
             <label class="field-label" for="goal">Chia sẻ ngắn</label>
             <textarea id="goal" name="goal" rows="5" maxlength="500" placeholder="Mình muốn..."></textarea>
             <div class="textarea-meta"><p class="field-error" data-error-for="goal"></p><span data-count>0 / 500</span></div>
+            <div class="email-contact-field">
+              <label class="field-label" for="email">Email nhận kết quả (không bắt buộc)</label>
+              <input id="email" name="email" type="email" inputmode="email" autocomplete="email" maxlength="254" placeholder="ban@example.com">
+              <p class="helper">Nếu cung cấp email, ZYRO có thể gửi thông báo duyệt hoặc phản hồi đăng ký cho bạn.</p>
+              <p class="field-error" data-error-for="email"></p>
+            </div>
           </fieldset>
 
           <div class="form-actions" data-form-actions>
@@ -180,4 +186,3 @@
   <script src="/app.js" type="module"></script>
 </body>
 </html>
-
