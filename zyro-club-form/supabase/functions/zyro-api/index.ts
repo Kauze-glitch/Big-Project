@@ -208,7 +208,10 @@ async function sha256(value: string) {
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-const MAIL_IDEMPOTENCY_WINDOW_MS = 23 * 60 * 60 * 1000;
+// Apps Script keeps hashed send receipts for 30 days. Keep the retry window
+// slightly shorter so a known-not-sent quota/lock response can be retried
+// after Google's 24-hour quota reset without risking a duplicate send.
+const MAIL_IDEMPOTENCY_WINDOW_MS = 29 * 24 * 60 * 60 * 1000;
 
 async function getOrCreateDecisionEmailOutbox(idempotencyKey: string, registrationId: string, decisionStatus: string) {
   const columns = "idempotency_key,registration_id,decision_status,delivery_status,provider_message_id,created_at";

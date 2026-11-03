@@ -82,11 +82,29 @@ async function appsScriptRequest(payload) {
     throw error;
   }
 
-  const result = await response.json().catch(() => ({}));
+  let result;
+  try {
+    result = await response.json();
+  } catch {
+    const error = new Error("Google Apps Script không trả về phản hồi JSON hợp lệ. Với yêu cầu gửi thư, hãy kiểm tra Gmail mục Đã gửi trước khi thử lại.");
+    error.status = 502;
+    error.deliveryStatus = payload.action === "send" ? "uncertain" : "pending";
+    throw error;
+  }
+
   if (!response.ok || result.ok !== true) {
     const error = new Error(result.message || `Google Apps Script trả về HTTP ${response.status}.`);
     error.status = response.ok ? (Number(result.httpStatus) || 502) : response.status;
-    error.deliveryStatus = result.deliveryStatus === "uncertain" ? "uncertain" : "pending";
+    error.deliveryStatus = result.deliveryStatus === "uncertain" || (payload.action === "send" && result.deliveryStatus !== "pending")
+      ? "uncertain"
+      : "pending";
+    throw error;
+  }
+
+  if (payload.action === "send" && (typeof result.messageId !== "string" || !result.messageId)) {
+    const error = new Error("Google Apps Script đã phản hồi nhưng thiếu mã xác nhận. Hãy kiểm tra Gmail mục Đã gửi trước khi thử lại.");
+    error.status = 502;
+    error.deliveryStatus = "uncertain";
     throw error;
   }
   return result;

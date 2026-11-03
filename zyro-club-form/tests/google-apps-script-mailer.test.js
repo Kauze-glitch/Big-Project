@@ -53,7 +53,13 @@ function createHarness({ quota = 10, sendError = null } = {}) {
     return JSON.parse(output.content);
   }
 
-  return { context, post, properties, sentMessages };
+  return {
+    context,
+    post,
+    properties,
+    sentMessages,
+    setQuota: (value) => { remainingQuota = value; },
+  };
 }
 
 test("rejects requests without the shared secret", () => {
@@ -110,6 +116,28 @@ test("does not send when Google's daily recipient quota is exhausted", () => {
   assert.equal(result.ok, false);
   assert.equal(result.deliveryStatus, "pending");
   assert.equal(harness.sentMessages.length, 0);
+});
+
+test("allows the same request to retry after Google's daily quota resets", () => {
+  const harness = createHarness({ quota: 0 });
+  const request = {
+    action: "send",
+    secret: "test-shared-secret",
+    to: "member@example.com",
+    subject: "ZYRO test",
+    html: "<p>Hello</p>",
+    idempotencyKey: "zyro-test-quota-reset-001",
+  };
+
+  const first = harness.post(request);
+  assert.equal(first.ok, false);
+  assert.equal(first.deliveryStatus, "pending");
+  assert.equal(harness.sentMessages.length, 0);
+
+  harness.setQuota(1);
+  const retry = harness.post(request);
+  assert.equal(retry.ok, true);
+  assert.equal(harness.sentMessages.length, 1);
 });
 
 test("locks an uncertain send so a retry cannot send a duplicate", () => {
