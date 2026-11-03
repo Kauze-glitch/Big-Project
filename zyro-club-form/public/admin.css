@@ -221,6 +221,7 @@ button:disabled { opacity: .52; cursor: not-allowed; }
 .screen-title-row h2 { margin: 0; font-size: 24px; line-height: 1.2; }
 .screen-title-row p { margin: 5px 0 0; color: var(--muted); }
 .settings-actions { display: flex; flex: 0 0 auto; gap: 8px; }
+.mobile-settings-savebar { display: none; }
 
 .status-tabs {
   display: flex;
@@ -753,6 +754,7 @@ button:disabled { opacity: .52; cursor: not-allowed; }
   .topbar-actions { gap: 8px; }
   .refresh-button { min-height: 44px; padding-inline: 10px; white-space: nowrap; }
   .screen { min-height: calc(100svh - 180px); margin: 0 8px 8px; padding: 18px 14px 44px; border-radius: 14px; }
+  .screen[data-screen="settings"] { padding-bottom: calc(132px + env(safe-area-inset-bottom)); }
   .screen-title-row { align-items: stretch; flex-direction: column; }
   .screen-title-row > button,
   .screen-title-row > .settings-actions { align-self: flex-start; }
@@ -811,6 +813,23 @@ button:disabled { opacity: .52; cursor: not-allowed; }
   .confirm-actions button { width: 100%; min-height: 44px; }
   .change-tracker { padding: 12px; }
   .toast-region { margin-inline: 18px; }
+  .mobile-settings-savebar {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 1200;
+    display: grid;
+    gap: 8px;
+    padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
+    border-top: 1px solid var(--border);
+    background: rgba(255,255,255,.98);
+    box-shadow: 0 -8px 24px rgba(20,30,43,.12);
+    backdrop-filter: blur(12px);
+  }
+  .mobile-settings-savebar p { margin: 0; color: var(--muted); font-size: 12px; }
+  .mobile-settings-savebar-actions { display: grid; grid-template-columns: 1fr 1.4fr; gap: 8px; }
+  .mobile-settings-savebar-actions button { width: 100%; min-height: 46px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
