@@ -24,7 +24,7 @@ test("successful decision closes the email composer only after the API confirms 
   assert.match(submit, /catch \(error\) \{\s*notify\(error\.message/);
 });
 
-test("mobile settings screen exposes a persistent save and revert bar", async () => {
+test("settings screen exposes a persistent save and revert bar on desktop and mobile", async () => {
   const [html, js, css] = await Promise.all([
     readFile(new URL("public/admin.html", root), "utf8"),
     readFile(new URL("public/admin.js", root), "utf8"),
@@ -35,7 +35,7 @@ test("mobile settings screen exposes a persistent save and revert bar", async ()
   assert.match(html, /data-mobile-revert-config disabled>Hoàn tác/);
   assert.match(js, /mobileSaveButton\?\.addEventListener\("click", \(\) => saveButton\.click\(\)\)/);
   assert.match(js, /mobileRevertButton\?\.addEventListener\("click", \(\) => revertButton\.click\(\)\)/);
-  assert.match(css, /\.mobile-settings-savebar\s*\{[\s\S]*?position: fixed;[\s\S]*?bottom: 0;/);
+  assert.match(css, /\.mobile-settings-savebar\s*\{[\s\S]*?position: fixed;[\s\S]*?bottom: 0;[\s\S]*?left: 224px;[\s\S]*?display: grid;/);\n  assert.match(css, /@media \(max-width: 900px\)\s*\{[\s\S]*?\.mobile-settings-savebar \{ left: 0;/);\n  assert.doesNotMatch(css, /\.mobile-settings-savebar\s*\{\s*display: none;/);\n  assert.match(html, /data-email-design="tagline" maxlength="120" placeholder="Để trống để ẩn slogan"/);
 });
 
 test("a retry after a confirmed send reuses the sent outbox receipt instead of sending again", async () => {
