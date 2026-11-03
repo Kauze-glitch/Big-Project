@@ -108,8 +108,8 @@
         <div class="bulk-bar" data-bulk-bar hidden>
           <strong><span data-selected-count>0</span> đã chọn</strong>
           <div>
-            <button class="bulk-button bulk-approve" type="button" data-bulk-status="approved">Duyệt</button>
-            <button class="bulk-button bulk-reject" type="button" data-bulk-status="rejected">Từ chối</button>
+            <span class="bulk-hint">Duyệt hoặc từ chối từng hồ sơ để tùy chỉnh email gửi riêng.</span>
+            <button class="bulk-button" type="button" data-bulk-status="new">Đưa về chờ duyệt</button>
             <button class="bulk-button" type="button" data-clear-selection>Bỏ chọn</button>
           </div>
         </div>
@@ -233,6 +233,71 @@
               <label><span>Lời nhắn sau khi gửi</span><textarea data-bind="signup.successMessage" rows="4" maxlength="360"></textarea></label>
             </div>
           </section>
+
+          <section class="settings-section" data-email-template-settings>
+            <div class="settings-label">
+              <h2>Email duyệt & từ chối</h2>
+              <p>Chỉnh nội dung, cách trình bày, logo và màu sắc của email. Có thể xem trước trước khi lưu.</p>
+            </div>
+            <div class="settings-panel email-settings-panel">
+              <div class="email-template-tabs" role="tablist" aria-label="Chọn mẫu email">
+                <button type="button" class="is-active" data-email-template-tab="approved" role="tab" aria-selected="true">Chấp nhận</button>
+                <button type="button" data-email-template-tab="rejected" role="tab" aria-selected="false">Từ chối</button>
+              </div>
+              <div class="email-template-fields">
+                <label><span>Tiêu đề email (Subject)</span><input data-email-bind="subject" maxlength="180"></label>
+                <label><span>Dòng xem trước trong hộp thư (Preheader)</span><input data-email-bind="preheader" maxlength="180"></label>
+                <label><span>Tiêu đề chính trong email</span><input data-email-bind="title" maxlength="120"></label>
+                <label class="email-profile-toggle"><input type="checkbox" data-email-bind="showProfile"> Hiển thị thông tin ứng viên đã đăng ký</label>
+              </div>
+              <div class="email-builder-grid">
+                <div class="email-editor-column">
+                  <div class="email-editor-heading">
+                    <strong>Nội dung email</strong>
+                    <span>Admin có thể định dạng trực tiếp.</span>
+                  </div>
+                  <div class="email-editor-toolbar" role="toolbar" aria-label="Định dạng nội dung email">
+                    <button type="button" data-email-command="bold" aria-label="In đậm"><strong>B</strong></button>
+                    <button type="button" data-email-command="italic" aria-label="In nghiêng"><em>I</em></button>
+                    <button type="button" data-email-command="underline" aria-label="Gạch chân"><u>U</u></button>
+                    <button type="button" data-email-command="insertUnorderedList" aria-label="Danh sách">• Danh sách</button>
+                    <button type="button" data-email-command="createLink">Chèn liên kết</button>
+                  </div>
+                  <div class="email-rich-editor" data-email-body-editor contenteditable="true" role="textbox" aria-multiline="true" aria-label="Nội dung mẫu email"></div>
+                  <div class="email-token-help">
+                    <strong>Biến có thể chèn</strong>
+                    <div>
+                      <button type="button" data-email-token="{{zalo_name}}">Tên Zalo</button>
+                      <button type="button" data-email-token="{{duration}}">Thời gian</button>
+                      <button type="button" data-email-token="{{gender}}">Giới tính</button>
+                      <button type="button" data-email-token="{{position}}">Vị trí</button>
+                      <button type="button" data-email-token="{{level}}">Trình độ</button>
+                      <button type="button" data-email-token="{{goal}}">Mong muốn</button>
+                      <button type="button" data-email-token="{{created_at}}">Ngày đăng ký</button>
+                      <button type="button" data-email-token="{{reason}}">Lý do từ chối</button>
+                    </div>
+                    <p>Biến sẽ tự thay bằng dữ liệu của đúng ứng viên khi gửi email. Trong mẫu từ chối, giữ biến {{reason}} để chèn lý do admin nhập cho từng hồ sơ.</p>
+                  </div>
+                </div>
+                <div class="email-preview-column">
+                  <div class="email-editor-heading"><strong>Xem trước email</strong><span>Mô phỏng trên màn hình điện thoại.</span></div>
+                  <iframe class="email-preview-frame" data-email-preview title="Xem trước mẫu email" sandbox=""></iframe>
+                </div>
+              </div>
+              <div class="email-design-editor">
+                <div class="email-editor-heading"><strong>Nhận diện thương hiệu</strong><span>Áp dụng cho cả email chấp nhận và từ chối.</span></div>
+                <div class="email-design-grid">
+                  <label><span>Đường dẫn logo HTTPS</span><input type="url" data-email-design="logoUrl" placeholder="https://.../zyro-logo.webp"></label>
+                  <label><span>Tên thương hiệu</span><input data-email-design="brandName" maxlength="80"></label>
+                  <label><span>Slogan</span><input data-email-design="tagline" maxlength="120"></label>
+                  <label><span>Màu nền đầu email</span><input type="color" data-email-design="headerColor"></label>
+                  <label><span>Màu nhấn</span><input type="color" data-email-design="accentColor"></label>
+                  <label class="email-footer-field"><span>Chân email</span><textarea data-email-design="footerText" rows="2" maxlength="240"></textarea></label>
+                </div>
+                <p class="email-design-note">Logo trong email cần là đường dẫn HTTPS công khai để Gmail và các ứng dụng email tải được ảnh.</p>
+              </div>
+            </div>
+          </section>
         </div>
       </section>
     </main>
@@ -247,6 +312,54 @@
         <button class="danger-button" type="button" data-confirm-accept>Tiếp tục</button>
       </div>
     </div>
+  </dialog>
+
+  <dialog class="email-compose-dialog" data-email-dialog aria-labelledby="email-compose-title">
+    <form class="email-compose-form" data-email-compose-form method="dialog">
+      <header class="email-compose-header">
+        <div>
+          <span class="detail-label">GỬI THÔNG BÁO THÀNH VIÊN</span>
+          <h2 id="email-compose-title" data-email-compose-title>Thông báo kết quả</h2>
+          <p data-email-compose-description></p>
+        </div>
+        <button class="drawer-close" type="button" data-email-compose-close aria-label="Đóng">×</button>
+      </header>
+      <div class="email-compose-content">
+        <div class="email-compose-recipient">
+          <label><span>Email người nhận</span><input type="email" data-compose-recipient maxlength="254" placeholder="ban@example.com"></label>
+          <label class="email-compose-send-toggle"><input type="checkbox" data-compose-send> Gửi email cho ứng viên</label>
+          <p data-compose-email-help>Chưa có email trong hồ sơ. Có thể nhập email tại đây hoặc chỉ cập nhật trạng thái mà không gửi email.</p>
+        </div>
+        <section class="email-compose-reject-mode" data-compose-reject-options hidden>
+          <strong>Cách gửi thông báo từ chối</strong>
+          <label><input type="radio" name="rejectEmailMode" value="template" data-compose-mode checked> Dùng mẫu từ chối và nhập lý do riêng</label>
+          <label><input type="radio" name="rejectEmailMode" value="custom" data-compose-mode> Tự soạn nội dung riêng cho ứng viên</label>
+        </section>
+        <div class="email-compose-fields" data-compose-template-fields hidden>
+          <label><span>Lý do từ chối (sẽ được đưa vào mẫu)</span><textarea data-compose-reason rows="3" maxlength="700" placeholder="Ví dụ: Hiện tại CLB ưu tiên các bạn có thể sinh hoạt lâu dài, trong khi bạn đang mong muốn tham gia ngắn hạn..."></textarea></label>
+        </div>
+        <div class="email-compose-fields" data-compose-custom-fields>
+          <label><span>Tiêu đề email</span><input data-compose-subject maxlength="180"></label>
+          <div class="email-editor-heading"><strong>Nội dung gửi riêng</strong><span>Có thể chỉnh sửa nội dung cho đúng tình huống.</span></div>
+          <div class="email-editor-toolbar" role="toolbar" aria-label="Định dạng email gửi riêng">
+            <button type="button" data-compose-command="bold"><strong>B</strong></button>
+            <button type="button" data-compose-command="italic"><em>I</em></button>
+            <button type="button" data-compose-command="underline"><u>U</u></button>
+            <button type="button" data-compose-command="insertUnorderedList">• Danh sách</button>
+          </div>
+          <div class="email-rich-editor compose-rich-editor" data-compose-body contenteditable="true" role="textbox" aria-multiline="true" aria-label="Nội dung email gửi riêng"></div>
+          <div class="email-token-help compact-token-help"><strong>Biến:</strong> <button type="button" data-compose-token="{{zalo_name}}">Tên Zalo</button> <button type="button" data-compose-token="{{duration}}">Thời gian</button> <button type="button" data-compose-token="{{reason}}">Lý do</button></div>
+        </div>
+        <div class="email-compose-preview-wrap">
+          <div class="email-editor-heading"><strong>Xem trước nội dung gửi</strong><span>Email chỉ gửi sau khi admin xác nhận.</span></div>
+          <iframe class="email-preview-frame compose-preview-frame" data-compose-preview title="Xem trước email gửi ứng viên" sandbox=""></iframe>
+        </div>
+      </div>
+      <footer class="email-compose-actions">
+        <button class="secondary-button" type="button" data-email-compose-cancel>Hủy</button>
+        <button class="primary-button" type="submit" data-email-compose-confirm>Cập nhật trạng thái</button>
+      </footer>
+    </form>
   </dialog>
 
   <div class="detail-backdrop" data-detail-backdrop hidden></div>
@@ -264,6 +377,7 @@
       <section class="detail-section">
         <h3>Thông tin người chơi</h3>
         <dl class="detail-grid">
+          <div><dt>Email nhận kết quả</dt><dd data-detail-email></dd></div>
           <div><dt>Thời gian</dt><dd data-detail-duration></dd></div>
           <div><dt>Giới tính</dt><dd data-detail-gender></dd></div>
           <div><dt>Vị trí</dt><dd data-detail-position></dd></div>
