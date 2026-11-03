@@ -193,8 +193,8 @@ async function loadMailSenderSettings() {
 
 async function saveMailSenderSettings() {
   const senderEmail = mailSenderEmail.value.trim().toLowerCase();
-  const appPassword = mailAppPassword.value.replace(/\\s/g, "");
-  if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(senderEmail)) {
+  const appPassword = mailAppPassword.value.replace(/\s/g, "");
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(senderEmail)) {
     setMailSenderMessage("Nhập địa chỉ Gmail gửi đi hợp lệ.", "error");
     mailSenderEmail.focus();
     return;
@@ -251,7 +251,7 @@ async function verifyMailSender() {
 
 async function sendTestMail() {
   const to = mailTestRecipient.value.trim().toLowerCase();
-  if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(to)) {
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) {
     setMailSenderMessage("Nhập email của bạn để nhận thư thử.", "error");
     mailTestRecipient.focus();
     return;
