@@ -1,0 +1,4 @@
+project_id = "grhdawkxnrkgkahegnnd"
+
+[functions.zyro-api]
+verify_jwt = false
