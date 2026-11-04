@@ -29,3 +29,11 @@ The production Edge Function is deployed independently through Supabase. The exi
 
 `DELETE-ROUTE.patch` is retained as a historical patch artifact. The DELETE route is already present in the active function; do not apply the patch again.
 
+
+
+## Zalo mapping runtime configuration
+
+- Store `zyro_draft_api_base_url` and `zyro_mapping_internal_key` as named secrets in Supabase Vault; do not commit either value.
+- `public.get_zyro_mapping_runtime_config()` is a `SECURITY INVOKER` RPC and must grant `EXECUTE` only to `service_role` (revoke it from `PUBLIC`, `anon`, and `authenticated`). The function returns only those two named Vault values.
+- `zyro-api` prefers `DRAFT_API_BASE_URL` and `ZYRO_MAPPING_INTERNAL_KEY` Edge Function secrets when both are present; otherwise it reads the two Vault values through its existing service-role Supabase client and caches them for the life of the function instance.
+- Draft API Render service must set `ZyroMapping__InternalKey` to the same value stored as `zyro_mapping_internal_key`.

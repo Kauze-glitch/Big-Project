@@ -480,12 +480,51 @@ function mappingError(message: string, status = 502) {
   return error;
 }
 
-async function requestDraftMapping(path: string, options: RequestInit = {}) {
-  const configuredBaseUrl = text(Deno.env.get("DRAFT_API_BASE_URL"), 500).replace(/\/+$/, "");
-  const internalKey = Deno.env.get("ZYRO_MAPPING_INTERNAL_KEY") ?? "";
-  if (!configuredBaseUrl || new TextEncoder().encode(internalKey).length < 32) {
-    throw mappingError("Chưa cấu hình DRAFT_API_BASE_URL hoặc ZYRO_MAPPING_INTERNAL_KEY trong Supabase Edge Function.", 503);
+let draftMappingConfigPromise: Promise<{ baseUrl: string; internalKey: string }> | null = null;
+
+async function getDraftMappingConfig() {
+  const envBaseUrl = text(Deno.env.get("DRAFT_API_BASE_URL"), 500).replace(/\/+$/, "");
+  const envInternalKey = Deno.env.get("ZYRO_MAPPING_INTERNAL_KEY") ?? "";
+  if (envBaseUrl && new TextEncoder().encode(envInternalKey).length >= 32) {
+    return { baseUrl: envBaseUrl, internalKey: envInternalKey };
   }
+
+  if (!draftMappingConfigPromise) {
+    draftMappingConfigPromise = (async () => {
+      const { data, error } = await supabase.rpc("get_zyro_mapping_runtime_config");
+      if (error) {
+        throw mappingError(
+          "Không thể đọc cấu hình mapping từ Supabase Vault. Hãy kiểm tra quyền service_role và cấu hình Vault.",
+          503,
+        );
+      }
+
+      const config = new Map<string, string>(
+        (Array.isArray(data) ? data : []).map((row: any) => [
+          String(row?.name ?? ""),
+          String(row?.value ?? ""),
+        ]),
+      );
+      const baseUrl = text(config.get("zyro_draft_api_base_url"), 500).replace(/\/+$/, "");
+      const internalKey = text(config.get("zyro_mapping_internal_key"), 500);
+      if (!baseUrl || new TextEncoder().encode(internalKey).length < 32) {
+        throw mappingError(
+          "Thiếu zyro_draft_api_base_url hoặc zyro_mapping_internal_key trong Supabase Vault.",
+          503,
+        );
+      }
+      return { baseUrl, internalKey };
+    })().catch((error) => {
+      draftMappingConfigPromise = null;
+      throw error;
+    });
+  }
+
+  return await draftMappingConfigPromise;
+}
+
+async function requestDraftMapping(path: string, options: RequestInit = {}) {
+  const { baseUrl: configuredBaseUrl, internalKey } = await getDraftMappingConfig();
 
   let baseUrl: URL;
   try {
