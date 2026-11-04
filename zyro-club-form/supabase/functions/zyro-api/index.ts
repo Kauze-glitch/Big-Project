@@ -8,7 +8,7 @@ const SERVICE_KEY = secretKeysRaw
   ? JSON.parse(secretKeysRaw)["default"]
   : (Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "");
 
-const ADMIN_USER = "idang98";
+const ADMIN_USER = "zyro";
 const ADMIN_PASSWORD_SHA256 = Deno.env.get("ADMIN_PASSWORD_SHA256") ?? "";
 
 
