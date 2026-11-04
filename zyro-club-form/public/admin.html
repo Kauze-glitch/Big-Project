@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/admin.css?v=20261103-savebar-desktop">
+  <link rel="stylesheet" href="/admin.css?v=20261103-zalo-mapping">
 </head>
 <body>
   <section class="login-view" data-login-view>
@@ -39,6 +39,7 @@
       </div>
       <nav class="admin-nav" aria-label="Quản trị">
         <button type="button" class="is-active" data-nav="registrations">Đăng ký</button>
+        <button type="button" data-nav="zalo-mapping">Mapping Zalo</button>
         <button type="button" data-nav="settings">Giao diện & nội dung</button>
       </nav>
       <div class="sidebar-actions">
@@ -129,6 +130,51 @@
           <span data-page-info>Trang 1 / 1</span>
           <button class="secondary-button" type="button" data-page-next>Sau →</button>
         </nav>
+      </section>
+
+      <section class="screen" data-screen="zalo-mapping" hidden>
+        <div class="screen-title-row">
+          <div>
+            <h2>Đối chiếu thành viên Zalo</h2>
+            <p>Chọn nhóm, kiểm tra gợi ý theo tên và xác nhận UID trước khi đồng bộ hồ sơ sang Draft.</p>
+          </div>
+          <div class="settings-actions">
+            <button class="secondary-button" type="button" data-zalo-load-groups>Tải nhóm Zalo</button>
+            <button class="secondary-button" type="button" data-zalo-reload disabled>Tải lại danh bạ</button>
+          </div>
+        </div>
+
+        <div class="zalo-mapping-toolbar">
+          <label>
+            <span>Nhóm Zalo cần đối chiếu</span>
+            <select data-zalo-group disabled>
+              <option value="">Tải danh sách nhóm từ Draft…</option>
+            </select>
+          </label>
+          <p class="zalo-directory-status" data-zalo-directory-status role="status" aria-live="polite">Chưa tải danh sách nhóm.</p>
+        </div>
+
+        <div class="zalo-mapping-summary" aria-live="polite">
+          <div><strong data-zalo-count-total>0</strong><span>Hồ sơ Form</span></div>
+          <div><strong data-zalo-count-exact>0</strong><span>Khớp duy nhất</span></div>
+          <div><strong data-zalo-count-review>0</strong><span>Cần xác nhận</span></div>
+          <div><strong data-zalo-count-saved>0</strong><span>UID đã lưu</span></div>
+          <div><strong data-zalo-count-selected>0</strong><span>Được chọn</span></div>
+        </div>
+
+        <div class="zalo-mapping-note">
+          <strong>Nguyên tắc mapping</strong>
+          <p>Khớp tên duy nhất được tự đề xuất. Tên trùng hoặc gần giống phải chọn đúng thành viên. UID đã lưu được ưu tiên hơn tên hiển thị mới. Mapping không phụ thuộc trạng thái duyệt; thời gian tham gia và mong muốn vẫn chỉ lưu trên Form.</p>
+        </div>
+
+        <div class="zalo-mapping-list" data-zalo-mapping-list>
+          <p class="empty-row">Tải danh sách nhóm Zalo để bắt đầu đối chiếu.</p>
+        </div>
+
+        <div class="zalo-mapping-footer">
+          <p data-zalo-sync-message role="status" aria-live="polite">Chưa có hồ sơ được chọn để đồng bộ.</p>
+          <button class="primary-button" type="button" data-zalo-sync disabled>Đồng bộ hồ sơ đã chọn sang Draft</button>
+        </div>
       </section>
 
       <section class="screen" data-screen="settings" hidden>
@@ -438,6 +484,7 @@
     </footer>
   </aside>
 
-  <script src="/admin.js?v=20261103-email-state-fix" type="module"></script>
+  <script src="/admin.js?v=20261103-zalo-mapping" type="module"></script>
 </body>
 </html>
+

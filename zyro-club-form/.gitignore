@@ -5,3 +5,5 @@ node_modules/
 .taste-skill/after/
 npm-debug.log*
 supabase/functions/.env
+supabase/.temp/
+

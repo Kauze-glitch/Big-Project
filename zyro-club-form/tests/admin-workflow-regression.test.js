@@ -16,6 +16,12 @@ test("decision endpoint declares hasEmail in the decision request scope", async 
   assert.match(decision, /if \(hasEmail\) update\.email = email \|\| null;/);
 });
 
+test("ZYRO Admin password hash is supplied only through a Supabase Function secret", async () => {
+  const source = await readFile(new URL("supabase/functions/zyro-api/index.ts", root), "utf8");
+  assert.match(source, /const ADMIN_PASSWORD_SHA256 = Deno\.env\.get\("ADMIN_PASSWORD_SHA256"\) \?\? "";/);
+  assert.doesNotMatch(source, /const ADMIN_PASSWORD_SHA256 = "[a-f0-9]{64}";/);
+});
+
 test("successful decision closes the email composer only after the API confirms success", async () => {
   const source = await readFile(new URL("public/admin.js", root), "utf8");
   const start = source.indexOf("async function submitDecision(event)");
@@ -36,19 +42,26 @@ test("settings screen exposes a persistent save and revert bar on desktop and mo
   assert.match(html, /data-mobile-revert-config disabled>Hoàn tác/);
   assert.match(js, /mobileSaveButton\?\.addEventListener\("click", \(\) => saveButton\.click\(\)\)/);
   assert.match(js, /mobileRevertButton\?\.addEventListener\("click", \(\) => revertButton\.click\(\)\)/);
-  assert.match(css, /\.mobile-settings-savebar\s*\{[\s\S]*?position: fixed;[\s\S]*?bottom: 0;[\s\S]*?left: 224px;[\s\S]*?display: grid;/);\n  assert.match(css, /@media \(max-width: 900px\)\s*\{[\s\S]*?\.mobile-settings-savebar \{ left: 0;/);\n  assert.doesNotMatch(css, /\.mobile-settings-savebar\s*\{\s*display: none;/);\n  assert.match(html, /data-email-design="tagline" maxlength="120" placeholder="Để trống để ẩn slogan"/);
+  assert.match(css, /\.mobile-settings-savebar\s*\{[\s\S]*?position: fixed;[\s\S]*?bottom: 0;[\s\S]*?left: 224px;[\s\S]*?display: grid;/);
+  assert.match(css, /@media \(max-width: 900px\)\s*\{[\s\S]*?\.mobile-settings-savebar \{ left: 0;/);
+  assert.doesNotMatch(css, /\.mobile-settings-savebar\s*\{\s*display: none;/);
+  assert.match(html, /data-email-design="tagline" maxlength="120" placeholder="Để trống để ẩn slogan"/);
 });
 
 test("email template defaults preserve live editor references and an intentionally empty slogan", async () => {
   const source = await readFile(new URL("public/admin.js", root), "utf8");
-  const defaults = source.match(/const defaultEmailTemplates = \{[\\s\\S]*?\\n\};/);
-  const ensure = source.match(/function ensureEmailTemplates\(config\) \{[\\s\\S]*?\\n\}\n\nfunction authHeaders/);
-  const collect = source.match(/function collectConfigChanges\(before, after, path = \[\], changes = \[\]\) \{[\\s\\S]*?\\n\}\n\nfunction configChangeLabel/);
+  const defaults = source.match(/const defaultEmailTemplates = \{[\s\S]*?\n\};/);
+  const ensureStart = source.indexOf("function ensureEmailTemplates(config)");
+  const ensureEnd = source.indexOf("function authHeaders", ensureStart);
+  const ensure = ensureStart >= 0 && ensureEnd > ensureStart ? source.slice(ensureStart, ensureEnd) : "";
+  const collectStart = source.indexOf("function collectConfigChanges(before, after, path = [], changes = [])");
+  const collectEnd = source.indexOf("function configChangeLabel", collectStart);
+  const collect = collectStart >= 0 && collectEnd > collectStart ? source.slice(collectStart, collectEnd) : "";
   assert.ok(defaults, "email defaults are present");
   assert.ok(ensure, "email template initializer is present");
   assert.ok(collect, "dirty-change collector is present");
-  const ensureSource = ensure[0].replace(/\n\nfunction authHeaders$/, "");
-  const collectSource = collect[0].replace(/\n\nfunction configChangeLabel$/, "");
+  const ensureSource = ensure.trim();
+  const collectSource = collect.trim();
   const helpers = runInNewContext(`${defaults[0]}\n${ensureSource}\n${collectSource}\n({ ensureEmailTemplates, collectConfigChanges })`);
 
   const config = {
@@ -96,8 +109,9 @@ test("an intentionally empty email slogan stays empty in storage and preview", a
     readFile(new URL("supabase/functions/zyro-api/index.ts", root), "utf8"),
     readFile(new URL("public/admin.js", root), "utf8"),
   ]);
-  assert.match(edge, /tagline: typeof designInput\\.tagline === "string"\\s*\\?\\s*text\\(designInput\\.tagline, 120\\)\\s*:\\s*DEFAULT_EMAIL_TEMPLATES\\.design\\.tagline/);
-  assert.match(edge, /const tagline = design\\.tagline[\\s\\S]*?: "";/);
-  assert.match(admin, /const tagline = design\\.tagline[\\s\\S]*?: "";/);
-  assert.match(admin, /\\$\\{tagline\\}/);
+  assert.match(edge, /tagline: typeof designInput\.tagline === "string"\s*\?\s*text\(designInput\.tagline, 120\)\s*:\s*DEFAULT_EMAIL_TEMPLATES\.design\.tagline/);
+  assert.match(edge, /const tagline = design\.tagline[\s\S]*?: "";/);
+  assert.match(admin, /const tagline = design\.tagline[\s\S]*?: "";/);
+  assert.match(admin, /\$\{tagline\}/);
 });
+

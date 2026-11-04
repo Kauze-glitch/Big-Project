@@ -1,3 +1,5 @@
+import { getZaloCandidates, normalizeZaloName } from "./zalo-mapping-core.js";
+
 const apiBase = "https://grhdawkxnrkgkahegnnd.supabase.co/functions/v1/zyro-api";
 const mailerApiBase = "https://zyro-club-form.onrender.com/api/admin";
 
@@ -25,6 +27,20 @@ const state = {
   deleting: new Set(),
   requestSequence: 0,
   mailSenderConfigured: false,
+  zaloMapping: {
+    groups: [],
+    registrations: [],
+    members: [],
+    rows: [],
+    directory: null,
+    selectedGroupKey: "",
+    loadedGroups: false,
+    loadingGroups: false,
+    loadingDirectory: false,
+    syncing: false,
+    truncated: false,
+    duplicateDirectoryUids: false,
+  },
 };
 
 const loginView = document.querySelector("[data-login-view]");
@@ -88,6 +104,18 @@ const mailTestRecipient = document.querySelector("[data-mail-test-recipient]");
 const mailVerifyButton = document.querySelector("[data-mail-verify]");
 const mailSendTestButton = document.querySelector("[data-mail-send-test]");
 const mailSenderMessage = document.querySelector("[data-mail-sender-message]");
+const zaloLoadGroupsButton = document.querySelector("[data-zalo-load-groups]");
+const zaloReloadButton = document.querySelector("[data-zalo-reload]");
+const zaloGroupSelect = document.querySelector("[data-zalo-group]");
+const zaloDirectoryStatus = document.querySelector("[data-zalo-directory-status]");
+const zaloMappingList = document.querySelector("[data-zalo-mapping-list]");
+const zaloSyncMessage = document.querySelector("[data-zalo-sync-message]");
+const zaloSyncButton = document.querySelector("[data-zalo-sync]");
+const zaloCountTotal = document.querySelector("[data-zalo-count-total]");
+const zaloCountExact = document.querySelector("[data-zalo-count-exact]");
+const zaloCountReview = document.querySelector("[data-zalo-count-review]");
+const zaloCountSaved = document.querySelector("[data-zalo-count-saved]");
+const zaloCountSelected = document.querySelector("[data-zalo-count-selected]");
 
 const statusLabels = {
   new: "Chờ duyệt",
@@ -786,7 +814,11 @@ function switchScreen(name) {
   document.querySelectorAll("[data-nav]").forEach((button) => {
     button.classList.toggle("is-active", button.dataset.nav === name);
   });
-  screenTitle.textContent = name === "settings" ? "Giao diện & nội dung" : "Đăng ký";
+  screenTitle.textContent = name === "settings"
+    ? "Giao diện & nội dung"
+    : name === "zalo-mapping"
+      ? "Mapping Zalo"
+      : "Đăng ký";
 }
 
 function renderCounts() {
@@ -1097,6 +1129,504 @@ async function loadRegistrations({ keepSelection = false, silent = false, throwO
   }
 }
 
+const zaloMappingStatusLabels = {
+  saved: "UID đã lưu · đã xác minh trong nhóm",
+  exact: "Khớp tên duy nhất · tự đề xuất",
+  ambiguous: "Tên trùng · cần chọn đúng UID",
+  similar: "Tên gần giống · cần xác nhận",
+  "not-found": "Chưa tìm thấy · tìm trong danh bạ",
+  stale: "UID cũ không còn trong nhóm · cần mapping lại",
+  manual: "Đã chọn thành viên thủ công",
+  "manual-remap": "Đang đổi UID · cần xác nhận",
+};
+
+const zaloSyncStatusLabels = {
+  created: "Đã tạo hồ sơ mới trong Draft",
+  updated_missing_fields: "Đã bổ sung các trường còn thiếu",
+  existing_values_preserved: "Đã giữ nguyên thông tin đã xác nhận trong Draft",
+  already_present: "Hồ sơ đã có trong Draft · không ghi đè",
+};
+
+const zaloPreservedFieldLabels = {
+  displayName: "tên hiển thị",
+  avatar: "ảnh đại diện",
+  gender: "giới tính",
+  role: "vị trí chơi",
+  level: "trình độ",
+};
+
+function setZaloMappingMessage(message, tone = "") {
+  if (!zaloSyncMessage) return;
+  zaloSyncMessage.textContent = message;
+  zaloSyncMessage.dataset.tone = tone;
+}
+
+function zaloGroupKey(group) {
+  return JSON.stringify([group?.connectionId ?? "", group?.groupId ?? ""]);
+}
+
+function renderZaloMappingGroups() {
+  if (!zaloGroupSelect) return;
+  const selected = state.zaloMapping.selectedGroupKey;
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = state.zaloMapping.loadingGroups
+    ? "Đang tải nhóm Zalo…"
+    : state.zaloMapping.groups.length
+      ? "Chọn nhóm Zalo…"
+      : "Chưa có nhóm Zalo khả dụng";
+  zaloGroupSelect.replaceChildren(placeholder);
+
+  for (const group of state.zaloMapping.groups) {
+    const option = document.createElement("option");
+    option.value = zaloGroupKey(group);
+    option.textContent = `${group.groupName || "Nhóm không tên"} · ${group.accountDisplayName || "Tài khoản Draft"} · ${Number(group.totalMembers) || 0} thành viên`;
+    zaloGroupSelect.append(option);
+  }
+  zaloGroupSelect.value = selected;
+  zaloGroupSelect.disabled = state.zaloMapping.loadingGroups || state.zaloMapping.groups.length === 0;
+}
+
+function updateZaloMappingDuplicateFlags() {
+  const counts = new Map();
+  for (const row of state.zaloMapping.rows) {
+    if (!row.selectedUid) continue;
+    counts.set(row.selectedUid, (counts.get(row.selectedUid) || 0) + 1);
+  }
+  for (const row of state.zaloMapping.rows) {
+    row.duplicateUid = Boolean(row.selectedUid && counts.get(row.selectedUid) > 1);
+  }
+}
+
+function getSelectedZaloMappingRows() {
+  return state.zaloMapping.rows.filter((row) => row.checked && row.selectedUid && !row.duplicateUid);
+}
+
+function getZaloMappingMemberOptions(row) {
+  const members = state.zaloMapping.members;
+  let source = row.candidates || [];
+  const query = String(row.searchTerm || "").trim();
+  if (query) {
+    const normalizedQuery = normalizeZaloName(query);
+    const rawQuery = query.toLocaleLowerCase("vi-VN");
+    source = members.filter((member) =>
+      normalizeZaloName(member.displayName).includes(normalizedQuery) ||
+      normalizeZaloName(member.zaloName).includes(normalizedQuery) ||
+      String(member.zaloUserId || "").toLocaleLowerCase("vi-VN").includes(rawQuery)
+    ).slice(0, 40);
+  }
+
+  const byUid = new Map();
+  for (const member of source) {
+    if (member?.zaloUserId) byUid.set(member.zaloUserId, member);
+  }
+  const selectedMember = members.find((member) => member.zaloUserId === row.selectedUid);
+  if (selectedMember) byUid.set(selectedMember.zaloUserId, selectedMember);
+  return [...byUid.values()];
+}
+
+function populateZaloMappingMemberSelect(select, row) {
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = row.selectedUid ? "Chọn thành viên khác…" : "Chọn thành viên Zalo…";
+  select.replaceChildren(placeholder);
+
+  const options = getZaloMappingMemberOptions(row);
+  for (const member of options) {
+    const option = document.createElement("option");
+    option.value = member.zaloUserId;
+    const displayName = member.displayName || member.zaloName || `Zalo ${member.zaloUserId}`;
+    const secondaryName = member.zaloName && member.zaloName !== displayName ? ` · ${member.zaloName}` : "";
+    option.textContent = `${displayName}${secondaryName} · UID ${member.zaloUserId}`;
+    select.append(option);
+  }
+
+  if (row.searchTerm && !options.length) {
+    const empty = document.createElement("option");
+    empty.value = "";
+    empty.textContent = "Không tìm thấy thành viên phù hợp";
+    empty.disabled = true;
+    select.append(empty);
+  }
+  select.value = row.selectedUid || "";
+}
+
+function createZaloMappingRow(row) {
+  const registration = row.registration;
+  const card = document.createElement("article");
+  card.className = `zalo-map-row${row.duplicateUid ? " has-duplicate" : ""}`;
+
+  const selection = document.createElement("label");
+  selection.className = "zalo-map-selection";
+  const checkbox = document.createElement("input");
+  checkbox.type = "checkbox";
+  checkbox.checked = Boolean(row.checked && row.selectedUid && !row.duplicateUid);
+  checkbox.disabled = !row.selectedUid || !state.zaloMapping.directory?.isComplete || row.duplicateUid || state.zaloMapping.duplicateDirectoryUids || state.zaloMapping.syncing;
+  checkbox.setAttribute("aria-label", `Chọn ${registration.zaloName} để đồng bộ`);
+  checkbox.addEventListener("change", () => {
+    row.checked = checkbox.checked;
+    renderZaloMapping();
+  });
+  const checkboxText = document.createElement("span");
+  checkboxText.textContent = "Đồng bộ";
+  selection.append(checkbox, checkboxText);
+
+  const identity = document.createElement("div");
+  identity.className = "zalo-map-identity";
+  const name = document.createElement("strong");
+  name.textContent = registration.zaloName || "Chưa có tên Zalo";
+  const formStatus = document.createElement("span");
+  formStatus.className = `zalo-map-form-status status-${registration.status || "new"}`;
+  formStatus.textContent = statusLabels[registration.status] || registration.status || "Chưa rõ trạng thái";
+  const profile = document.createElement("p");
+  profile.textContent = `${optionLabel("gender", registration.gender)} · ${optionLabel("position", registration.position)} · ${optionLabel("level", registration.level)} · ${optionLabel("duration", registration.duration)}`;
+  const goal = document.createElement("p");
+  goal.className = "zalo-map-goal";
+  goal.textContent = registration.goal || "Chưa có mong muốn tham gia.";
+  identity.append(name, formStatus, profile, goal);
+
+  const mapping = document.createElement("div");
+  mapping.className = "zalo-map-choice";
+  const search = document.createElement("input");
+  search.type = "search";
+  search.value = row.searchTerm || "";
+  search.placeholder = "Tìm tên hoặc UID trong nhóm…";
+  search.autocomplete = "off";
+  search.disabled = state.zaloMapping.syncing;
+  search.setAttribute("aria-label", `Tìm thành viên Zalo cho ${registration.zaloName}`);
+  const select = document.createElement("select");
+  select.setAttribute("aria-label", `Chọn UID Zalo cho ${registration.zaloName}`);
+  select.disabled = state.zaloMapping.syncing || state.zaloMapping.members.length === 0;
+  populateZaloMappingMemberSelect(select, row);
+  search.addEventListener("input", () => {
+    row.searchTerm = search.value;
+    populateZaloMappingMemberSelect(select, row);
+  });
+  select.addEventListener("change", () => {
+    row.selectedUid = select.value;
+    row.checked = Boolean(row.selectedUid);
+    if (!row.selectedUid) {
+      row.matchStatus = row.originalUid ? "stale" : "not-found";
+    } else if (row.originalUid && row.originalUid !== row.selectedUid) {
+      row.matchStatus = "manual-remap";
+    } else if (row.originalUid) {
+      row.matchStatus = "saved";
+    } else {
+      row.matchStatus = "manual";
+    }
+    row.syncResult = null;
+    renderZaloMapping();
+  });
+  mapping.append(search, select);
+
+  const result = document.createElement("div");
+  result.className = "zalo-map-result";
+  const status = document.createElement("span");
+  status.className = `zalo-map-status status-${row.duplicateUid ? "duplicate" : row.matchStatus}`;
+  status.textContent = row.duplicateUid
+    ? "UID đang được gắn cho hồ sơ khác"
+    : row.syncResult
+      ? (zaloSyncStatusLabels[row.syncResult.status] || row.syncResult.status)
+      : (zaloMappingStatusLabels[row.matchStatus] || "Chưa mapping");
+  result.append(status);
+
+  if (row.selectedUid) {
+    const uid = document.createElement("small");
+    uid.textContent = `UID: ${row.selectedUid}`;
+    result.append(uid);
+  }
+  if (row.syncResult?.preservedFields?.length) {
+    const preserved = document.createElement("small");
+    const labels = row.syncResult.preservedFields.map((field) => zaloPreservedFieldLabels[field] || field);
+    preserved.textContent = `Đã giữ nguyên: ${labels.join(", ")}`;
+    result.append(preserved);
+  }
+  card.append(selection, identity, mapping, result);
+  return card;
+}
+
+function renderZaloMappingSummary() {
+  const rows = state.zaloMapping.rows;
+  if (zaloCountTotal) zaloCountTotal.textContent = String(rows.length);
+  if (zaloCountExact) zaloCountExact.textContent = String(rows.filter((row) => row.matchStatus === "exact").length);
+  if (zaloCountReview) {
+    const reviewStatuses = new Set(["ambiguous", "similar", "stale", "not-found", "manual-remap"]);
+    zaloCountReview.textContent = String(rows.filter((row) => reviewStatuses.has(row.matchStatus) || row.duplicateUid).length);
+  }
+  if (zaloCountSaved) zaloCountSaved.textContent = String(rows.filter((row) => row.matchStatus === "saved").length);
+  if (zaloCountSelected) zaloCountSelected.textContent = String(getSelectedZaloMappingRows().length);
+}
+
+function updateZaloMappingControls() {
+  const selectedGroup = state.zaloMapping.groups.find((group) => zaloGroupKey(group) === state.zaloMapping.selectedGroupKey);
+  const rows = state.zaloMapping.rows;
+  const selected = getSelectedZaloMappingRows();
+  const hasCheckedDuplicate = rows.some((row) => row.checked && row.duplicateUid);
+  if (zaloLoadGroupsButton) zaloLoadGroupsButton.disabled = state.zaloMapping.loadingGroups || state.zaloMapping.syncing;
+  if (zaloReloadButton) zaloReloadButton.disabled = !selectedGroup || state.zaloMapping.loadingDirectory || state.zaloMapping.syncing;
+  if (zaloSyncButton) {
+    const directoryReady = state.zaloMapping.directory?.isComplete === true && !state.zaloMapping.duplicateDirectoryUids;
+    zaloSyncButton.disabled = !directoryReady || state.zaloMapping.loadingDirectory || state.zaloMapping.syncing || selected.length === 0 || selected.length > 200 || hasCheckedDuplicate;
+    zaloSyncButton.textContent = state.zaloMapping.syncing
+      ? "Đang đồng bộ…"
+      : `Đồng bộ ${selected.length} hồ sơ đã chọn sang Draft`;
+  }
+}
+
+function renderZaloMapping() {
+  updateZaloMappingDuplicateFlags();
+  renderZaloMappingSummary();
+  updateZaloMappingControls();
+
+  if (zaloDirectoryStatus) {
+    const mapping = state.zaloMapping;
+    zaloDirectoryStatus.dataset.tone = "";
+    if (mapping.loadingGroups) {
+      zaloDirectoryStatus.textContent = "Đang tải danh sách nhóm từ Draft…";
+    } else if (!mapping.selectedGroupKey) {
+      zaloDirectoryStatus.textContent = mapping.groups.length ? "Chọn nhóm Zalo để tải danh bạ thành viên." : "Chưa tải danh sách nhóm Zalo.";
+    } else if (mapping.loadingDirectory) {
+      zaloDirectoryStatus.textContent = "Đang tải hồ sơ Form và danh bạ Zalo…";
+    } else if (!mapping.directory) {
+      zaloDirectoryStatus.textContent = "Chưa tải được danh bạ của nhóm đã chọn.";
+    } else if (mapping.duplicateDirectoryUids) {
+      zaloDirectoryStatus.dataset.tone = "error";
+      zaloDirectoryStatus.textContent = "Danh bạ Draft có UID trùng. Để an toàn, hệ thống tạm khóa đồng bộ; cần kiểm tra danh bạ trong Draft.";
+    } else {
+      const actual = mapping.members.length;
+      const expected = Number(mapping.directory.expectedMemberCount) || 0;
+      const completeness = mapping.directory.isComplete
+        ? `Danh bạ đầy đủ: ${actual}${expected ? `/${expected}` : ""} thành viên.`
+        : `Danh bạ chưa đầy đủ: ${actual}${expected ? `/${expected}` : ""} thành viên. Chỉ được xem preview, chưa thể đồng bộ.`;
+      if (mapping.directory.isComplete !== true) zaloDirectoryStatus.dataset.tone = "warning";
+      const groupName = mapping.directory.groupName || "Nhóm Zalo";
+      const truncation = mapping.truncated ? " Chỉ hiển thị tối đa 1.000 hồ sơ Form." : "";
+      zaloDirectoryStatus.textContent = `${groupName} · ${mapping.directory.accountDisplayName || "Draft"} · ${completeness}${truncation}`;
+    }
+  }
+
+  if (!zaloMappingList) return;
+  if (!state.zaloMapping.rows.length) {
+    const empty = document.createElement("p");
+    empty.className = "empty-row";
+    empty.textContent = state.zaloMapping.loadingDirectory
+      ? "Đang tải dữ liệu đối chiếu…"
+      : state.zaloMapping.selectedGroupKey
+        ? "Không có hồ sơ Form để đối chiếu."
+        : "Tải danh sách nhóm Zalo để bắt đầu đối chiếu.";
+    zaloMappingList.replaceChildren(empty);
+    return;
+  }
+  zaloMappingList.replaceChildren(...state.zaloMapping.rows.map(createZaloMappingRow));
+}
+
+async function loadZaloMappingGroups() {
+  if (state.zaloMapping.loadingGroups || state.zaloMapping.syncing) return;
+  state.zaloMapping.loadingGroups = true;
+  renderZaloMappingGroups();
+  renderZaloMapping();
+  setZaloMappingMessage("Đang lấy danh sách nhóm Zalo từ Draft…", "loading");
+  try {
+    const body = await mailerApi("/zalo-mapping/groups");
+    state.zaloMapping.groups = Array.isArray(body.groups) ? body.groups : [];
+    state.zaloMapping.loadedGroups = true;
+    renderZaloMappingGroups();
+
+    const previous = state.zaloMapping.groups.find((group) => zaloGroupKey(group) === state.zaloMapping.selectedGroupKey);
+    if (previous) {
+      await loadZaloMappingData(previous);
+    } else if (state.zaloMapping.groups.length === 1) {
+      state.zaloMapping.selectedGroupKey = zaloGroupKey(state.zaloMapping.groups[0]);
+      renderZaloMappingGroups();
+      await loadZaloMappingData(state.zaloMapping.groups[0]);
+    } else if (state.zaloMapping.groups.length) {
+      state.zaloMapping.selectedGroupKey = "";
+      state.zaloMapping.directory = null;
+      state.zaloMapping.members = [];
+      state.zaloMapping.rows = [];
+      renderZaloMappingGroups();
+      renderZaloMapping();
+      setZaloMappingMessage(`Đã tải ${state.zaloMapping.groups.length} nhóm Zalo. Chọn nhóm cần mapping.`, "success");
+    } else {
+      state.zaloMapping.selectedGroupKey = "";
+      state.zaloMapping.directory = null;
+      state.zaloMapping.members = [];
+      state.zaloMapping.rows = [];
+      renderZaloMappingGroups();
+      renderZaloMapping();
+      setZaloMappingMessage("Tài khoản Draft hiện chưa có nhóm Zalo khả dụng.", "warning");
+    }
+  } catch (error) {
+    state.zaloMapping.loadedGroups = false;
+    setZaloMappingMessage(error.message || "Không tải được danh sách nhóm Zalo.", "error");
+    notify(error.message || "Không tải được danh sách nhóm Zalo.", "error");
+  } finally {
+    state.zaloMapping.loadingGroups = false;
+    renderZaloMappingGroups();
+    renderZaloMapping();
+  }
+}
+
+async function loadZaloMappingData(group) {
+  if (!group || state.zaloMapping.loadingDirectory || state.zaloMapping.syncing) return;
+  state.zaloMapping.selectedGroupKey = zaloGroupKey(group);
+  state.zaloMapping.loadingDirectory = true;
+  state.zaloMapping.directory = null;
+  state.zaloMapping.members = [];
+  state.zaloMapping.rows = [];
+  state.zaloMapping.truncated = false;
+  state.zaloMapping.duplicateDirectoryUids = false;
+  renderZaloMappingGroups();
+  renderZaloMapping();
+  setZaloMappingMessage("Đang tải danh bạ Zalo và tất cả hồ sơ Form…", "loading");
+
+  try {
+    const memberPath = `/zalo-mapping/groups/${encodeURIComponent(group.connectionId)}/${encodeURIComponent(group.groupId)}/members`;
+    const [directory, registrationBody] = await Promise.all([
+      mailerApi(memberPath),
+      mailerApi("/zalo-mapping/registrations"),
+    ]);
+    state.zaloMapping.directory = directory;
+    state.zaloMapping.members = Array.isArray(directory.members) ? directory.members : [];
+    state.zaloMapping.registrations = Array.isArray(registrationBody.registrations) ? registrationBody.registrations : [];
+    state.zaloMapping.truncated = registrationBody.truncated === true;
+    const memberIds = state.zaloMapping.members.map((member) => member.zaloUserId).filter(Boolean);
+    state.zaloMapping.duplicateDirectoryUids = new Set(memberIds).size !== memberIds.length;
+
+    state.zaloMapping.rows = state.zaloMapping.registrations.map((registration) => {
+      const match = getZaloCandidates(registration, state.zaloMapping.members);
+      return {
+        registration,
+        originalUid: registration.zaloUserId || "",
+        selectedUid: match.selectedUid,
+        matchStatus: match.status,
+        candidates: match.candidates,
+        checked: Boolean(match.selectedUid),
+        duplicateUid: false,
+        searchTerm: "",
+        syncResult: null,
+      };
+    });
+    updateZaloMappingDuplicateFlags();
+
+    if (state.zaloMapping.duplicateDirectoryUids) {
+      setZaloMappingMessage("Danh bạ có UID trùng. Không thể đồng bộ an toàn cho đến khi danh bạ được sửa trong Draft.", "error");
+    } else if (directory.isComplete !== true) {
+      setZaloMappingMessage("Danh bạ chưa đầy đủ. Bạn vẫn có thể xem gợi ý nhưng nút đồng bộ sẽ bị khóa.", "warning");
+    } else {
+      setZaloMappingMessage(`Đã tải ${state.zaloMapping.rows.length} hồ sơ Form và ${state.zaloMapping.members.length} thành viên Zalo.`, "success");
+    }
+    if (state.zaloMapping.truncated) {
+      notify("Danh sách Form vượt quá 1.000 hồ sơ; màn hình hiện chỉ tải 1.000 hồ sơ mới nhất.", "warning", 8000);
+    }
+  } catch (error) {
+    state.zaloMapping.directory = null;
+    state.zaloMapping.members = [];
+    state.zaloMapping.rows = [];
+    setZaloMappingMessage(error.message || "Không tải được dữ liệu mapping.", "error");
+    notify(error.message || "Không tải được dữ liệu mapping.", "error");
+  } finally {
+    state.zaloMapping.loadingDirectory = false;
+    renderZaloMapping();
+  }
+}
+
+async function syncZaloMappings() {
+  const directory = state.zaloMapping.directory;
+  const selectedRows = getSelectedZaloMappingRows();
+  const hasCheckedDuplicate = state.zaloMapping.rows.some((row) => row.checked && row.duplicateUid);
+  if (!directory || directory.isComplete !== true || state.zaloMapping.duplicateDirectoryUids) {
+    notify("Chỉ được đồng bộ khi danh bạ Zalo đã đầy đủ và không có UID trùng.", "error");
+    return;
+  }
+  if (hasCheckedDuplicate) {
+    notify("Một UID đang được chọn cho nhiều hồ sơ Form. Hãy chọn lại để mỗi UID chỉ gắn với một hồ sơ.", "error");
+    return;
+  }
+  if (!selectedRows.length) {
+    notify("Chưa có hồ sơ hợp lệ được chọn để đồng bộ.", "warning");
+    return;
+  }
+  if (selectedRows.length > 200) {
+    notify("Draft nhận tối đa 200 hồ sơ mỗi lần. Hãy chia thành các đợt nhỏ hơn.", "warning");
+    return;
+  }
+
+  const remapRows = selectedRows.filter((row) => row.originalUid && row.originalUid !== row.selectedUid);
+  if (remapRows.length) {
+    const accepted = await confirmAction({
+      title: "Xác nhận thay đổi UID đã lưu",
+      message: `${remapRows.length} hồ sơ đang được đổi sang UID Zalo khác. Hồ sơ cũ trong Draft sẽ không tự bị xóa. Chỉ tiếp tục nếu bạn đã xác minh đúng người.`,
+      confirmLabel: "Xác nhận đổi UID",
+      danger: true,
+    });
+    if (!accepted) return;
+  }
+
+  const group = state.zaloMapping.groups.find((item) => zaloGroupKey(item) === state.zaloMapping.selectedGroupKey);
+  if (!group) {
+    notify("Không xác định được nhóm Zalo đang chọn. Hãy tải lại danh sách nhóm.", "error");
+    return;
+  }
+
+  state.zaloMapping.syncing = true;
+  renderZaloMapping();
+  const loadingToast = notify(`Đang đồng bộ ${selectedRows.length} hồ sơ sang Draft…`, "loading", 0);
+  try {
+    const body = await mailerApi("/zalo-mapping/sync", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        connectionId: group.connectionId,
+        groupId: group.groupId,
+        profiles: selectedRows.map((row) => ({
+          registrationId: row.registration.id,
+          zaloUserId: row.selectedUid,
+          allowRemap: Boolean(row.originalUid && row.originalUid !== row.selectedUid),
+        })),
+      }),
+    });
+    const results = Array.isArray(body.results) ? body.results : [];
+    if (!body.ok || results.length !== selectedRows.length) {
+      throw new Error("Draft chưa trả về đủ kết quả đồng bộ cho các hồ sơ đã chọn.");
+    }
+
+    const resultById = new Map(results.map((result) => [result.registrationId, result]));
+    for (const row of selectedRows) {
+      const result = resultById.get(row.registration.id);
+      if (!result || result.zaloUserId !== row.selectedUid) {
+        throw new Error("Kết quả Draft không khớp UID đã xác nhận. Hãy kiểm tra Draft trước khi thử lại.");
+      }
+      row.registration.zaloUserId = result.zaloUserId;
+      row.registration.zaloGroupId = group.groupId;
+      row.registration.zaloConnectionId = group.connectionId;
+      row.registration.zaloMappingStatus = "synced";
+      row.originalUid = result.zaloUserId;
+      row.selectedUid = result.zaloUserId;
+      row.matchStatus = "saved";
+      row.checked = false;
+      row.candidates = state.zaloMapping.members.filter((member) => member.zaloUserId === result.zaloUserId);
+      row.searchTerm = "";
+      row.syncResult = result;
+    }
+
+    const created = results.filter((result) => result.status === "created").length;
+    const supplemented = results.filter((result) => result.status === "updated_missing_fields").length;
+    const preserved = results.filter((result) => result.status === "existing_values_preserved").length;
+    const alreadyPresent = results.filter((result) => result.status === "already_present").length;
+    const summary = `Đã đồng bộ ${results.length} hồ sơ: ${created} tạo mới, ${supplemented} bổ sung, ${preserved} giữ nguyên thông tin đã xác nhận, ${alreadyPresent} đã có sẵn.`;
+    setZaloMappingMessage(summary, "success");
+    loadingToast.update(summary, "success", 9000);
+    if (body.warning) notify(body.warning, "warning", 9000);
+  } catch (error) {
+    setZaloMappingMessage(error.message || "Không đồng bộ được hồ sơ sang Draft.", "error");
+    loadingToast.update(error.message || "Không đồng bộ được hồ sơ sang Draft.", "error", 9000);
+  } finally {
+    state.zaloMapping.syncing = false;
+    renderZaloMapping();
+  }
+}
+
 async function updateBulkStatus(status) {
   const ids = [...state.selected];
   if (!ids.length) return;
@@ -1363,6 +1893,9 @@ async function requestSwitchScreen(name) {
     if (!accepted) return;
   }
   switchScreen(name);
+  if (name === "zalo-mapping" && !state.zaloMapping.loadedGroups) {
+    void loadZaloMappingGroups();
+  }
 }
 
 loginForm.addEventListener("submit", async (event) => {
@@ -1393,6 +1926,31 @@ document.querySelectorAll("[data-nav]").forEach((button) => {
   button.addEventListener("click", () => requestSwitchScreen(button.dataset.nav));
 });
 
+zaloLoadGroupsButton?.addEventListener("click", loadZaloMappingGroups);
+zaloReloadButton?.addEventListener("click", () => {
+  const group = state.zaloMapping.groups.find((item) => zaloGroupKey(item) === state.zaloMapping.selectedGroupKey);
+  if (group) void loadZaloMappingData(group);
+});
+zaloGroupSelect?.addEventListener("change", () => {
+  let key = "";
+  try {
+    key = zaloGroupSelect.value;
+  } catch {
+    key = "";
+  }
+  const group = state.zaloMapping.groups.find((item) => zaloGroupKey(item) === key);
+  state.zaloMapping.selectedGroupKey = group ? zaloGroupKey(group) : "";
+  if (group) {
+    void loadZaloMappingData(group);
+  } else {
+    state.zaloMapping.directory = null;
+    state.zaloMapping.members = [];
+    state.zaloMapping.rows = [];
+    renderZaloMapping();
+  }
+});
+zaloSyncButton?.addEventListener("click", syncZaloMappings);
+
 document.querySelectorAll("[data-logout]").forEach((button) => button.addEventListener("click", async () => {
   if (state.dirty) {
     const accepted = await confirmAction({
@@ -1406,6 +1964,23 @@ document.querySelectorAll("[data-logout]").forEach((button) => button.addEventLi
   state.auth = "";
   state.mailSenderConfigured = false;
   state.selected.clear();
+  Object.assign(state.zaloMapping, {
+    groups: [],
+    registrations: [],
+    members: [],
+    rows: [],
+    directory: null,
+    selectedGroupKey: "",
+    loadedGroups: false,
+    loadingGroups: false,
+    loadingDirectory: false,
+    syncing: false,
+    truncated: false,
+    duplicateDirectoryUids: false,
+  });
+  renderZaloMappingGroups();
+  renderZaloMapping();
+  setZaloMappingMessage("Chưa có hồ sơ được chọn để đồng bộ.");
   if (state.savedConfig) state.config = clone(state.savedConfig);
   state.dirtyChanges = [];
   state.dirty = false;
@@ -1697,3 +2272,4 @@ saveButton.addEventListener("click", async () => {
 
 mobileSaveButton?.addEventListener("click", () => saveButton.click());
 mobileRevertButton?.addEventListener("click", () => revertButton.click());
+

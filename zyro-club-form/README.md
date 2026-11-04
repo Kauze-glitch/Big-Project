@@ -53,4 +53,19 @@ The Apps Script must execute as the deploying Gmail account and allow anonymous 
 
 The decision-email outbox is `public.zyro_decision_email_outbox`. It stores only the idempotency key, registration ID, decision, delivery state and internal Google Apps Script receipt ID; it does not store recipient addresses or rendered email content. RLS is enabled and only `service_role` has table privileges. If Google accepts an email but saving the registration decision fails, retrying the same request reuses the saved outbox record and does not send the email again. The Apps Script retains hashed idempotency keys and send states for 30 days; Supabase allows retries for 29 days, so a quota-exhausted request can be retried after Google's daily quota resets while uncertain sends remain blocked.
 
-The `zyro-api` Edge Function is deployed independently to Supabase project `grhdawkxnrkgkahegnnd`. Its current admin password hash is embedded in the deployed source; do not copy that credential material into GitHub. Before versioning the Edge Function source, move the hash to a Supabase Function Secret named `ADMIN_PASSWORD_SHA256` and update the function to read that secret without changing the existing Basic-auth behavior.
+## Draft Zalo member mapping
+
+The Admin page includes **Mapping Zalo**. It loads every Form registration (regardless of `new`, `approved` or `rejected` status), reads the selected Draft account's groups and the group's verified Zalo member directory, then previews name matches. A single exact name match can be preselected; duplicate or similar names require an Admin choice. A saved Zalo UID takes precedence over later display-name changes and is revalidated against the selected group's current directory.
+
+Only the Form's gender, volleyball position and level are sent to Draft. Participation duration and the applicant's goal remain in `zyro_registrations`. Draft uses the verified member's own Zalo display name and avatar, fills missing profile fields, and preserves values already confirmed in Draft. The directory must be complete before any mapping is saved or synchronized. Changing a previously saved UID requires an explicit confirmation; the old Draft profile is not automatically deleted.
+
+The Form-to-Draft request runs through the authenticated Node Admin routes and the existing `zyro-api` Supabase Edge Function. The shared key is read only by the Edge Function and is never sent to browser code. Generate one key with `openssl rand -hex 32`, then configure the same value in both places:
+
+- Draft Render service: `ZyroMapping__InternalKey`.
+- Supabase Edge Function secrets: `ZYRO_MAPPING_INTERNAL_KEY` and `DRAFT_API_BASE_URL` (the HTTPS origin of the Draft API, without a path suffix).
+- Draft Render setting `ZyroMapping__AdminUserId` is optional when exactly one Draft admin owns a connected Zalo account. Set it only when multiple connected owners exist, to restrict which account is shared with ZYRO.
+
+Apply `supabase/migrations/20261103160715_zyro_registration_zalo_mapping.sql` before deploying the updated Edge Function. It adds the confirmed UID, selected group/connection, mapping state and audit fields to `public.zyro_registrations`; it does not add a unique UID constraint or change existing registration statuses. After configuring the secrets listed below, deploy the `zyro-api` Edge Function and the `zyro-club-form` Render service/static site together. Do not expose `ZYRO_MAPPING_INTERNAL_KEY` or `ZyroMapping__InternalKey` in Render static-site variables or browser JavaScript.
+
+The `zyro-api` Edge Function is deployed independently to Supabase project `grhdawkxnrkgkahegnnd`. Keep the SHA-256 hash of the existing ZYRO Admin password in the Supabase Function Secret `ADMIN_PASSWORD_SHA256`; the function reads it from the runtime environment and fails closed when it is missing. Never commit the hash or the plaintext password to GitHub. If the secret is not already configured, generate the hash locally from the current Admin password before deploying this source.
+

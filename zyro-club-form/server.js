@@ -270,9 +270,70 @@ app.patch("/api/admin/registrations/:id", requireAdmin, async (req, res, next) =
   }
 });
 
+app.get("/api/admin/zalo-mapping/groups", requireAdmin, async (req, res) => {
+  try {
+    res.setHeader("Cache-Control", "no-store");
+    res.json(await edgeFetch("/zalo-mapping/groups", {
+      headers: { Authorization: req.headers.authorization },
+    }));
+  } catch (error) {
+    const status = Number(error.status);
+    res.status(Number.isInteger(status) && status >= 400 && status <= 599 ? status : 502)
+      .json({ message: error.message || "Không tải được danh sách nhóm Zalo từ Draft." });
+  }
+});
+
+app.get("/api/admin/zalo-mapping/groups/:connectionId/:groupId/members", requireAdmin, async (req, res) => {
+  try {
+    const connectionId = String(req.params.connectionId || "").trim();
+    const groupId = String(req.params.groupId || "").trim();
+    if (!connectionId || !groupId || connectionId.length > 128 || groupId.length > 128) {
+      return res.status(400).json({ message: "Mã tài khoản hoặc nhóm Zalo không hợp lệ." });
+    }
+    res.setHeader("Cache-Control", "no-store");
+    res.json(await edgeFetch(
+      `/zalo-mapping/groups/${encodeURIComponent(connectionId)}/${encodeURIComponent(groupId)}/members`,
+      { headers: { Authorization: req.headers.authorization } },
+    ));
+  } catch (error) {
+    const status = Number(error.status);
+    res.status(Number.isInteger(status) && status >= 400 && status <= 599 ? status : 502)
+      .json({ message: error.message || "Không tải được danh bạ thành viên Zalo." });
+  }
+});
+
+app.get("/api/admin/zalo-mapping/registrations", requireAdmin, async (req, res) => {
+  try {
+    res.setHeader("Cache-Control", "no-store");
+    res.json(await edgeFetch("/zalo-mapping/registrations", {
+      headers: { Authorization: req.headers.authorization },
+    }));
+  } catch (error) {
+    const status = Number(error.status);
+    res.status(Number.isInteger(status) && status >= 400 && status <= 599 ? status : 502)
+      .json({ message: error.message || "Không tải được hồ sơ đăng ký để mapping." });
+  }
+});
+
+app.post("/api/admin/zalo-mapping/sync", requireAdmin, async (req, res) => {
+  try {
+    res.setHeader("Cache-Control", "no-store");
+    res.json(await edgeFetch("/zalo-mapping/sync", {
+      method: "POST",
+      body: JSON.stringify(req.body || {}),
+      headers: { Authorization: req.headers.authorization },
+    }));
+  } catch (error) {
+    const status = Number(error.status);
+    res.status(Number.isInteger(status) && status >= 400 && status <= 599 ? status : 502)
+      .json({ message: error.message || "Không đồng bộ được hồ sơ thành viên sang Draft." });
+  }
+});
+
 app.use((error, _req, res, _next) => {
   console.error(error);
   res.status(500).json({ message: "Có lỗi máy chủ. Vui lòng thử lại sau." });
 });
 
 app.listen(port, "0.0.0.0", () => console.log(`ZYRO form running on http://localhost:${port}`));
+

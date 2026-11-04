@@ -25,6 +25,7 @@ The Apps Script must execute as the deploying Gmail account and allow anonymous 
 
 ## Source and authentication handling
 
-The production Edge Function is deployed independently through Supabase. Its current source contains an embedded admin password hash. Never publish credentials, API keys, passwords or shared secrets. Preserve the existing Basic Auth behavior when updating the function.
+The production Edge Function is deployed independently through Supabase. The existing Admin password hash is supplied through the Function secret `ADMIN_PASSWORD_SHA256`; the function fails closed when it is missing. Never publish credentials, API keys, passwords or shared secrets. Preserve the existing Basic Auth behavior when updating the function.
 
 `DELETE-ROUTE.patch` is retained as a historical patch artifact. The DELETE route is already present in the active function; do not apply the patch again.
+

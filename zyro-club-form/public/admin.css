@@ -846,3 +846,140 @@ button:disabled { opacity: .52; cursor: not-allowed; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
 }
+
+.zalo-mapping-toolbar {
+  display: grid;
+  grid-template-columns: minmax(240px, .9fr) minmax(280px, 1.5fr);
+  gap: 14px;
+  align-items: end;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #fbfcfe;
+}
+
+.zalo-mapping-toolbar label { display: grid; gap: 7px; font-weight: 600; }
+.zalo-mapping-toolbar label > span { font-size: 12px; }
+.zalo-directory-status { margin: 0; color: var(--muted); font-size: 13px; }
+.zalo-directory-status[data-tone="warning"] { color: var(--warning); }
+.zalo-directory-status[data-tone="error"] { color: var(--negative); }
+
+.zalo-mapping-summary {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  margin: 14px 0;
+}
+
+.zalo-mapping-summary > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: white;
+}
+
+.zalo-mapping-summary strong { color: var(--navy); font-size: 22px; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.zalo-mapping-summary span { color: var(--muted); font-size: 11px; }
+
+.zalo-mapping-note {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.zalo-mapping-note strong { color: var(--navy); font-size: 12px; }
+.zalo-mapping-note p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
+.zalo-mapping-list { display: grid; gap: 10px; }
+
+.zalo-map-row {
+  display: grid;
+  grid-template-columns: 92px minmax(190px, 1fr) minmax(250px, 1.2fr) minmax(180px, .8fr);
+  gap: 14px;
+  align-items: center;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: white;
+}
+
+.zalo-map-row.has-duplicate { border-color: var(--negative-border); background: #fffafb; }
+.zalo-map-selection { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; font-weight: 600; }
+.zalo-map-selection input[type="checkbox"] { width: 18px; min-width: 18px; min-height: 18px; margin: 0; padding: 0; accent-color: var(--navy); }
+.zalo-map-identity { display: grid; gap: 5px; min-width: 0; }
+.zalo-map-identity > strong { overflow-wrap: anywhere; color: var(--text); font-size: 14px; }
+.zalo-map-identity > p { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.45; }
+.zalo-map-identity .zalo-map-goal { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.zalo-map-form-status { width: fit-content; padding: 2px 7px; border-radius: 999px; background: var(--raised); color: var(--muted); font-size: 10px; }
+.zalo-map-form-status.status-approved { background: var(--positive-bg); color: var(--positive); }
+.zalo-map-form-status.status-rejected { background: var(--negative-bg); color: var(--negative); }
+.zalo-map-choice { display: grid; gap: 7px; min-width: 0; }
+.zalo-map-choice input,
+.zalo-map-choice select { min-width: 0; min-height: 38px; padding: 8px 10px; font-size: 12px; }
+.zalo-map-result { display: grid; gap: 6px; min-width: 0; justify-items: start; }
+.zalo-map-result small { overflow-wrap: anywhere; color: var(--muted); font-size: 10px; line-height: 1.4; }
+.zalo-map-status { display: inline-flex; max-width: 100%; padding: 4px 8px; border-radius: 999px; background: var(--raised); color: var(--muted); font-size: 10px; line-height: 1.35; }
+.zalo-map-status.status-saved,
+.zalo-map-status.status-exact { background: var(--positive-bg); color: var(--positive); }
+.zalo-map-status.status-ambiguous,
+.zalo-map-status.status-similar,
+.zalo-map-status.status-stale,
+.zalo-map-status.status-manual-remap,
+.zalo-map-status.status-duplicate { background: var(--warning-bg); color: var(--warning); }
+.zalo-map-status.status-not-found { background: var(--negative-bg); color: var(--negative); }
+.zalo-map-status.status-manual { background: var(--navy-pale); color: var(--navy); }
+
+.zalo-mapping-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  margin: 16px -28px -28px;
+  padding: 14px 28px;
+  border-top: 1px solid var(--border);
+  background: rgba(255,255,255,.96);
+  backdrop-filter: blur(12px);
+}
+
+.zalo-mapping-footer p { margin: 0; color: var(--muted); font-size: 12px; }
+.zalo-mapping-footer p[data-tone="success"] { color: var(--positive); }
+.zalo-mapping-footer p[data-tone="warning"] { color: var(--warning); }
+.zalo-mapping-footer p[data-tone="error"] { color: var(--negative); }
+.zalo-mapping-footer button { min-height: 42px; white-space: nowrap; }
+
+@media (max-width: 900px) {
+  .admin-nav { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .admin-nav button { padding-inline: 6px; font-size: 12px; }
+  .zalo-map-row { grid-template-columns: 1fr 1fr; align-items: start; }
+  .zalo-map-selection { grid-column: 1 / -1; }
+  .zalo-map-result { align-self: center; }
+  .zalo-mapping-footer { margin-inline: -18px; padding-inline: 18px; }
+}
+
+@media (max-width: 640px) {
+  .admin-nav { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; }
+  .admin-nav button { min-width: 0; padding-inline: 3px; font-size: 11px; }
+  .screen[data-screen="zalo-mapping"] { padding-bottom: 24px; }
+  .zalo-mapping-toolbar { grid-template-columns: 1fr; padding: 12px; }
+  .zalo-mapping-toolbar select { min-height: 44px; }
+  .zalo-mapping-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .zalo-mapping-summary > div { padding: 10px 12px; }
+  .zalo-mapping-summary strong { font-size: 20px; }
+  .zalo-map-row { grid-template-columns: 1fr; gap: 10px; padding: 12px; }
+  .zalo-map-selection { grid-column: auto; min-height: 30px; }
+  .zalo-map-choice input,
+  .zalo-map-choice select { min-height: 44px; font-size: 13px; }
+  .zalo-map-result { align-items: start; }
+  .zalo-mapping-footer { position: static; align-items: stretch; flex-direction: column; margin: 14px -14px -24px; padding: 12px 14px; }
+  .zalo-mapping-footer button { width: 100%; min-height: 46px; white-space: normal; }
+}
+
