@@ -177,6 +177,80 @@
   const member = () => window.PortalAuth?.isMember() === true;
   const citizen = () => window.CitizenRepository?.hasCitizenSession?.() === true;
   const canAsk = () => member() || citizen();
+
+  // ---------- Taking the user to the place they asked about ----------
+  // Fixed list: the server (or the keyword fallback) only names a key, never a URL.
+  const PLACES = {
+    profile_personal: { role: 'citizen', route: '#/profile/personal', label: 'Thông tin cá nhân', focus: '#portal-main h1', guide: profileGuides.personal },
+    profile_card: { role: 'citizen', route: '#/profile/card', label: 'Căn cước / CCCD', focus: '#identity-reveal', guide: profileGuides.card },
+    profile_residence: { role: 'citizen', route: '#/profile/residence', label: 'Thông tin cư trú', focus: '#portal-main h1', guide: profileGuides.residence },
+    profile_documents: { role: 'citizen', route: '#/profile/documents', label: 'Giấy tờ của tôi', focus: '#portal-main h1', guide: profileGuides.documents },
+    profile_requests: { role: 'citizen', route: '#/profile/requests', label: 'Hồ sơ yêu cầu', focus: '#new-citizen-request', guide: profileGuides.requests },
+    profile_security: { role: 'citizen', route: '#/profile/security', label: 'Bảo mật tài khoản', focus: '#citizen-password-form', guide: profileGuides.security },
+    logout: { role: 'citizen', route: null, label: 'nút Đăng xuất', focus: '#citizen-logout', guide: 'Nút Đăng xuất nằm ở đầu trang, mình đã làm sáng nút đó. Bấm vào để thoát khỏi tài khoản.' },
+    admin: { role: 'member', route: '#/admin', label: 'Hồ sơ công dân' },
+    households: { role: 'member', route: '#/households', label: 'Hộ gia đình' },
+    residences: { role: 'member', route: '#/residences', label: 'Cư trú và biến động' },
+    documents: { role: 'member', route: '#/documents', label: 'Giấy tờ hành chính' },
+    statistics: { role: 'member', route: '#/statistics', label: 'Thống kê dân cư' },
+    requests: { role: 'member', route: '#/requests', label: 'Xử lý yêu cầu' },
+    imports: { role: 'member', route: '#/imports', label: 'Nhập / xuất dữ liệu' },
+    lookup: { role: 'member', route: '#/lookup', label: 'Tra cứu hành chính' },
+    settings: { role: 'member', route: '#/settings', label: 'Phân quyền và bảo mật' },
+  };
+  const placeAllowed = key => Object.hasOwn(PLACES, key) && (PLACES[key].role === 'citizen' ? citizen() : member());
+  const fold = s => String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[đĐ]/g, 'd').toLowerCase();
+  // Used only when the AI cannot answer, so people still get to the right page.
+  const KEYWORDS = [
+    ['logout', ['dang xuat', 'thoat tai khoan']],
+    ['profile_security', ['mat khau', 'bao mat', 'otp', 'ma xac thuc', 'telegram', 'so nhan ma']],
+    ['profile_requests', ['sua', 'thay doi', 'dieu chinh', 'yeu cau', 'sai thong tin', 'cap nhat', 'bo sung', 'khieu nai']],
+    ['profile_residence', ['dia chi', 'cu tru', 'thuong tru', 'tam tru', 'noi o']],
+    ['profile_card', ['can cuoc', 'cccd', 'so dinh danh', 'chung minh']],
+    ['profile_documents', ['giay to', 'khai sinh', 'ket hon', 'ho tich']],
+    ['profile_personal', ['thong tin ca nhan', 'ho ten', 'ngay sinh', 'que quan', 'ca nhan']],
+    ['households', ['ho gia dinh', 'chu ho', 'ma ho']],
+    ['residences', ['cu tru', 'thuong tru', 'tam tru', 'bien dong']],
+    ['documents', ['giay to', 'khai sinh', 'ket hon', 'ho tich']],
+    ['statistics', ['thong ke']],
+    ['requests', ['yeu cau']],
+    ['imports', ['nhap du lieu', 'nhap file', 'xuat du lieu', 'xuat file', 'excel', 'csv']],
+    ['lookup', ['tra cuu', 'danh muc', 'don vi hanh chinh']],
+    ['settings', ['phan quyen', 'vai tro', 'otp', 'telegram', 'sao luu', 'bao mat']],
+    ['admin', ['ho so', 'cong dan', 'tai khoan']],
+  ];
+  function matchPlace(question) {
+    const text = ' ' + fold(question).replace(/[^a-z0-9]+/g, ' ') + ' ';
+    const hit = KEYWORDS.find(([key, words]) => placeAllowed(key) && words.some(w => text.includes(' ' + w + ' ')));
+    return hit ? hit[0] : null;
+  }
+  function waitFor(selector, timeout = 4000) {
+    return new Promise(resolve => {
+      const started = Date.now();
+      (function check() {
+        const found = document.querySelector(selector);
+        if (found || Date.now() - started > timeout) resolve(found); else setTimeout(check, 100);
+      })();
+    });
+  }
+  let spotlightTimer = null;
+  async function goTo(key) {
+    if (!placeAllowed(key)) return null;
+    const place = PLACES[key];
+    const route = place.route || (location.hash.startsWith('#/profile') ? location.hash : '#/profile/personal');
+    if (location.hash !== route) location.hash = route;
+    const target = await waitFor(place.focus || '#portal-main h1');
+    if (target) {
+      document.querySelectorAll('.va-spotlight').forEach(x => x.classList.remove('va-spotlight'));
+      const calm = document.documentElement.dataset.motion === 'off' || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+      target.scrollIntoView?.({ block: 'center', behavior: calm ? 'auto' : 'smooth' });
+      target.classList.add('va-spotlight');
+      clearTimeout(spotlightTimer); spotlightTimer = setTimeout(() => target.classList.remove('va-spotlight'), 8000);
+    }
+    return place;
+  }
+  // On phones the panel covers the page; step aside so the user sees where they are.
+  const narrow = () => window.matchMedia?.('(max-width: 640px)').matches === true;
   let history = [], controller = null, identity = null;
   function notice(text) { status.textContent = text; }
   function bubble(role, text) {
@@ -218,6 +292,14 @@
     const resume = () => { setState('idle'); if (continuous.checked && Recognition && !panel.hidden && canAsk()) startListening(); };
     if (autoRead.checked) { setState('speaking'); speak(text, null, resume); } else setState('idle');
   }
+  function deliver(answer, place) {
+    if (place) {
+      const note = el('p', 'va-nav', '📍 Đã đưa bạn tới: ' + place.label); log.append(note); log.scrollTop = log.scrollHeight;
+    }
+    bubble('model', answer);
+    if (place && narrow() && !panel.hidden) close();
+    afterAnswer(answer);
+  }
   async function ask(question) {
     question = question.trim();
     if (!question || controller || !canAsk()) return;
@@ -236,12 +318,18 @@
       if (!response.ok || typeof data.answer !== 'string') throw new Error(data.error || 'Trợ lý chưa trả lời được. Hãy thử lại.');
       history = [...history, { role: 'user', text: question }, { role: 'model', text: data.answer.slice(0, 3000) }].slice(-6);
       controller = null; clearTimeout(timer);
-      bubble('model', data.answer);
-      afterAnswer(data.answer);
+      const place = typeof data.target === 'string' && data.target !== 'none' ? await goTo(data.target) : null;
+      deliver(data.answer, place);
     } catch (error) {
       if (controller !== mine) return;
       controller = null;
       const text = mine.signal.aborted ? 'Trợ lý trả lời quá lâu. Hãy thử lại.' : (error.message || 'Chưa kết nối được trợ lý.');
+      // The AI is unavailable: still take the user to the page the question is about.
+      const key = matchPlace(question);
+      if (key) {
+        const place = await goTo(key);
+        if (place) { notice(''); deliver('Trợ lý AI chưa trả lời được, nhưng mình đã đưa bạn tới ' + place.label + '. ' + (place.guide || ''), place); return; }
+      }
       notice(text); setState('idle');
       if (autoRead.checked) speak(text);
     } finally {

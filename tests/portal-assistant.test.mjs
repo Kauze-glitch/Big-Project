@@ -101,3 +101,37 @@ test('Natural Vietnamese voices are preferred and speaking speed is remembered',
   assert.deepEqual([...p.d.querySelectorAll('[name=voice] option')].map(o=>o.value).slice(1),['Microsoft HoaiMy Online (Natural) - Vietnamese (Vietnam)','Microsoft An - Vietnamese (Vietnam)']);
  }finally{p.close();}
 });
+
+test('AI answer opens the page it names, highlights the control, and says where the user is',async()=>{
+ const p=page({citizen:true,hash:'#/profile/personal',body:'<h1>Thông tin cá nhân</h1><button id="new-citizen-request">Gửi yêu cầu</button>',fetchImpl:()=>({ok:true,json:async()=>({answer:'Mình đã mở trang Hồ sơ yêu cầu. Bước 1: bấm Gửi yêu cầu.',target:'profile_requests'})})});try{
+  p.d.querySelector('.va-ask').click();p.d.querySelector('#va-question').value='Tôi muốn sửa địa chỉ';p.d.querySelector('.va-form').requestSubmit();await tick();await tick();
+  assert.equal(p.w.location.hash,'#/profile/requests');
+  assert(p.d.getElementById('new-citizen-request').classList.contains('va-spotlight'));
+  assert.match(p.d.querySelector('.va-nav').textContent,/Hồ sơ yêu cầu/);assert(p.spoken.some(t=>/Bước 1/.test(t)));
+ }finally{p.close();}
+});
+
+test('A target outside the user role or unknown is ignored',async()=>{
+ for(const target of ['admin','javascript:alert(1)','__proto__']){
+  const p=page({citizen:true,hash:'#/profile/personal',body:'<h1>Thông tin cá nhân</h1>',fetchImpl:()=>({ok:true,json:async()=>({answer:'Trả lời.',target})})});try{
+   p.d.querySelector('.va-ask').click();p.d.querySelector('#va-question').value='Câu hỏi';p.d.querySelector('.va-form').requestSubmit();await tick();
+   assert.equal(p.w.location.hash,'#/profile/personal',target);assert.equal(p.d.querySelector('.va-nav'),null);
+  }finally{p.close();}
+ }
+});
+
+test('When the AI is unavailable, keywords still take the user to the right page with a spoken guide',async()=>{
+ const p=page({citizen:true,hash:'#/profile/personal',body:'<h1>Thông tin cá nhân</h1><form id="citizen-password-form"></form>',fetchImpl:()=>({ok:false,json:async()=>({error:'Chưa cấu hình Gemini trên máy chủ.'})})});try{
+  p.d.querySelector('.va-ask').click();p.d.querySelector('#va-question').value='Tôi quên mật khẩu thì làm sao';p.d.querySelector('.va-form').requestSubmit();await tick();await tick();
+  assert.equal(p.w.location.hash,'#/profile/security');assert(p.d.getElementById('citizen-password-form').classList.contains('va-spotlight'));
+  assert.match(p.d.querySelector('.va-log').textContent,/Bảo mật tài khoản/);assert(p.spoken.some(t=>/mật khẩu/.test(t)));
+  assert.equal(p.d.querySelector('.va-status').textContent,'');
+ }finally{p.close();}
+});
+
+test('Keyword fallback does not confuse "như thế nào" with the ID card or "đăng nhập" with data import',async()=>{
+ const p=page({citizen:true,hash:'#/profile/personal',body:'<h1>Thông tin cá nhân</h1>',fetchImpl:()=>({ok:false,json:async()=>({error:'Lỗi.'})})});try{
+  p.d.querySelector('.va-ask').click();p.d.querySelector('#va-question').value='Làm như thế nào để đăng nhập';p.d.querySelector('.va-form').requestSubmit();await tick();
+  assert.equal(p.w.location.hash,'#/profile/personal');assert.match(p.d.querySelector('.va-status').textContent,/Lỗi/);
+ }finally{p.close();}
+});

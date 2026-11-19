@@ -60,3 +60,9 @@
 :root[data-motion=off] .va-state-icon{animation:none!important}
 /* Keep the page end readable above the floating assistant buttons on phones. */
 @media (max-width:640px){body{padding-bottom:84px}}
+/* Where the assistant took the user */
+.va-nav{align-self:center;margin:0;padding:4px 12px;border-radius:999px;background:var(--soft,#e4ecdf);color:var(--green,#315b46);font-size:13px;font-weight:700}
+.va-spotlight{outline:4px solid var(--gold,#af8650)!important;outline-offset:5px;border-radius:10px;animation:va-glow 1.3s ease-in-out 4}
+@keyframes va-glow{0%,100%{box-shadow:0 0 0 0 #af865000}50%{box-shadow:0 0 0 10px #af865040}}
+@media (prefers-reduced-motion:reduce){.va-spotlight{animation:none}}
+:root[data-motion=off] .va-spotlight{animation:none}
