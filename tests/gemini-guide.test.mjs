@@ -64,7 +64,7 @@ test('Requested audio comes back as a playable WAV made with a female Gemini voi
  globalThis.fetch=async(url,o)=>{if(url.includes('-tts:generateContent')){calls.push({url,options:o});return Response.json({candidates:[{content:{parts:[{inlineData:{mimeType:'audio/L16;codec=pcm;rate=24000',data:btoa('\x01\x02\x03\x04')}}]}}]});}return base(url,o);};
  let data=await (await ask({audio:true})).json();
  const tts=calls.find(c=>c.url.includes('-tts:'));const sent=JSON.parse(tts.options.body);
- assert.deepEqual(sent.generationConfig.responseModalities,['AUDIO']);assert.equal(sent.generationConfig.speechConfig.voiceConfig.prebuiltVoiceConfig.voiceName,'Kore');
+ assert.deepEqual(sent.generationConfig.responseModalities,['AUDIO']);assert.equal(sent.generationConfig.speechConfig.voiceConfig.prebuiltVoiceConfig.voiceName,'Leda');
  assert.equal(data.audio.mime,'audio/wav');const wav=atob(data.audio.data);assert.equal(wav.slice(0,4),'RIFF');assert.equal(wav.slice(8,12),'WAVE');assert.equal(wav.length,48);
  globalThis.fetch=async(url,o)=>url.includes('-tts:')?new Response('{}',{status:500}):base(url,o);
  data=await (await ask({audio:true})).json();assert.equal(data.answer,'Bước 1: mở mục Hồ sơ yêu cầu.');assert.equal(data.audio,undefined);
@@ -102,4 +102,27 @@ test('Client and server guide texts are identical',async()=>{
  const sStart=server.indexOf('const ASK_HINT'),sEnd=server.indexOf('// Public, but limited');
  const serverClips=new Function('env',server.slice(sStart,sEnd)+';return GUIDE_CLIPS;')(()=>'' );
  assert.deepEqual(serverClips,clips);
+});
+
+test('Only allowlisted female voices are used; unknown voices fall back to the default and get their own cache entry',async()=>{
+ const voiceOf=calls=>JSON.parse(calls.find(c=>c.url.includes('-tts:')).options.body).generationConfig.speechConfig.voiceConfig.prebuiltVoiceConfig.voiceName;
+ const call=voice=>handler(new Request('https://fn.invalid',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({operation:'guide_audio',key:'portal_home',voice})}));
+ let calls=storage();let a=await (await call('Aoede')).json();assert.equal(voiceOf(calls),'Aoede');
+ calls=storage();let b=await (await call('Puck')).json();assert.equal(voiceOf(calls),'Leda');
+ calls=storage();let d=await (await call(undefined)).json();assert.equal(voiceOf(calls),'Leda');
+ assert.notEqual(a.url,b.url);assert.equal(b.url,d.url);
+ const ask2=backend({citizen:'c-1'});const base=globalThis.fetch;globalThis.fetch=async(url,o)=>{if(url.includes('-tts:')){ask2.push({url,options:o});return Response.json({candidates:[{content:{parts:[{inlineData:{mimeType:'audio/wav',data:'UklGRg=='}}]}}]});}return base(url,o);};
+ await (await ask({audio:true,voice:'Sulafat'})).json();assert.equal(voiceOf(ask2),'Sulafat');
+});
+
+test('When TTS quota is exhausted the same guide recorded in another female voice is served, with the reason',async()=>{
+ const calls=[];globalThis.fetch=async(url,o={})=>{calls.push(url);
+  if(url.includes('/storage/v1/object/public/assistant-voice/'))return new Response(null,{status:calls.filter(u=>u.includes('/public/')).length===1?404:(url.includes('portal_home')&&calls.filter(u=>u.includes('/public/')).length===3?200:404)});
+  if(url.includes('-tts:'))return new Response('{}',{status:429});
+  throw new Error('unexpected '+url);};
+ const res=await handler(new Request('https://fn.invalid',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({operation:'guide_audio',key:'portal_home',voice:'Leda'})}));
+ const data=await res.json();assert.equal(res.status,200);assert.equal(data.reason,'http_429');assert.equal(data.voice,'Sulafat');assert.match(data.url,/portal_home-/);
+ globalThis.fetch=async url=>url.includes('-tts:')?new Response('{}',{status:429}):new Response(null,{status:404});
+ const none=await handler(new Request('https://fn.invalid',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({operation:'guide_audio',key:'portal_home',voice:'Leda'})}));
+ assert.equal(none.status,502);assert.equal((await none.json()).reason,'http_429');
 });
