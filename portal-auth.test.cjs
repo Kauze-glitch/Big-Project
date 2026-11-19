@@ -26,8 +26,8 @@ function ui(member,route='#/login') {
  vm.runInNewContext(uiSource,{window,document,location:{hash:route},sessionStorage:{getItem:()=> 'citizen-demo-id'},setTimeout,clearTimeout,setInterval,clearInterval});
  return {root:el('portal-app'),panel:el('login-panel'),el,logout(){member=false;events.dispatchEvent(new Event('portalauthchange'));}};
 }
-test('Citizen session does not expose member button or manager links',()=>{const x=ui(false);assert.doesNotMatch(x.root.innerHTML,/id="tab-member"/);assert.doesNotMatch(x.panel.innerHTML,/href="#\/admin"/);});
-test('Authorized member sees member tab; signout removes it',()=>{const x=ui(true);assert.match(x.root.innerHTML,/id="tab-member"/);x.logout();assert.doesNotMatch(x.root.innerHTML,/id="tab-member"/);assert.equal(x.el('record-dialog').closed,true);});
+test('Citizen session offers member sign-in but no member sign-out or manager links',()=>{const x=ui(false);assert.match(x.root.innerHTML,/id="tab-member"/);assert.doesNotMatch(x.root.innerHTML,/data-member-logout/);assert.doesNotMatch(x.panel.innerHTML,/href="#\/admin"/);});
+test('Authorized member sees member sign-out; signout removes it',()=>{const x=ui(true);assert.match(x.root.innerHTML,/data-member-logout/);x.logout();assert.doesNotMatch(x.root.innerHTML,/data-member-logout/);assert.equal(x.el('record-dialog').closed,true);});
 test('Direct manager URL is blocked before any record listing',()=>{const x=ui(false,'#/admin');assert.match(x.root.innerHTML,/Khu vực dành cho thành viên dự án/);assert.doesNotMatch(x.root.innerHTML,/citizen-results/);});
 
 test('Same-account token refresh and sign-in keep forms mounted while checking permission again',async()=>{
