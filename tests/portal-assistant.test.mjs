@@ -98,7 +98,7 @@ test('Natural Vietnamese voices are preferred and speaking speed is remembered',
   p.d.querySelector('.va-listen').click();await tick();
   assert.match(p.utterances[0].voice.name,/HoaiMy/);assert.equal(p.utterances[0].rate,0.75);
   assert.equal(JSON.parse(p.w.localStorage.getItem('nhom12-voice')).rate,0.75);
-  assert.deepEqual([...p.d.querySelectorAll('[name=voice] option')].map(o=>o.value).slice(1),['Microsoft HoaiMy Online (Natural) - Vietnamese (Vietnam)','Microsoft An - Vietnamese (Vietnam)']);
+  assert.deepEqual([...p.d.querySelectorAll('[name=voice] option')].map(o=>o.value).slice(2),['Microsoft HoaiMy Online (Natural) - Vietnamese (Vietnam)','Microsoft An - Vietnamese (Vietnam)']);
  }finally{p.close();}
 });
 
@@ -153,7 +153,7 @@ test('Blocked audio playback falls back to the device voice; turning AI voice of
  const p=page({citizen:true,hash:'#/profile/personal',body:'<h1>Thông tin cá nhân</h1>',preload:w=>audioStub(w,{fail:true}),fetchImpl:()=>({ok:true,json:async()=>({answer:'Bước 1: mở trang.',target:'none',audio:{mime:'audio/wav',data:'UklGRg=='}})})});try{
   p.d.querySelector('.va-ask').click();p.d.querySelector('#va-question').value='Câu hỏi';p.d.querySelector('.va-form').requestSubmit();await tick();await tick();
   assert(p.spoken.some(t=>/Bước 1/.test(t)));
-  const ai=p.d.querySelector('[name=aiVoice]');ai.checked=false;ai.dispatchEvent(new p.w.Event('change'));
+  const voice=p.d.querySelector('[name=voice]');voice.value='';voice.dispatchEvent(new p.w.Event('change'));
   p.d.querySelector('#va-question').value='Câu khác';p.d.querySelector('.va-form').requestSubmit();await tick();
   assert.equal(p.requests[1].body.audio,false);assert.equal(JSON.parse(p.w.localStorage.getItem('nhom12-voice')).aiVoice,false);
  }finally{p.close();}
@@ -199,5 +199,26 @@ test('A click unlocks one shared audio element that later plays the delayed AI a
   assert.equal(elements.length,1);assert.match(plays[0],/^data:audio\/wav;base64,/,'silent unlock played inside the click');
   p.d.querySelector('#va-question').value='Chào';p.d.querySelector('.va-form').requestSubmit();await tick();await tick();await tick();
   assert.equal(elements.length,1,'same element reused');assert.equal(plays.at(-1),'data:audio/wav;base64,UklGRg==');
+ }finally{p.close();}
+});
+
+test('Voice picker offers the female AI voice first, labels device voices, and "Nghe thử" plays the selected voice',async()=>{
+ let played;const p=page({voices:[{lang:'vi-VN',name:'Microsoft An - Vietnamese (Vietnam)',localService:true}],preload:w=>{played=audioStub(w);},fetchImpl:()=>({ok:true,json:async()=>({url:'https://api.invalid/storage/v1/object/public/assistant-voice/portal_home-1.wav'})})});try{
+  const select=p.d.querySelector('[name=voice]');
+  assert.deepEqual([...select.options].map(o=>o.textContent),['Giọng nữ AI tự nhiên (khuyên dùng)','Giọng của máy: tự chọn','Giọng của máy: An (nam)']);
+  assert.equal(select.value,'ai');
+  p.d.querySelector('.va-try').click();await tick();await tick();
+  assert.deepEqual(p.requests[0].body,{operation:'guide_audio',key:'portal_home'});assert.match(played.at(-1).src,/portal_home/);assert.equal(p.spoken.length,0);
+  select.value='Microsoft An - Vietnamese (Vietnam)';select.dispatchEvent(new p.w.Event('change'));
+  p.d.querySelector('.va-try').click();await tick();assert.deepEqual(p.spoken,['Bạn đang ở Cổng công dân.']);
+  const saved=JSON.parse(p.w.localStorage.getItem('nhom12-voice'));assert.equal(saved.aiVoice,false);assert.equal(saved.voice,'Microsoft An - Vietnamese (Vietnam)');
+ }finally{p.close();}
+});
+
+test('On Brave the microphone is hidden and the user is told to type instead',()=>{
+ const p=page({citizen:true,preload:w=>{Object.defineProperty(w.navigator,'brave',{value:{isBrave:async()=>true}});w.SpeechRecognition=class{start(){throw new Error('must not start');}};}});try{
+  assert.equal(p.d.querySelector('.va-mic').hidden,true);assert.match(p.d.querySelector('.va-label').textContent,/Brave không hỗ trợ nói/);
+  assert.match(p.d.querySelector('.va-ask').textContent,/Hỏi trợ lý/);
+  p.d.querySelector('.va-ask').click();assert.equal(p.d.querySelector('.va-state').dataset.state,'idle');
  }finally{p.close();}
 });
