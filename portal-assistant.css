@@ -66,3 +66,4 @@
 @keyframes va-glow{0%,100%{box-shadow:0 0 0 0 #af865000}50%{box-shadow:0 0 0 10px #af865040}}
 @media (prefers-reduced-motion:reduce){.va-spotlight{animation:none}}
 :root[data-motion=off] .va-spotlight{animation:none}
+.va-version{color:var(--muted,#65776d);font-size:11px}

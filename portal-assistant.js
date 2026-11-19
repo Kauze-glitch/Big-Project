@@ -5,13 +5,14 @@
 (() => {
   const synth = window.speechSynthesis;
   // Brave exposes the API but blocks the speech service behind it, so treat it as unsupported.
-  const isBrave = !!window.navigator?.brave;
+  const isBrave = !!window.navigator?.brave || (window.navigator?.userAgentData?.brands || []).some(b => /brave/i.test(b.brand));
+  const VERSION = '2026-11-20.3';
   const Recognition = isBrave ? null : (window.SpeechRecognition || window.webkitSpeechRecognition);
   const el = (tag, cls, text) => { const x = document.createElement(tag); if (cls) x.className = cls; if (text !== undefined) x.textContent = text; return x; };
 
   // ---------- Saved per-device preferences ----------
   const PREF_KEY = 'nhom12-voice';
-  const prefs = { rate: 0.9, voice: '', autoRead: true, continuous: true, aiVoice: true };
+  const prefs = { rate: 0.9, voice: '', autoRead: true, continuous: true, aiVoice: true, aiVoiceName: 'Leda' };
   try { Object.assign(prefs, JSON.parse(localStorage.getItem(PREF_KEY) || '{}')); } catch { /* storage unavailable */ }
   const savePrefs = () => { try { localStorage.setItem(PREF_KEY, JSON.stringify(prefs)); } catch { /* storage unavailable */ } };
 
@@ -32,6 +33,7 @@
           <label class="va-field">Tốc độ đọc <select name="rate"><option value="0.75">Chậm</option><option value="0.9">Vừa</option><option value="1.1">Nhanh</option></select></label>
           <label class="va-field">Giọng đọc <select name="voice"></select></label>
           <button type="button" class="va-try">🔊 Nghe thử</button>
+          <small class="va-version">Phiên bản trợ lý: ${VERSION}${isBrave ? ' · Brave' : ''}</small>
         </details>
       </form>
       <small class="va-note">Không nói mật khẩu, mã OTP hay số căn cước. Câu hỏi được gửi tới Google Gemini; trợ lý có thể nhầm.</small>
@@ -87,25 +89,29 @@
     const voices = vietnameseVoices();
     return voices.find(v => v.name === prefs.voice) || voices[0] || null;
   }
+  // Female Gemini voices (server allowlist TTS_VOICES); the first is the default.
+  const AI_VOICES = [['Leda', 'Giọng nữ AI: trẻ trung, rõ (khuyên dùng)'], ['Aoede', 'Giọng nữ AI: nhẹ nhàng'], ['Sulafat', 'Giọng nữ AI: ấm áp'], ['Kore', 'Giọng nữ AI: trầm']];
   // The natural AI voice comes first; device voices are labelled so a male one is obvious.
   const voiceGender = v => /hoaimy|hoài my|linh|female|\bnữ\b|\bmy\b/i.test(v.name) ? ' (nữ)' : /namminh|nam minh|\ban\b|male|\bnam\b/i.test(v.name) ? ' (nam)' : '';
   const voiceLabel = v => 'Giọng của máy: ' + v.name.replace(/^Microsoft\s+/i, '').replace(/\s*-\s*Vietnamese.*$/i, '').replace(/\s*Online \(Natural\)/i, '') + voiceGender(v);
   function fillVoices() {
     const voices = vietnameseVoices();
-    voiceSelect.replaceChildren(new Option('Giọng nữ AI tự nhiên (khuyên dùng)', 'ai'),
+    voiceSelect.replaceChildren(...AI_VOICES.map(([name, label]) => new Option(label, 'ai:' + name)),
       new Option(voices.length ? 'Giọng của máy: tự chọn' : 'Giọng của máy (máy chưa có giọng tiếng Việt)', ''),
       ...voices.map(v => new Option(voiceLabel(v), v.name)));
-    voiceSelect.value = prefs.aiVoice !== false ? 'ai' : voices.some(v => v.name === prefs.voice) ? prefs.voice : '';
+    voiceSelect.value = prefs.aiVoice !== false ? 'ai:' + (AI_VOICES.some(([n]) => n === prefs.aiVoiceName) ? prefs.aiVoiceName : AI_VOICES[0][0])
+      : voices.some(v => v.name === prefs.voice) ? prefs.voice : '';
   }
   // Same shape as the old checkbox: true while the AI voice is selected.
-  const aiVoice = { get checked() { return voiceSelect.value === 'ai'; } };
+  const aiVoice = { get checked() { return voiceSelect.value.startsWith('ai:'); } };
+  const aiVoiceName = () => aiVoice.checked ? voiceSelect.value.slice(3) : undefined;
   autoRead.checked = prefs.autoRead !== false;
   continuous.checked = prefs.continuous !== false;
   rateSelect.value = ['0.75', '0.9', '1.1'].includes(String(prefs.rate)) ? String(prefs.rate) : '0.9';
   autoRead.onchange = () => { prefs.autoRead = autoRead.checked; savePrefs(); };
   continuous.onchange = () => { prefs.continuous = continuous.checked; savePrefs(); };
   rateSelect.onchange = () => { prefs.rate = Number(rateSelect.value); savePrefs(); };
-  voiceSelect.onchange = () => { if (voiceSelect.value === 'ai') prefs.aiVoice = true; else { prefs.aiVoice = false; prefs.voice = voiceSelect.value; } savePrefs(); };
+  voiceSelect.onchange = () => { if (aiVoice.checked) { prefs.aiVoice = true; prefs.aiVoiceName = aiVoiceName(); } else { prefs.aiVoice = false; prefs.voice = voiceSelect.value; } savePrefs(); };
   fillVoices();
   if (synth) synth.addEventListener?.('voiceschanged', fillVoices);
   // "Nghe thử" plays exactly the voice that is selected.
@@ -243,19 +249,20 @@
   // Recorded female voice for a guide text; null means "use the device voice".
   const clipCache = new Map();
   async function guideClip(key) {
-    if (clipCache.has(key)) return clipCache.get(key);
+    const voice = aiVoiceName(), cacheKey = key + '|' + voice;
+    if (clipCache.has(cacheKey)) return clipCache.get(cacheKey);
     const controller = new AbortController(), timer = setTimeout(() => controller.abort(), 30000);
     try {
       const response = await fetch(window.PortalAPI.url + '/functions/v1/gemini-assistant', {
         method: 'POST', signal: controller.signal,
         headers: { apikey: window.PortalAPI.key, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ operation: 'guide_audio', key }),
+        body: JSON.stringify({ operation: 'guide_audio', key, voice }),
       });
       const data = await response.json();
       const publicPrefix = window.PortalAPI.url + '/storage/v1/object/public/';
       const clip = response.ok && typeof data.url === 'string' && data.url.startsWith(publicPrefix) ? { url: data.url }
         : response.ok && typeof data.audio?.data === 'string' && /^audio\/[a-z0-9.+-]+$/i.test(String(data.audio.mime)) ? data.audio : null;
-      if (clip?.url) clipCache.set(key, clip);
+      if (clip?.url) clipCache.set(cacheKey, clip);
       return clip;
     } catch { return null; } finally { clearTimeout(timer); }
   }
@@ -415,7 +422,7 @@
       const response = await fetch(window.PortalAPI.url + '/functions/v1/gemini-assistant', {
         method: 'POST', signal: mine.signal,
         headers: { apikey: window.PortalAPI.key, authorization: 'Bearer ' + access, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ operation: 'guide', question, page: heading() || route(), history, audio: autoRead.checked && aiVoice.checked }),
+        body: JSON.stringify({ operation: 'guide', question, page: heading() || route(), history, audio: autoRead.checked && aiVoice.checked, voice: aiVoiceName() }),
       });
       let data = {}; try { data = await response.json(); } catch { /* handled below */ }
       if (controller !== mine) return;

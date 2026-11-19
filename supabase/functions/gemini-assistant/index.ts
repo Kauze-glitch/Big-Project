@@ -158,7 +158,7 @@ async function guideAnswer(body, user, authorization, c) {
   if (!answer) return reply(502,{error:'Trợ lý chưa hiểu câu hỏi. Hãy nói lại theo cách khác.'});
   answer = answer.slice(0,3000);
   // Optional natural female voice; the browser falls back to its own voice without it.
-  const audio = body.audio === true ? await speech(answer, c).catch(() => null) : null;
+  const audio = body.audio === true ? await speech(answer, c, ttsVoice(body.voice)).catch(() => null) : null;
   return reply(200,{answer,target,...(audio ? {audio} : {})});
 }
 
@@ -188,14 +188,14 @@ const GUIDE_CLIPS = {
 async function guideAudio(body, c) {
   if (typeof body.key !== 'string' || !Object.hasOwn(GUIDE_CLIPS, body.key)) return reply(400,{error:'Đoạn hướng dẫn không hợp lệ.'});
   const text = GUIDE_CLIPS[body.key];
-  const model = env('GEMINI_TTS_MODEL') || 'gemini-2.5-flash-preview-tts', voice = env('GEMINI_TTS_VOICE') || 'Kore';
+  const model = env('GEMINI_TTS_MODEL') || 'gemini-2.5-flash-preview-tts', voice = ttsVoice(body.voice);
   const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text+'|'+voice+'|'+model)));
   const path = body.key+'-'+[...digest.slice(0,8)].map(b=>b.toString(16).padStart(2,'0')).join('')+'.wav';
   const publicUrl = c.url+'/storage/v1/object/public/assistant-voice/'+path;
   const cached = await c.request(publicUrl,{method:'HEAD'});
   if (cached.ok) return reply(200,{url:publicUrl});
   if (!c.geminiKey) return reply(503,{error:'Chưa cấu hình giọng đọc.'});
-  const audio = await speech(text, c).catch(() => null);
+  const audio = await speech(text, c, voice).catch(() => null);
   if (!audio) return reply(502,{error:'Chưa tạo được giọng đọc.'});
   const bytes = Uint8Array.from(atob(audio.data), ch => ch.charCodeAt(0));
   const saved = await c.request(c.url+'/storage/v1/object/assistant-voice/'+path,{method:'POST',
@@ -204,14 +204,20 @@ async function guideAudio(body, c) {
 }
 
 // Gemini text-to-speech. Returns {mime, data} with WAV audio as base64, or null.
-async function speech(text, c) {
+// Female Gemini voices people can pick in the portal; anything else uses the default.
+const TTS_VOICES = ['Leda', 'Aoede', 'Sulafat', 'Kore'];
+function ttsVoice(requested) {
+  if (typeof requested === 'string' && TTS_VOICES.includes(requested)) return requested;
+  const fallback = env('GEMINI_TTS_VOICE');
+  return /^[A-Za-z]+$/.test(fallback) ? fallback : 'Leda';
+}
+async function speech(text, c, voice = ttsVoice()) {
   const model = env('GEMINI_TTS_MODEL') || 'gemini-2.5-flash-preview-tts';
-  const voice = env('GEMINI_TTS_VOICE') || 'Kore';
   if (!/^gemini-[a-z0-9.-]+$/.test(model) || !/^[A-Za-z]+$/.test(voice)) return null;
   const response = await c.request('https://generativelanguage.googleapis.com/v1beta/models/'+model+':generateContent',{
     method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':c.geminiKey},
     body:JSON.stringify({
-      contents:[{parts:[{text:'Đọc đoạn sau bằng tiếng Việt chuẩn, giọng nữ ấm áp, rõ ràng, tốc độ vừa phải, như nhân viên hướng dẫn tận tình với người lớn tuổi:\n'+text.slice(0,1500)}]}],
+      contents:[{parts:[{text:'Đọc đoạn sau bằng giọng nữ tiếng Việt miền Bắc, trong trẻo, nhẹ nhàng, phát âm thật rõ từng chữ, tốc độ hơi chậm, như nhân viên hướng dẫn tận tình với người lớn tuổi:\n'+text.slice(0,1500)}]}],
       generationConfig:{responseModalities:['AUDIO'],speechConfig:{voiceConfig:{prebuiltVoiceConfig:{voiceName:voice}}}},
     }),
   });
