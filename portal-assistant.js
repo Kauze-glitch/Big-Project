@@ -9,7 +9,7 @@
 
   // ---------- Saved per-device preferences ----------
   const PREF_KEY = 'nhom12-voice';
-  const prefs = { rate: 0.9, voice: '', autoRead: true, continuous: true };
+  const prefs = { rate: 0.9, voice: '', autoRead: true, continuous: true, aiVoice: true };
   try { Object.assign(prefs, JSON.parse(localStorage.getItem(PREF_KEY) || '{}')); } catch { /* storage unavailable */ }
   const savePrefs = () => { try { localStorage.setItem(PREF_KEY, JSON.stringify(prefs)); } catch { /* storage unavailable */ } };
 
@@ -27,6 +27,7 @@
         <details class="va-settings"><summary>Cài đặt giọng nói</summary>
           <label class="va-auto"><input type="checkbox" name="autoRead"> Tự đọc to câu trả lời</label>
           <label class="va-auto"><input type="checkbox" name="continuous"> Trò chuyện liên tục (trả lời xong tự nghe tiếp)</label>
+          <label class="va-auto"><input type="checkbox" name="aiVoice"> Giọng AI tự nhiên (giọng nữ) cho câu trả lời</label>
           <label class="va-field">Tốc độ đọc <select name="rate"><option value="0.75">Chậm</option><option value="0.9">Vừa</option><option value="1.1">Nhanh</option></select></label>
           <label class="va-field">Giọng đọc <select name="voice"></select></label>
           <button type="button" class="va-try">🔊 Nghe thử</button>
@@ -43,7 +44,7 @@
   const panel = $('.va-panel'), log = $('.va-log'), status = $('.va-status'), form = $('.va-form'), input = $('#va-question');
   const listenBtn = $('.va-listen'), askBtn = $('.va-ask'), micBtn = $('.va-mic'), sendBtn = $('.va-send');
   const stateBox = $('.va-state'), settings = $('.va-settings');
-  const autoRead = settings.querySelector('[name=autoRead]'), continuous = settings.querySelector('[name=continuous]');
+  const autoRead = settings.querySelector('[name=autoRead]'), continuous = settings.querySelector('[name=continuous]'), aiVoice = settings.querySelector('[name=aiVoice]');
   const rateSelect = settings.querySelector('[name=rate]'), voiceSelect = settings.querySelector('[name=voice]');
 
   // ---------- Conversation state ----------
@@ -75,8 +76,11 @@
   // ---------- Voices ----------
   const isVietnamese = v => /^vi([-_]|$)/i.test(v.lang);
   // Prefer neural/natural voices (Edge "Online (Natural)", Google, Apple enhanced).
+  // Female voices first (HoaiMy on Edge, Google Tiếng Việt, Linh on Apple), male voices last.
   const voiceScore = v => (/natural|online|neural/i.test(v.name) ? 6 : 0) + (/google/i.test(v.name) ? 4 : 0)
-    + (/enhanced|premium|nâng cao/i.test(v.name) ? 3 : 0) + (v.localService === false ? 1 : 0);
+    + (/enhanced|premium|nâng cao/i.test(v.name) ? 3 : 0) + (v.localService === false ? 1 : 0)
+    + (/hoaimy|hoài my|linh|female|\bnữ\b|\bmy\b|thu|lan|mai/i.test(v.name) ? 8 : 0)
+    - (/namminh|nam minh|\ban\b|male|\bnam\b|minh/i.test(v.name) && !/female/i.test(v.name) ? 8 : 0);
   const vietnameseVoices = () => (synth?.getVoices() || []).filter(isVietnamese).sort((a, b) => voiceScore(b) - voiceScore(a));
   function chosenVoice() {
     const voices = vietnameseVoices();
@@ -92,6 +96,8 @@
   continuous.checked = prefs.continuous !== false;
   rateSelect.value = ['0.75', '0.9', '1.1'].includes(String(prefs.rate)) ? String(prefs.rate) : '0.9';
   autoRead.onchange = () => { prefs.autoRead = autoRead.checked; savePrefs(); };
+  aiVoice.checked = prefs.aiVoice !== false;
+  aiVoice.onchange = () => { prefs.aiVoice = aiVoice.checked; savePrefs(); };
   continuous.onchange = () => { prefs.continuous = continuous.checked; savePrefs(); };
   rateSelect.onchange = () => { prefs.rate = Number(rateSelect.value); savePrefs(); };
   voiceSelect.onchange = () => { prefs.voice = voiceSelect.value; savePrefs(); };
@@ -104,15 +110,30 @@
   const forSpeech = text => String(text)
     .replace(/\bCCCD\b/g, 'căn cước công dân').replace(/\bOTP\b/g, 'mã xác thực').replace(/\bAI\b/g, 'trợ lý')
     .replace(/[\u{1F300}-\u{1FAFF}☀-➿→←✓■…]/gu, ' ').replace(/\s*\/\s*/g, ' hoặc ').replace(/\s+/g, ' ').trim();
+  let player = null;
   function haltSpeech() {
     speechToken++;
     synth?.cancel();
+    if (player) { player.onended = player.onerror = null; try { player.pause(); } catch { /* not playing */ } player = null; }
     if (speakingFrom) speakingFrom.setAttribute('aria-pressed', 'false');
     speakingFrom = null;
     listenBtn.querySelector('.va-listen-text').textContent = 'Nghe hướng dẫn';
   }
   function stopSpeaking() { haltSpeech(); if (state === 'speaking') setState('idle'); }
-  function speak(text, from, onDone) {
+  // Natural voice made on the server; falls back to the device voice if it cannot play.
+  const audioRate = () => ({ 0.75: 0.85, 0.9: 1, 1.1: 1.15 })[Number(prefs.rate)] || 1;
+  function speak(text, from, onDone, audio) {
+    if (audio?.data && aiVoice.checked && typeof window.Audio === 'function') {
+      haltSpeech();
+      if (!onDone && state === 'speaking') setState('idle');
+      const token = speechToken, a = player = new Audio('data:' + audio.mime + ';base64,' + audio.data);
+      const done = () => { if (token !== speechToken) return; player = null; if (from) from.setAttribute('aria-pressed', 'false'); speakingFrom = null; onDone?.(); };
+      speakingFrom = from || null; if (from) from.setAttribute('aria-pressed', 'true');
+      a.playbackRate = audioRate(); a.onended = done;
+      a.onerror = () => { if (token === speechToken) speak(text, from, onDone); };
+      Promise.resolve().then(() => a.play()).catch(() => { if (token === speechToken) speak(text, from, onDone); });
+      return;
+    }
     if (!synth) { notice('Trình duyệt này chưa hỗ trợ đọc to. Hãy dùng Chrome, Edge hoặc Safari.'); onDone?.(); return; }
     haltSpeech();
     // Any other reading interrupts an answer that was being read out.
@@ -253,12 +274,12 @@
   const narrow = () => window.matchMedia?.('(max-width: 640px)').matches === true;
   let history = [], controller = null, identity = null;
   function notice(text) { status.textContent = text; }
-  function bubble(role, text) {
+  function bubble(role, text, audio) {
     const item = el('div', 'va-msg va-' + role);
     item.append(el('strong', 'va-who', role === 'user' ? 'Bạn' : 'Trợ lý'), el('p', '', text));
     if (role === 'model') {
       const again = el('button', 'va-again', '🔊 Đọc lại'); again.type = 'button';
-      again.onclick = () => { stopListening(); speak(text, again); };
+      again.onclick = () => { stopListening(); speak(text, again, undefined, audio); };
       item.append(again);
     }
     log.append(item); log.scrollTop = log.scrollHeight;
@@ -287,31 +308,31 @@
     if (member()) { const { data } = await window.PortalAuth.client().auth.getSession(); return data?.session?.access_token; }
     return window.CitizenRepository.citizenAccessToken();
   }
-  function afterAnswer(text) {
+  function afterAnswer(text, audio) {
     // Read the answer, then keep the conversation going if the user wants that.
     const resume = () => { setState('idle'); if (continuous.checked && Recognition && !panel.hidden && canAsk()) startListening(); };
-    if (autoRead.checked) { setState('speaking'); speak(text, null, resume); } else setState('idle');
+    if (autoRead.checked) { setState('speaking'); speak(text, null, resume, audio); } else setState('idle');
   }
-  function deliver(answer, place) {
+  function deliver(answer, place, audio) {
     if (place) {
       const note = el('p', 'va-nav', '📍 Đã đưa bạn tới: ' + place.label); log.append(note); log.scrollTop = log.scrollHeight;
     }
-    bubble('model', answer);
+    bubble('model', answer, audio);
     if (place && narrow() && !panel.hidden) close();
-    afterAnswer(answer);
+    afterAnswer(answer, audio);
   }
   async function ask(question) {
     question = question.trim();
     if (!question || controller || !canAsk()) return;
     stopSpeaking(); stopListening(); bubble('user', question); input.value = ''; setState('thinking'); notice('');
-    const mine = controller = new AbortController(), timer = setTimeout(() => mine.abort(), 45000);
+    const mine = controller = new AbortController(), timer = setTimeout(() => mine.abort(), 65000);
     try {
       const access = await token();
       if (!access) throw new Error('Phiên đăng nhập đã hết. Hãy đăng nhập lại.');
       const response = await fetch(window.PortalAPI.url + '/functions/v1/gemini-assistant', {
         method: 'POST', signal: mine.signal,
         headers: { apikey: window.PortalAPI.key, authorization: 'Bearer ' + access, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ operation: 'guide', question, page: heading() || route(), history }),
+        body: JSON.stringify({ operation: 'guide', question, page: heading() || route(), history, audio: autoRead.checked && aiVoice.checked }),
       });
       let data = {}; try { data = await response.json(); } catch { /* handled below */ }
       if (controller !== mine) return;
@@ -319,7 +340,8 @@
       history = [...history, { role: 'user', text: question }, { role: 'model', text: data.answer.slice(0, 3000) }].slice(-6);
       controller = null; clearTimeout(timer);
       const place = typeof data.target === 'string' && data.target !== 'none' ? await goTo(data.target) : null;
-      deliver(data.answer, place);
+      const audio = data.audio && typeof data.audio.data === 'string' && /^audio\/[a-z0-9.+-]+$/i.test(String(data.audio.mime)) ? data.audio : null;
+      deliver(data.answer, place, audio);
     } catch (error) {
       if (controller !== mine) return;
       controller = null;

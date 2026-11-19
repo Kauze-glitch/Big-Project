@@ -58,3 +58,15 @@ test('Guide answers carry a navigation target limited to the caller role',async(
  geminiReturns('Câu trả lời thường, không phải JSON.',{citizen:'c-1'});
  data=await (await ask({})).json();assert.deepEqual(data,{answer:'Câu trả lời thường, không phải JSON.',target:'none'});
 });
+
+test('Requested audio comes back as a playable WAV made with a female Gemini voice; TTS failure still answers',async()=>{
+ const calls=backend({citizen:'c-1'});const base=globalThis.fetch;
+ globalThis.fetch=async(url,o)=>{if(url.includes('-tts:generateContent')){calls.push({url,options:o});return Response.json({candidates:[{content:{parts:[{inlineData:{mimeType:'audio/L16;codec=pcm;rate=24000',data:btoa('\x01\x02\x03\x04')}}]}}]});}return base(url,o);};
+ let data=await (await ask({audio:true})).json();
+ const tts=calls.find(c=>c.url.includes('-tts:'));const sent=JSON.parse(tts.options.body);
+ assert.deepEqual(sent.generationConfig.responseModalities,['AUDIO']);assert.equal(sent.generationConfig.speechConfig.voiceConfig.prebuiltVoiceConfig.voiceName,'Kore');
+ assert.equal(data.audio.mime,'audio/wav');const wav=atob(data.audio.data);assert.equal(wav.slice(0,4),'RIFF');assert.equal(wav.slice(8,12),'WAVE');assert.equal(wav.length,48);
+ globalThis.fetch=async(url,o)=>url.includes('-tts:')?new Response('{}',{status:500}):base(url,o);
+ data=await (await ask({audio:true})).json();assert.equal(data.answer,'Bước 1: mở mục Hồ sơ yêu cầu.');assert.equal(data.audio,undefined);
+ backend({citizen:'c-1'});data=await (await ask({})).json();assert.equal(data.audio,undefined);
+});
