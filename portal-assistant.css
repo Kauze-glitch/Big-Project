@@ -58,3 +58,5 @@
 .va-try{align-self:flex-start;min-height:40px;padding:6px 14px;border:1px solid var(--line,#dce4db);border-radius:8px;background:var(--paper,#fffefb);color:var(--green,#315b46);font:inherit;font-weight:600;cursor:pointer}
 @media (prefers-reduced-motion:reduce){.va-state-icon{animation:none!important}}
 :root[data-motion=off] .va-state-icon{animation:none!important}
+/* Keep the page end readable above the floating assistant buttons on phones. */
+@media (max-width:640px){body{padding-bottom:84px}}
