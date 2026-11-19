@@ -94,6 +94,37 @@ const GUIDE_TARGETS = {
   },
 };
 
+// Only an OTP-verified citizen session or a project member may spend Gemini quota.
+async function callerRole(user, authorization, c) {
+  const citizen = await c.request(c.url+'/rest/v1/rpc/cd_current_citizen',{method:'POST',
+    headers:{apikey:c.publicKey,authorization,'Content-Type':'application/json'},body:'{}'});
+  if (citizen.ok && typeof await citizen.json() === 'string') return 'citizen';
+  const rows = await c.request(c.url+'/rest/v1/sections?select=owner_id&owner_id=eq.'+encodeURIComponent(user.id)+'&limit=1',
+    {headers:{apikey:c.publicKey,authorization}});
+  return rows.ok && (await rows.json()).length > 0 ? 'member' : null;
+}
+// Returns an error response when the caller is over the per-user limit, otherwise null.
+async function reserveGuideQuota(user, c) {
+  const quota = await c.request(c.url+'/rest/v1/rpc/reserve_ai_guide_request',{method:'POST',
+    headers:{apikey:c.serviceKey,authorization:'Bearer '+c.serviceKey,'Content-Type':'application/json'},
+    body:JSON.stringify({p_user_id:user.id})});
+  if (!quota.ok) return reply(503,{error:'Chưa khởi tạo giới hạn sử dụng trợ lý. Liên hệ người quản lý web.'});
+  if (await quota.json() !== true) return reply(429,{error:'Bạn đã hỏi nhiều lần. Hãy nghỉ một lát rồi hỏi lại.'});
+  return null;
+}
+
+// Natural voice for one answer, made only when the user presses "Nghe" (saves TTS quota).
+async function speakAnswer(body, user, authorization, c) {
+  const text = typeof body.text === 'string' ? body.text.trim() : '';
+  if (!text || text.length > 3000) return reply(400,{error:'Đoạn cần đọc không hợp lệ.'});
+  if (!await callerRole(user, authorization, c)) return reply(403,{error:'Hãy đăng nhập và xác thực mã OTP để nghe trợ lý.'});
+  if (!c.geminiKey) return reply(503,{error:'Chưa cấu hình giọng đọc.'});
+  const blocked = await reserveGuideQuota(user, c);
+  if (blocked) return blocked;
+  const audio = await speech(text, c, ttsVoice(body.voice)).catch(() => { lastTtsFailure = 'exception'; return null; });
+  return audio ? reply(200,{audio}) : reply(502,{error:'Chưa tạo được giọng đọc.',reason:lastTtsFailure});
+}
+
 async function guideAnswer(body, user, authorization, c) {
   const question = typeof body.question === 'string' ? body.question.trim() : '';
   if (!question || question.length > 1000) return reply(400,{error:'Hãy nói hoặc nhập câu hỏi ngắn hơn 1.000 ký tự.'});
@@ -102,23 +133,12 @@ async function guideAnswer(body, user, authorization, c) {
   if (!Array.isArray(history) || history.length > 6 || history.length % 2 || history.some((h,i) =>
     !h || h.role !== (i%2 ? 'model' : 'user') || typeof h.text !== 'string' || h.text.length > (i%2 ? 3000 : 1000)))
     return reply(400,{error:'Hội thoại quá dài. Hãy bắt đầu lại.'});
-  // Only an OTP-verified citizen session or a project member may spend Gemini quota.
-  const citizen = await c.request(c.url+'/rest/v1/rpc/cd_current_citizen',{method:'POST',
-    headers:{apikey:c.publicKey,authorization,'Content-Type':'application/json'},body:'{}'});
-  let role = citizen.ok && typeof await citizen.json() === 'string' ? 'citizen' : null;
-  if (!role) {
-    const rows = await c.request(c.url+'/rest/v1/sections?select=owner_id&owner_id=eq.'+encodeURIComponent(user.id)+'&limit=1',
-      {headers:{apikey:c.publicKey,authorization}});
-    if (rows.ok && (await rows.json()).length > 0) role = 'member';
-  }
+  const role = await callerRole(user, authorization, c);
   if (!role) return reply(403,{error:'Hãy đăng nhập và xác thực mã OTP để hỏi trợ lý.'});
   const targets = GUIDE_TARGETS[role];
   if (!c.geminiKey || !/^gemini-[a-z0-9.-]+$/.test(c.model)) return reply(503,{error:'Chưa cấu hình Gemini trên máy chủ.'});
-  const quota = await c.request(c.url+'/rest/v1/rpc/reserve_ai_guide_request',{method:'POST',
-    headers:{apikey:c.serviceKey,authorization:'Bearer '+c.serviceKey,'Content-Type':'application/json'},
-    body:JSON.stringify({p_user_id:user.id})});
-  if (!quota.ok) return reply(503,{error:'Chưa khởi tạo giới hạn sử dụng trợ lý. Liên hệ người quản lý web.'});
-  if (await quota.json() !== true) return reply(429,{error:'Bạn đã hỏi nhiều lần. Hãy nghỉ một lát rồi hỏi lại.'});
+  const blocked = await reserveGuideQuota(user, c);
+  if (blocked) return blocked;
   const system = 'Bạn là trợ lý hướng dẫn sử dụng Cổng công dân của Nhóm 12. Người hỏi có thể là người lớn tuổi hoặc không đọc được chữ, '
     +'câu trả lời sẽ được đọc to bằng giọng nói. Trả lời bằng tiếng Việt, câu ngắn, từ ngữ đơn giản, thân thiện. '
     +'Chia thành các bước "Bước 1, Bước 2" khi cần. Tối đa khoảng 120 từ. Không dùng Markdown, ký hiệu, bảng hay đường link. '
@@ -277,6 +297,7 @@ async function handle(req) {
     let body;
     try { body = await limitedBody(req); } catch { return reply(400,{error:'Câu hỏi không hợp lệ hoặc quá dài.'}); }
     if (body?.operation === 'guide') return await guideAnswer(body, user, authorization, {url, publicKey, serviceKey, geminiKey, model, request});
+    if (body?.operation === 'speak') return await speakAnswer(body, user, authorization, {url, publicKey, serviceKey, geminiKey, request});
     // Published sections only, under the caller's existing RLS policies.
     const rowsResponse = await request(url+'/rest/v1/sections?select=slug,title,content,owner_id&order=slug',{headers:{apikey:publicKey,authorization}});
     if (!rowsResponse.ok) return reply(503,{error:'Chưa đọc được nội dung đã lưu. Thử lại sau.'});

@@ -5,10 +5,11 @@ import {JSDOM} from 'jsdom';
 const tick=()=>new Promise(r=>setTimeout(r,20));
 const source=fs.readFileSync('portal-assistant.js','utf8');
 
-function page({member=false,citizen=false,hash='#/login',body='<form id="citizen-login"></form>',fetchImpl,preload,voices=[{lang:'vi-VN',name:'Tiếng Việt'}]}={}){
+function page({member=false,citizen=false,hash='#/login',body='<form id="citizen-login"></form>',fetchImpl,preload,voices=[{lang:'vi-VN',name:'Tiếng Việt'}],aiVoice=false}={}){
  const dom=new JSDOM(`<div id="portal-app"><main id="portal-main">${body}</main></div>`,{url:'https://fixture.invalid/portal.html'+hash,runScripts:'outside-only'}),w=dom.window,spoken=[],requests=[],utterances=[];
  w.SpeechSynthesisUtterance=class{constructor(text){this.text=text;}};
  w.speechSynthesis={getVoices:()=>voices,cancel(){},speak(u){spoken.push(u.text);utterances.push(u);u.onend?.();}};preload?.(w);
+ if(!aiVoice)w.localStorage.setItem('nhom12-voice',JSON.stringify({aiVoice:false}));
  const state={member,citizen};
  w.PortalAuth={isMember:()=>state.member,client:()=>({auth:{getSession:async()=>({data:{session:{access_token:'member-token'}}})}})};
  w.PortalAPI={url:'https://api.invalid',key:'publishable',memberId:()=>state.member?'one':null};
@@ -139,26 +140,6 @@ test('Keyword fallback does not confuse "như thế nào" with the ID card or "�
 // Records every real playback (the silent unlock clip is ignored); ended fires only if the source did not change.
 function audioStub(w,{fail=false}={}){const played=[];w.Audio=class{constructor(src){this.src=src||'';}play(){const src=this.src;if(fail){const e=new Error('blocked');e.name='NotAllowedError';return Promise.reject(e);}if(!(src.startsWith('data:audio/wav;base64,')&&src.length>500))played.push({src,playing:true});setTimeout(()=>{if(this.src===src)this.onended?.();},0);return Promise.resolve();}pause(){this.paused=true;}};return played;}
 
-test('Answers with server audio play the natural female voice instead of the device voice',async()=>{
- let played;const p=page({citizen:true,hash:'#/profile/personal',body:'<h1>Thông tin cá nhân</h1>',preload:w=>{played=audioStub(w);},fetchImpl:()=>({ok:true,json:async()=>({answer:'Xin chào bạn.',target:'none',audio:{mime:'audio/wav',data:'UklGRg=='}})})});try{
-  p.d.querySelector('.va-ask').click();p.d.querySelector('#va-question').value='Chào';p.d.querySelector('.va-form').requestSubmit();await tick();await tick();
-  assert.equal(p.requests[0].body.audio,true);
-  assert.equal(played.length,1);assert.equal(played[0].src,'data:audio/wav;base64,UklGRg==');assert(played[0].playing);
-  assert.equal(p.spoken.length,0,'device voice not used');assert.equal(p.d.querySelector('.va-state').dataset.state,'idle');
-  p.d.querySelector('.va-model:last-child .va-again').click();await tick();assert.equal(played.length,2,'replay uses the same natural voice');
- }finally{p.close();}
-});
-
-test('Blocked audio playback falls back to the device voice; turning AI voice off asks for no audio',async()=>{
- const p=page({citizen:true,hash:'#/profile/personal',body:'<h1>Thông tin cá nhân</h1>',preload:w=>audioStub(w,{fail:true}),fetchImpl:()=>({ok:true,json:async()=>({answer:'Bước 1: mở trang.',target:'none',audio:{mime:'audio/wav',data:'UklGRg=='}})})});try{
-  p.d.querySelector('.va-ask').click();p.d.querySelector('#va-question').value='Câu hỏi';p.d.querySelector('.va-form').requestSubmit();await tick();await tick();
-  assert(p.spoken.some(t=>/Bước 1/.test(t)));
-  const voice=p.d.querySelector('[name=voice]');voice.value='';voice.dispatchEvent(new p.w.Event('change'));
-  p.d.querySelector('#va-question').value='Câu khác';p.d.querySelector('.va-form').requestSubmit();await tick();
-  assert.equal(p.requests[1].body.audio,false);assert.equal(JSON.parse(p.w.localStorage.getItem('nhom12-voice')).aiVoice,false);
- }finally{p.close();}
-});
-
 test('Device voice prefers a Vietnamese female voice over a male one',async()=>{
  const p=page({voices:[{lang:'vi-VN',name:'Microsoft NamMinh Online (Natural) - Vietnamese (Vietnam)',localService:false},{lang:'vi-VN',name:'Microsoft An - Vietnamese (Vietnam)',localService:true},{lang:'vi-VN',name:'Google Tiếng Việt',localService:false}]});try{
   p.d.querySelector('.va-listen').click();await tick();assert.equal(p.utterances[0].voice.name,'Google Tiếng Việt');
@@ -166,7 +147,7 @@ test('Device voice prefers a Vietnamese female voice over a male one',async()=>{
 });
 
 test('"Nghe hướng dẫn" plays the recorded female voice, then reads current errors with the device voice',async()=>{
- let played;const p=page({body:'<form id="otp-form"></form><p role="alert">Mã xác thực chưa đúng.</p>',preload:w=>{played=audioStub(w);},fetchImpl:()=>({ok:true,json:async()=>({url:'https://api.invalid/storage/v1/object/public/assistant-voice/login_otp-abc.wav'})})});try{
+ let played;const p=page({aiVoice:true,body:'<form id="otp-form"></form><p role="alert">Mã xác thực chưa đúng.</p>',preload:w=>{played=audioStub(w);},fetchImpl:()=>({ok:true,json:async()=>({url:'https://api.invalid/storage/v1/object/public/assistant-voice/login_otp-abc.wav'})})});try{
   p.d.querySelector('.va-listen').click();await tick();await tick();
   assert.deepEqual(p.requests[0].body,{operation:'guide_audio',key:'login_otp',voice:'Leda'});assert.equal(p.requests[0].options.headers.authorization,undefined);
   assert.equal(played[0].src,'https://api.invalid/storage/v1/object/public/assistant-voice/login_otp-abc.wav');
@@ -176,34 +157,14 @@ test('"Nghe hướng dẫn" plays the recorded female voice, then reads current 
 });
 
 test('A clip URL outside the project storage is ignored and the device voice reads the guide',async()=>{
- let played;const p=page({preload:w=>{played=audioStub(w);},fetchImpl:()=>({ok:true,json:async()=>({url:'https://evil.invalid/x.wav'})})});try{
+ let played;const p=page({aiVoice:true,preload:w=>{played=audioStub(w);},fetchImpl:()=>({ok:true,json:async()=>({url:'https://evil.invalid/x.wav'})})});try{
   p.d.querySelector('.va-listen').click();await tick();await tick();
   assert.equal(played.length,0);assert.match(p.spoken.join(' '),/12 chữ số/);
  }finally{p.close();}
 });
 
-test('Blocked autoplay is explained on screen and an answer without audio says the device voice is used',async()=>{
- const p=page({citizen:true,hash:'#/profile/personal',body:'<h1>Thông tin cá nhân</h1>',preload:w=>audioStub(w,{fail:true}),fetchImpl:()=>({ok:true,json:async()=>({answer:'Bước 1.',target:'none',audio:{mime:'audio/wav',data:'UklGRg=='}})})});try{
-  p.d.querySelector('.va-ask').click();p.d.querySelector('#va-question').value='Hỏi';p.d.querySelector('.va-form').requestSubmit();await tick();await tick();
-  assert.match(p.d.querySelector('.va-status').textContent,/chặn phát giọng AI/);assert(p.spoken.some(t=>/Bước 1/.test(t)));
- }finally{p.close();}
- const q=page({citizen:true,hash:'#/profile/personal',body:'<h1>Thông tin cá nhân</h1>',fetchImpl:()=>({ok:true,json:async()=>({answer:'Trả lời.',target:'none'})})});try{
-  q.d.querySelector('.va-ask').click();q.d.querySelector('#va-question').value='Hỏi';q.d.querySelector('.va-form').requestSubmit();await tick();
-  assert.match(q.d.querySelector('.va-status').textContent,/Chưa tạo được giọng AI/);
- }finally{q.close();}
-});
-
-test('A click unlocks one shared audio element that later plays the delayed AI answer',async()=>{
- const elements=[];let plays=[];const p=page({citizen:true,hash:'#/profile/personal',body:'<h1>Thông tin cá nhân</h1>',preload:w=>{w.Audio=class{constructor(){elements.push(this);this.src='';}play(){plays.push(this.src.slice(0,30));return Promise.resolve();}pause(){}};},fetchImpl:async()=>{await tick();return {ok:true,json:async()=>({answer:'Xin chào.',target:'none',audio:{mime:'audio/wav',data:'UklGRg=='}})};}});try{
-  p.d.querySelector('.va-ask').click();
-  assert.equal(elements.length,1);assert.match(plays[0],/^data:audio\/wav;base64,/,'silent unlock played inside the click');
-  p.d.querySelector('#va-question').value='Chào';p.d.querySelector('.va-form').requestSubmit();await tick();await tick();await tick();
-  assert.equal(elements.length,1,'same element reused');assert.equal(plays.at(-1),'data:audio/wav;base64,UklGRg==');
- }finally{p.close();}
-});
-
 test('Voice picker offers the female AI voice first, labels device voices, and "Nghe thử" plays the selected voice',async()=>{
- let played;const p=page({voices:[{lang:'vi-VN',name:'Microsoft An - Vietnamese (Vietnam)',localService:true}],preload:w=>{played=audioStub(w);},fetchImpl:()=>({ok:true,json:async()=>({url:'https://api.invalid/storage/v1/object/public/assistant-voice/portal_home-1.wav'})})});try{
+ let played;const p=page({aiVoice:true,voices:[{lang:'vi-VN',name:'Microsoft An - Vietnamese (Vietnam)',localService:true}],preload:w=>{played=audioStub(w);},fetchImpl:()=>({ok:true,json:async()=>({url:'https://api.invalid/storage/v1/object/public/assistant-voice/portal_home-1.wav'})})});try{
   const select=p.d.querySelector('[name=voice]');
   assert.deepEqual([...select.options].map(o=>o.textContent),['Giọng nữ AI: trẻ trung, rõ (khuyên dùng)','Giọng nữ AI: nhẹ nhàng','Giọng nữ AI: ấm áp','Giọng nữ AI: trầm','Giọng của máy: tự chọn','Giọng của máy: An (nam)']);
   assert.equal(select.value,'ai:Leda');
@@ -226,18 +187,71 @@ test('On Brave the microphone is hidden and the user is told to type instead',()
  }finally{p.close();}
 });
 
-test('Questions send the chosen AI voice and the settings show the version and Brave',async()=>{
- const p=page({citizen:true,hash:'#/profile/personal',body:'<h1>Thông tin cá nhân</h1>',preload:w=>{Object.defineProperty(w.navigator,'userAgentData',{value:{brands:[{brand:'Brave',version:'140'}]}});}});try{
-  assert.match(p.d.querySelector('.va-version').textContent,/Phiên bản trợ lý: .+ · Brave/);assert.equal(p.d.querySelector('.va-mic').hidden,true);
-  const select=p.d.querySelector('[name=voice]');select.value='ai:Sulafat';select.dispatchEvent(new p.w.Event('change'));
-  p.d.querySelector('.va-ask').click();p.d.querySelector('#va-question').value='Chào';p.d.querySelector('.va-form').requestSubmit();await tick();
-  assert.equal(p.requests[0].body.voice,'Sulafat');assert.equal(p.requests[0].body.audio,true);
+const answerOk=()=>({ok:true,json:async()=>({answer:'Bước 1: bấm nút gửi yêu cầu.',target:'none'})});
+// AI voice selected; the speak operation answers with speakResponse(), everything else with a plain answer.
+function aiPage(speakResponse,extra={}){
+ let played,p;
+ p=page({aiVoice:true,citizen:true,hash:'#/profile/personal',body:'<h1>Thông tin cá nhân</h1>',
+  preload:w=>{played=audioStub(w,extra.audioOptions);extra.preload?.(w);},
+  fetchImpl:()=>p.requests.at(-1).body.operation==='speak'?speakResponse():answerOk()});
+ return {...p,played:()=>played};
+}
+
+test('With the AI voice an answer is not read automatically; "Nghe câu trả lời" makes the female voice once and replays it',async()=>{
+ const p=aiPage(()=>({ok:true,json:async()=>({audio:{mime:'audio/wav',data:'UklGRg=='}})}));try{
+  p.d.querySelector('.va-ask').click();p.d.querySelector('#va-question').value='Sửa địa chỉ';p.d.querySelector('.va-form').requestSubmit();await tick();
+  assert.equal(p.requests.length,1);assert.equal(p.requests[0].body.audio,undefined,'no voice is made with the answer');
+  assert.equal(p.spoken.length,0);assert.equal(p.played().length,0);assert.match(p.d.querySelector('.va-status').textContent,/Nghe câu trả lời/);
+  const listen=p.d.querySelector('.va-model:last-of-type .va-again');assert.match(listen.textContent,/Nghe câu trả lời/);
+  listen.click();await tick();await tick();
+  assert.deepEqual(p.requests[1].body,{operation:'speak',text:'Bước 1: bấm nút gửi yêu cầu.',voice:'Leda'});
+  assert.equal(p.requests[1].options.headers.authorization,'Bearer citizen-token');
+  assert.equal(p.played().at(-1).src,'data:audio/wav;base64,UklGRg==');assert.equal(p.spoken.length,0);
+  listen.click();await tick();await tick();assert.equal(p.requests.length,2,'second listen reuses the voice');assert.equal(p.played().length,2);
  }finally{p.close();}
 });
 
-test('Running out of Gemini voice quota is explained instead of silently switching voice',async()=>{
- const p=page({citizen:true,hash:'#/profile/personal',body:'<h1>Thông tin cá nhân</h1>',fetchImpl:()=>({ok:true,json:async()=>({answer:'Trả lời.',target:'none',audioError:'http_429'})})});try{
+test('After listening to the newest answer, continuous mode starts listening again',async()=>{
+ const mics=[];const p=aiPage(()=>({ok:true,json:async()=>({audio:{mime:'audio/wav',data:'UklGRg=='}})}),{preload:w=>{w.SpeechRecognition=class{constructor(){mics.push(this);}start(){}abort(){}};}});try{
+  p.d.querySelector('.va-ask').click();assert.equal(mics.length,1);
+  mics[0].onresult({resultIndex:0,results:[Object.assign([{transcript:'Sửa địa chỉ'}],{isFinal:true})]});mics[0].onend();await tick();
+  assert.equal(mics.length,1,'does not listen again before the answer is heard');
+  p.d.querySelector('.va-model:last-of-type .va-again').click();await tick();await tick();await tick();
+  assert.equal(mics.length,2);
+ }finally{p.close();}
+});
+
+test('Out of Gemini voice quota: the panel says so and the device voice reads the answer',async()=>{
+ const p=aiPage(()=>({ok:false,json:async()=>({error:'Chưa tạo được giọng đọc.',reason:'http_429'})}));try{
   p.d.querySelector('.va-ask').click();p.d.querySelector('#va-question').value='Hỏi';p.d.querySelector('.va-form').requestSubmit();await tick();
-  assert.match(p.d.querySelector('.va-status').textContent,/hết lượt tạo giọng AI miễn phí/);
+  p.d.querySelector('.va-model:last-of-type .va-again').click();await tick();await tick();
+  assert.match(p.d.querySelector('.va-status').textContent,/hết lượt tạo giọng AI miễn phí/);assert(p.spoken.some(t=>/Bước 1/.test(t)));
+ }finally{p.close();}
+});
+
+test('Blocked playback is explained and falls back to the device voice',async()=>{
+ const p=aiPage(()=>({ok:true,json:async()=>({audio:{mime:'audio/wav',data:'UklGRg=='}})}),{audioOptions:{fail:true}});try{
+  p.d.querySelector('.va-ask').click();p.d.querySelector('#va-question').value='Hỏi';p.d.querySelector('.va-form').requestSubmit();await tick();
+  p.d.querySelector('.va-model:last-of-type .va-again').click();await tick();await tick();
+  assert.match(p.d.querySelector('.va-status').textContent,/chặn phát giọng AI/);assert(p.spoken.some(t=>/Bước 1/.test(t)));
+ }finally{p.close();}
+});
+
+test('A click unlocks one shared audio element that later plays the answer voice',async()=>{
+ const elements=[],plays=[];let p;
+ p=page({aiVoice:true,citizen:true,hash:'#/profile/personal',body:'<h1>Thông tin cá nhân</h1>',
+  preload:w=>{w.Audio=class{constructor(){elements.push(this);this.src='';}play(){plays.push(this.src.slice(0,30));return Promise.resolve();}pause(){}};},
+  fetchImpl:async()=>{await tick();return p.requests.at(-1).body.operation==='speak'?{ok:true,json:async()=>({audio:{mime:'audio/wav',data:'UklGRg=='}})}:{ok:true,json:async()=>({answer:'Xin chào.',target:'none'})};}});
+ try{
+  p.d.querySelector('.va-ask').click();p.d.querySelector('#va-question').value='Chào';p.d.querySelector('.va-form').requestSubmit();await tick();await tick();
+  assert.match(plays[0]||'',/^data:audio\/wav;base64,/,'silent unlock happened inside the first click');
+  p.d.querySelector('.va-model:last-of-type .va-again').click();
+  await tick();await tick();await tick();assert.equal(elements.length,1);assert.equal(plays.at(-1),'data:audio/wav;base64,UklGRg==');
+ }finally{p.close();}
+});
+
+test('Settings show the assistant version and Brave',()=>{
+ const p=page({citizen:true,preload:w=>{Object.defineProperty(w.navigator,'userAgentData',{value:{brands:[{brand:'Brave',version:'140'}]}});}});try{
+  assert.match(p.d.querySelector('.va-version').textContent,/Phiên bản trợ lý: .+ · Brave/);assert.equal(p.d.querySelector('.va-mic').hidden,true);
  }finally{p.close();}
 });
