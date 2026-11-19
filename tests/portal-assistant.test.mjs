@@ -18,17 +18,17 @@ function page({member=false,citizen=false,hash='#/login',body='<form id="citizen
  return {w,d:w.document,spoken,requests,utterances,state,close:()=>w.close()};
 }
 
-test('Guests can hear login steps read aloud but cannot open the AI box',()=>{
+test('Guests can hear login steps read aloud but cannot open the AI box',async()=>{
  const p=page();try{
   assert.equal(p.d.querySelector('.va-ask').hidden,true);
-  p.d.querySelector('.va-listen').click();
+  p.d.querySelector('.va-listen').click();await tick();
   const said=p.spoken.join(' ');assert.match(said,/12 chữ số/);assert.match(said,/mật khẩu/);assert.doesNotMatch(said,/Hỏi trợ lý/);
  }finally{p.close();}
 });
 
-test('OTP step guidance mentions Telegram and reads visible error messages',()=>{
+test('OTP step guidance mentions Telegram and reads visible error messages',async()=>{
  const p=page({body:'<form id="otp-form"></form><p role="alert">Mã xác thực chưa đúng.</p>'});try{
-  p.d.querySelector('.va-listen').click();const said=p.spoken.join(' ');
+  p.d.querySelector('.va-listen').click();await tick();const said=p.spoken.join(' ');
   assert.match(said,/Telegram/);assert.match(said,/Mã xác thực chưa đúng/);
  }finally{p.close();}
 });
@@ -92,10 +92,10 @@ test('Continuous mode listens again after the answer; turning it off stops after
  }finally{p.close();}
 });
 
-test('Natural Vietnamese voices are preferred and speaking speed is remembered',()=>{
+test('Natural Vietnamese voices are preferred and speaking speed is remembered',async()=>{
  const p=withMic({voices:[{lang:'vi-VN',name:'Microsoft An - Vietnamese (Vietnam)',localService:true},{lang:'vi-VN',name:'Microsoft HoaiMy Online (Natural) - Vietnamese (Vietnam)',localService:false},{lang:'en-US',name:'Google US English'}]});try{
   const rate=p.d.querySelector('[name=rate]');rate.value='0.75';rate.dispatchEvent(new p.w.Event('change'));
-  p.d.querySelector('.va-listen').click();
+  p.d.querySelector('.va-listen').click();await tick();
   assert.match(p.utterances[0].voice.name,/HoaiMy/);assert.equal(p.utterances[0].rate,0.75);
   assert.equal(JSON.parse(p.w.localStorage.getItem('nhom12-voice')).rate,0.75);
   assert.deepEqual([...p.d.querySelectorAll('[name=voice] option')].map(o=>o.value).slice(1),['Microsoft HoaiMy Online (Natural) - Vietnamese (Vietnam)','Microsoft An - Vietnamese (Vietnam)']);
@@ -158,8 +158,25 @@ test('Blocked audio playback falls back to the device voice; turning AI voice of
  }finally{p.close();}
 });
 
-test('Device voice prefers a Vietnamese female voice over a male one',()=>{
+test('Device voice prefers a Vietnamese female voice over a male one',async()=>{
  const p=page({voices:[{lang:'vi-VN',name:'Microsoft NamMinh Online (Natural) - Vietnamese (Vietnam)',localService:false},{lang:'vi-VN',name:'Microsoft An - Vietnamese (Vietnam)',localService:true},{lang:'vi-VN',name:'Google Tiếng Việt',localService:false}]});try{
-  p.d.querySelector('.va-listen').click();assert.equal(p.utterances[0].voice.name,'Google Tiếng Việt');
+  p.d.querySelector('.va-listen').click();await tick();assert.equal(p.utterances[0].voice.name,'Google Tiếng Việt');
+ }finally{p.close();}
+});
+
+test('"Nghe hướng dẫn" plays the recorded female voice, then reads current errors with the device voice',async()=>{
+ let played;const p=page({body:'<form id="otp-form"></form><p role="alert">Mã xác thực chưa đúng.</p>',preload:w=>{played=audioStub(w);},fetchImpl:()=>({ok:true,json:async()=>({url:'https://api.invalid/storage/v1/object/public/assistant-voice/login_otp-abc.wav'})})});try{
+  p.d.querySelector('.va-listen').click();await tick();await tick();
+  assert.deepEqual(p.requests[0].body,{operation:'guide_audio',key:'login_otp'});assert.equal(p.requests[0].options.headers.authorization,undefined);
+  assert.equal(played[0].src,'https://api.invalid/storage/v1/object/public/assistant-voice/login_otp-abc.wav');
+  assert.equal(p.spoken.join(' '),'Có thông báo: Mã xác thực chưa đúng.');
+  p.d.querySelector('.va-listen').click();await tick();await tick();assert.equal(p.requests.length,1,'clip URL is cached');
+ }finally{p.close();}
+});
+
+test('A clip URL outside the project storage is ignored and the device voice reads the guide',async()=>{
+ let played;const p=page({preload:w=>{played=audioStub(w);},fetchImpl:()=>({ok:true,json:async()=>({url:'https://evil.invalid/x.wav'})})});try{
+  p.d.querySelector('.va-listen').click();await tick();await tick();
+  assert.equal(played.length,0);assert.match(p.spoken.join(' '),/12 chữ số/);
  }finally{p.close();}
 });

@@ -123,12 +123,13 @@
   // Natural voice made on the server; falls back to the device voice if it cannot play.
   const audioRate = () => ({ 0.75: 0.85, 0.9: 1, 1.1: 1.15 })[Number(prefs.rate)] || 1;
   function speak(text, from, onDone, audio) {
-    if (audio?.data && aiVoice.checked && typeof window.Audio === 'function') {
+    if ((audio?.data || audio?.url) && aiVoice.checked && typeof window.Audio === 'function') {
       haltSpeech();
       if (!onDone && state === 'speaking') setState('idle');
-      const token = speechToken, a = player = new Audio('data:' + audio.mime + ';base64,' + audio.data);
-      const done = () => { if (token !== speechToken) return; player = null; if (from) from.setAttribute('aria-pressed', 'false'); speakingFrom = null; onDone?.(); };
+      const token = speechToken, a = player = new Audio(audio.url || 'data:' + audio.mime + ';base64,' + audio.data);
+      const done = () => { if (token !== speechToken) return; player = null; if (from) from.setAttribute('aria-pressed', 'false'); if (from === listenBtn) listenBtn.querySelector('.va-listen-text').textContent = 'Nghe hướng dẫn'; speakingFrom = null; onDone?.(); };
       speakingFrom = from || null; if (from) from.setAttribute('aria-pressed', 'true');
+      if (from === listenBtn) listenBtn.querySelector('.va-listen-text').textContent = 'Dừng đọc';
       a.playbackRate = audioRate(); a.onended = done;
       a.onerror = () => { if (token === speechToken) speak(text, from, onDone); };
       Promise.resolve().then(() => a.play()).catch(() => { if (token === speechToken) speak(text, from, onDone); });
@@ -172,27 +173,67 @@
     requests: 'Trang này để gửi và theo dõi yêu cầu. Bước 1: bấm nút gửi yêu cầu. Bước 2: chọn loại yêu cầu và ghi nội dung cần sửa. Bước 3: bấm Gửi. Trạng thái sẽ chuyển từ Đã gửi, sang Đã tiếp nhận, Đang xử lý rồi Hoàn thành. Nếu thấy Cần bổ sung, hãy mở yêu cầu, bổ sung rồi gửi lại.',
     security: 'Trang này để đổi mật khẩu. Nhập mật khẩu hiện tại, rồi nhập mật khẩu mới hai lần và bấm lưu. Nếu quên mật khẩu hoặc mất số nhận mã, hãy liên hệ thành viên phụ trách.',
   };
-  function guideText() {
-    const r = route(), parts = [];
-    const title = heading();
+  // Fixed guide texts. The server keeps an identical copy (GUIDE_CLIPS) and turns
+  // each one into a natural female recording once, cached in Supabase Storage.
+  const ASK_HINT = 'Nếu cần hỏi thêm, hãy bấm nút Nói với trợ lý ở góc dưới màn hình rồi nói câu hỏi của bạn.';
+  const PROFILE_NAV = 'Danh sách các trang nằm ở cột bên trái, hoặc nút menu ở đầu trang trên điện thoại. Khi dùng xong, hãy bấm Đăng xuất.';
+  const profileTitles = { personal: 'Thông tin cá nhân', card: 'Căn cước', residence: 'Thông tin cư trú', documents: 'Giấy tờ của tôi', requests: 'Hồ sơ yêu cầu', security: 'Bảo mật tài khoản' };
+  const GUIDE_CLIPS = {
+    login_citizen: 'Chào bạn. Đây là trang đăng nhập Cổng công dân. Bước 1: nhập số căn cước công dân gồm 12 chữ số vào ô đầu tiên. Bước 2: nhập mật khẩu mà cán bộ đã cấp cho bạn. Bước 3: bấm nút Tiếp tục. Sau đó bạn sẽ nhận mã xác thực qua Telegram. Nếu quên mật khẩu, hãy liên hệ thành viên phụ trách.',
+    login_otp: 'Bạn đang ở bước nhập mã xác thực. Mở ứng dụng Telegram trên điện thoại để xem mã gồm 6 chữ số. Nhập 6 chữ số đó vào ô Mã xác thực rồi bấm nút Xác thực và truy cập. Nếu mã hết hạn, chờ hết thời gian rồi bấm Cấp mã mới.',
+    login_member: 'Đây là phần đăng nhập dành cho thành viên dự án. Nếu bạn là công dân, hãy bấm thẻ Công dân ở phía trên.',
+    portal_home: 'Bạn đang ở Cổng công dân.',
+    member_area: 'Đây là khu vực quản lý dành cho thành viên dự án. ' + ASK_HINT,
+  };
+  for (const [page, text] of Object.entries(profileGuides)) GUIDE_CLIPS['profile_' + page] = 'Bạn đang ở trang ' + profileTitles[page] + '. ' + text + ' ' + PROFILE_NAV + ' ' + ASK_HINT;
+  function guideScript() {
+    const r = route();
+    let key;
     if (r === '/login' || r === '' || r === '/') {
-      if (document.getElementById('otp-form')) parts.push('Bạn đang ở bước nhập mã xác thực. Mở ứng dụng Telegram trên điện thoại để xem mã gồm 6 chữ số. Nhập 6 chữ số đó vào ô Mã xác thực rồi bấm nút Xác thực và truy cập. Nếu mã hết hạn, chờ hết thời gian rồi bấm Cấp mã mới.');
-      else if (document.getElementById('member-login')) parts.push('Đây là phần đăng nhập dành cho thành viên dự án. Nếu bạn là công dân, hãy bấm thẻ Công dân ở phía trên.');
-      else if (document.getElementById('citizen-login')) parts.push('Chào bạn. Đây là trang đăng nhập Cổng công dân. Bước 1: nhập số căn cước công dân gồm 12 chữ số vào ô đầu tiên. Bước 2: nhập mật khẩu mà cán bộ đã cấp cho bạn. Bước 3: bấm nút Tiếp tục. Sau đó bạn sẽ nhận mã xác thực qua Telegram. Nếu quên mật khẩu, hãy liên hệ thành viên phụ trách.');
-      else parts.push(title ? 'Bạn đang ở trang ' + title + '.' : 'Bạn đang ở Cổng công dân.');
+      key = document.getElementById('otp-form') ? 'login_otp' : document.getElementById('member-login') ? 'login_member'
+        : document.getElementById('citizen-login') ? 'login_citizen' : 'portal_home';
     } else if (r.startsWith('/profile')) {
       const page = r.split('/')[2] || 'personal';
-      parts.push((title ? 'Bạn đang ở trang ' + title + '. ' : '') + (profileGuides[page] || profileGuides.personal));
-      parts.push('Danh sách các trang nằm ở cột bên trái, hoặc nút menu ở đầu trang trên điện thoại. Khi dùng xong, hãy bấm Đăng xuất.');
-    } else {
-      parts.push((title ? 'Bạn đang ở trang ' + title + '. ' : '') + 'Đây là khu vực quản lý dành cho thành viên dự án.');
-    }
+      key = 'profile_' + (Object.hasOwn(profileGuides, page) ? page : 'personal');
+    } else key = 'member_area';
     const alerts = [...document.querySelectorAll('#portal-app [role=alert], dialog[open] [role=alert]')].map(a => a.textContent.trim()).filter(Boolean);
-    if (alerts.length) parts.push('Có thông báo: ' + alerts.join('. '));
-    if (canAsk()) parts.push('Nếu cần hỏi thêm, hãy bấm nút Nói với trợ lý ở góc dưới màn hình rồi nói câu hỏi của bạn.');
-    return parts.join(' ');
+    return { key, text: GUIDE_CLIPS[key], alert: alerts.length ? 'Có thông báo: ' + alerts.join('. ') : '' };
   }
-  listenBtn.onclick = () => { if (speakingFrom === listenBtn) stopSpeaking(); else { stopListening(); speak(guideText(), listenBtn); } };
+  // Recorded female voice for a guide text; null means "use the device voice".
+  const clipCache = new Map();
+  async function guideClip(key) {
+    if (clipCache.has(key)) return clipCache.get(key);
+    const controller = new AbortController(), timer = setTimeout(() => controller.abort(), 30000);
+    try {
+      const response = await fetch(window.PortalAPI.url + '/functions/v1/gemini-assistant', {
+        method: 'POST', signal: controller.signal,
+        headers: { apikey: window.PortalAPI.key, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ operation: 'guide_audio', key }),
+      });
+      const data = await response.json();
+      const publicPrefix = window.PortalAPI.url + '/storage/v1/object/public/';
+      const clip = response.ok && typeof data.url === 'string' && data.url.startsWith(publicPrefix) ? { url: data.url }
+        : response.ok && typeof data.audio?.data === 'string' && /^audio\/[a-z0-9.+-]+$/i.test(String(data.audio.mime)) ? data.audio : null;
+      if (clip?.url) clipCache.set(key, clip);
+      return clip;
+    } catch { return null; } finally { clearTimeout(timer); }
+  }
+  let guideToken = 0;
+  async function playGuide() {
+    const token = ++guideToken, g = guideScript();
+    stopListening();
+    const label = listenBtn.querySelector('.va-listen-text');
+    let clip = null;
+    if (aiVoice.checked && window.PortalAPI && typeof window.Audio === 'function') {
+      label.textContent = 'Đang chuẩn bị…'; listenBtn.setAttribute('aria-pressed', 'true'); speakingFrom = listenBtn;
+      clip = await guideClip(g.key);
+      if (token !== guideToken) return;
+    }
+    if (!clip) { speak(g.alert ? g.text + ' ' + g.alert : g.text, listenBtn); return; }
+    // Error messages change with each situation, so only they use the device voice.
+    speak(g.text, listenBtn, g.alert ? () => { if (token === guideToken) speak(g.alert, listenBtn); } : undefined, clip);
+  }
+  listenBtn.onclick = () => { if (speakingFrom === listenBtn) { guideToken++; stopSpeaking(); } else playGuide(); };
 
   // ---------- Gemini conversation ----------
   const member = () => window.PortalAuth?.isMember() === true;
