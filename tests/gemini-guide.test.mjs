@@ -43,3 +43,18 @@ test('Missing token, exhausted quota and oversized input are rejected',async()=>
  const calls=backend({citizen:'c-1'});assert.equal((await ask({question:'x'.repeat(1001)})).status,400);assert(!calls.some(c=>c.url.includes('generativelanguage')));
  backend({citizen:'c-1'});assert.equal((await ask({history:[{role:'model',text:'x'},{role:'user',text:'y'}]})).status,400);
 });
+
+function geminiReturns(text,opts){const calls=backend(opts);const base=globalThis.fetch;globalThis.fetch=async(url,o)=>url.includes('generativelanguage')?(calls.push({url,options:o}),Response.json({candidates:[{content:{parts:[{text}]}}]})):base(url,o);return calls;}
+
+test('Guide answers carry a navigation target limited to the caller role',async()=>{
+ let calls=geminiReturns(JSON.stringify({answer:'Mình đã mở trang Hồ sơ yêu cầu.',target:'profile_requests'}),{citizen:'c-1'});
+ let data=await (await ask({})).json();assert.deepEqual(data,{answer:'Mình đã mở trang Hồ sơ yêu cầu.',target:'profile_requests'});
+ const sent=JSON.parse(calls.find(c=>c.url.includes('generativelanguage')).options.body);
+ assert.equal(sent.generationConfig.responseMimeType,'application/json');assert(sent.generationConfig.responseSchema.properties.target.enum.includes('profile_security'));assert(!sent.generationConfig.responseSchema.properties.target.enum.includes('admin'));
+ geminiReturns(JSON.stringify({answer:'Trang quản lý.',target:'admin'}),{citizen:'c-1'});
+ data=await (await ask({})).json();assert.equal(data.target,'none');
+ geminiReturns(JSON.stringify({answer:'Trang quản lý.',target:'admin'}),{member:true});
+ data=await (await ask({})).json();assert.equal(data.target,'admin');
+ geminiReturns('Câu trả lời thường, không phải JSON.',{citizen:'c-1'});
+ data=await (await ask({})).json();assert.deepEqual(data,{answer:'Câu trả lời thường, không phải JSON.',target:'none'});
+});
