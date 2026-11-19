@@ -10,7 +10,7 @@ function page(){
  const wheel=(target,deltaY,options={})=>{const event=new w.WheelEvent('wheel',{bubbles:true,cancelable:true,deltaY,...options});target.dispatchEvent(event);return event;};
  return {w,d,nested,frames,tick,flush,wheel,setEnabled:value=>{on=value;w.dispatchEvent(new w.Event('nhom12motionchange'));},close:()=>w.close()};
 }
-test('All six website entry pages load smooth scrolling after the shared motion policy',()=>{for(const name of ['index','section','editor','portal','database','report']){const s=fs.readFileSync(name+'.html','utf8');assert(s.includes('smooth-scroll.js?v=20261103-scroll2'),name);assert(s.indexOf('motion.js?')<s.indexOf('smooth-scroll.js?'),name);}});
+test('All website pages load smooth scrolling after the shared motion policy',()=>{for(const name of ['portal','database']){const s=fs.readFileSync(name+'.html','utf8');assert(s.includes('smooth-scroll.js?v=20261103-scroll2'),name);assert(s.indexOf('motion.js?')<s.indexOf('smooth-scroll.js?'),name);}});
 test('Document wheel scroll interpolates, settles at the requested position and reverses immediately',()=>{
  const p=page();try{assert(p.wheel(p.d.querySelector('#plain'),240).defaultPrevented);assert.equal(p.w.scrollY,0);p.tick();assert(p.w.scrollY>0&&p.w.scrollY<240);const reverseFrom=p.w.scrollY;p.wheel(p.d.querySelector('#plain'),-20);p.flush();assert.equal(p.w.scrollY,Math.max(0,reverseFrom-20));p.wheel(p.d.querySelector('#plain'),3000);p.flush();assert.equal(p.w.scrollY,2000);}finally{p.close();}
 });

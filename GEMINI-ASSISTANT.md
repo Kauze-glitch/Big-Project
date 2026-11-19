@@ -1,38 +1,36 @@
-# Trợ lý Gemini
+# Trợ lý giọng nói của Cổng công dân
 
-Khung chat ở góc phải trên trang tổng quan, trang nội dung và trình biên soạn. Chỉ thành viên có `sections.owner_id` trùng tài khoản đang đăng nhập được sử dụng.
+Cổng công dân (`portal.html`) có hai nút ở góc dưới bên phải màn hình:
+
+- **🔊 Nghe hướng dẫn**: dành cho mọi người, kể cả khách chưa đăng nhập. Máy đọc to các bước của màn hình đang mở (đăng nhập, nhập mã OTP, từng trang hồ sơ) và đọc cả thông báo lỗi đang hiện. Nút này dùng giọng đọc có sẵn trên thiết bị (`speechSynthesis`), không gọi AI và không tốn phí.
+- **💬 Hỏi trợ lý**: chỉ hiện với công dân đã xác thực OTP và với thành viên dự án. Người dùng bấm **Bấm để nói** để nói câu hỏi (`SpeechRecognition`, tiếng Việt), hoặc gõ chữ. Gemini trả lời bằng câu ngắn, theo từng bước, và câu trả lời được đọc to tự động. Muốn tắt đọc tự động thì bỏ chọn ô tương ứng.
+
+Mã nguồn nằm ở `portal-assistant.js`, `portal-assistant.css` và `supabase/functions/gemini-assistant/index.ts` (thao tác `operation: "guide"`).
 
 ## Triển khai
 
-1. Chạy `supabase/20261023_ai_quota.sql` trong SQL Editor.
-2. Trong Edge Functions → Secrets, thêm `GEMINI_API_KEY`. Không lưu key vào mã nguồn, trình duyệt hoặc Git.
-3. Deploy `supabase/functions/gemini-assistant/index.ts` với tên `gemini-assistant`.
-4. Cấu hình `verify_jwt = false` như `supabase/config.toml`. Bộ kiểm tra legacy JWT của gateway không dùng được với tất cả signing key mới. Function tự xác minh **mọi** bearer token bằng Supabase Auth `/user`, rồi kiểm tra thành viên từ bảng sections. Không được xóa hai kiểm tra này.
-5. Mặc định dùng `gemini-3.5-flash-lite`. Có thể đặt secret `GEMINI_MODEL` sang model văn bản mà project Google được phép dùng; không tự thay đổi billing.
-6. Đưa `assistant.js`, `assistant.css`, `shared.js` và ba trang HTML lên GitHub Pages.
+1. Chạy `supabase/migrations/20261119000000_ai_guide_quota.sql` trong SQL Editor. Lệnh này tạo bảng `ai_guide_usage` và hàm `reserve_ai_guide_request`. Giới hạn là 5 câu/phút và 40 câu/ngày cho mỗi tài khoản, tính riêng với hạn mức của thành viên.
+2. Secret `GEMINI_API_KEY` (và `GEMINI_MODEL` nếu cần) đặt trong Edge Functions → Secrets như trước. Không đưa key vào mã nguồn.
+3. Deploy lại function `gemini-assistant`. Giữ `verify_jwt = false` như trong `supabase/config.toml`, vì function tự xác minh mọi bearer token.
 
-Backend chỉ dùng secret mặc định Supabase trong môi trường server. Không gửi secret, dữ liệu tài khoản hay `owner_id` cho Google.
+## Kiểm soát truy cập và dữ liệu
 
-## Hành vi và giới hạn của khung chat
+- Máy chủ xác minh token bằng Supabase Auth `/user`. Sau đó máy chủ chỉ cho phép khi `cd_current_citizen()` trả về công dân, nghĩa là phiên đã qua OTP, hoặc khi tài khoản là chủ một phần trong bảng `sections`, tức thành viên dự án. Người khác bị từ chối trước khi gọi Gemini và trước khi trừ hạn mức.
+- Gemini chỉ nhận một bản hướng dẫn sử dụng cố định, tên màn hình đang mở, câu hỏi và tối đa 3 cặp hỏi–đáp gần nhất. Không gửi hồ sơ công dân, số căn cước hay token.
+- Lời nhắc hệ thống yêu cầu trả lời đơn giản, dễ nghe, không Markdown, và không bao giờ hỏi mật khẩu, mã OTP hay số căn cước. Câu trả lời hiển thị bằng `textContent`, nên HTML do AI tạo không chạy được.
+- Lịch sử chat chỉ nằm trong bộ nhớ tab. Lịch sử bị xóa khi đăng xuất hoặc đổi tài khoản, và không lưu vào DB.
 
-- Tham khảo tất cả các phần hoặc một phần được chọn, tải từ Supabase bằng quyền người gọi. Không nhận nội dung tài liệu do client tự gán.
-- Chỉ gửi bản đã lưu, chữ trong bảng, chú thích và nhãn/đường nối sơ đồ. Không gửi ảnh/base64, hồ sơ thành viên hoặc bản nháp riêng.
-- Câu hỏi tối đa 2.000 ký tự; lịch sử tối đa 3 cặp hỏi–đáp chỉ giữ trong bộ nhớ tab. Đổi phạm vi, cuộc trò chuyện mới hoặc đăng xuất sẽ xóa lịch sử.
-- Tài liệu giới hạn 42.000 ký tự, chia đều cho các phần. Khi rút gọn, UI báo rõ. Câu trả lời có liên kết tới các phần đã gửi làm nguồn; đây không phải xác nhận tự động rằng mọi nhận định của AI đều đúng.
-- Trong khung chat, AI chỉ trả lời, không tự chỉnh sửa bài, không truy cập công cụ hay chạy SQL. Kết quả được hiển thị bằng `textContent`, không render HTML do AI tạo.
-- Quota máy chủ: 6 lượt/phút, 100 lượt/ngày theo giờ Việt Nam cho mỗi thành viên. Lượt đã gửi kể cả lỗi Gemini hoặc người dùng dừng chờ vẫn tính; không tự thử lại gây thêm chi phí.
-- Chỉ hàm backend có quyền gọi RPC quota. Thao tác đếm có khóa hàng để tránh nhiều yêu cầu đồng thời vượt giới hạn. Không lưu nội dung hội thoại vào DB.
-- Nút Dừng hủy chờ ở trình duyệt; yêu cầu đã đến Gemini có thể vẫn tiếp tục. Đăng xuất ngăn phản hồi cũ xuất hiện.
-- CORS cho origin GitHub Pages của repo; thử UI local dùng fixture ngoài repo.
+## Thiết bị hỗ trợ
 
-## Kiểm tra
+- Đọc to chạy trên Chrome, Edge và Safari. Chất lượng phụ thuộc giọng tiếng Việt có trên máy: Android, iOS và macOS thường có sẵn; Windows có thể phải cài thêm gói giọng nói tiếng Việt. Nếu không có giọng tiếng Việt, trang hiện nhắc nhở.
+- Nói bằng micro cần Chrome hoặc Edge, kể cả trên Android, hoặc Safari mới. Trình duyệt không hỗ trợ sẽ ẩn nút micro và chỉ còn ô gõ chữ. Lần đầu dùng, trình duyệt hỏi quyền micro.
 
-Kiểm thử handler bằng Node với Auth/DB/Gemini giả lập: guest, token hỏng, người ngoài nhóm, quota, lỗi cấu hình/model, body/history quá dài, lọc ảnh/hồ sơ, nhãn sơ đồ, tài liệu dài, không lộ lỗi chứa secret.
+## Kiểm thử
 
-Kiểm thử trình duyệt: mở/đóng, gửi câu hỏi, nguồn tham khảo, HTML độc hại hiển thị như chữ, giữ câu hỏi khi lỗi, xóa hội thoại, đăng xuất khi đang chờ. Cần thêm một lượt hỏi thật trên tài khoản thành viên để xác nhận key/model/quota Google.
+- `tests/portal-assistant.test.mjs`: hướng dẫn đọc to cho khách, bước OTP và đọc lỗi; công dân hỏi bằng chữ; HTML hiển thị như chữ; đăng xuất thì ẩn và xóa hội thoại.
+- `tests/gemini-guide.test.mjs`: công dân đã OTP và thành viên được phép; người khác bị từ chối trước khi gọi Gemini; thiếu token, hết hạn mức hoặc nhập quá dài đều bị chặn.
+- Cần thử thật một lượt trên điện thoại với tài khoản công dân sau khi deploy, để xác nhận key, model, hạn mức và giọng đọc của thiết bị.
 
-Tài liệu API: https://ai.google.dev/api/generate-content và https://supabase.com/docs/guides/functions/secrets.
+## Thao tác cũ cho trang báo cáo
 
-## Chỉnh đoạn văn trong trình biên soạn
-
-Chế độ riêng `operation: rewrite` nhận đoạn bản nháp do thành viên chủ phần chọn (tối đa 6.000 ký tự). Chỉ đoạn này được gửi tới Gemini sau khi người dùng bấm Tạo đề xuất; không gửi các phần khác hay lịch sử chat. Kiểm tra owner ở máy chủ. Xem `EDITOR-WORKFLOW.md` để triển khai và sử dụng xem trước, áp dụng vào bản nháp, hoàn tác và tiến độ.
+Function vẫn giữ hai thao tác `chat` và `rewrite` cũ dành cho thành viên. Giao diện trang báo cáo đã bị gỡ khỏi repo nên hiện không còn trang nào gọi hai thao tác này. Bảng `ai_usage` và `supabase/20261023_ai_quota.sql` được giữ để không làm hỏng dữ liệu đã có.
