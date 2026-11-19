@@ -110,7 +110,25 @@
   const forSpeech = text => String(text)
     .replace(/\bCCCD\b/g, 'căn cước công dân').replace(/\bOTP\b/g, 'mã xác thực').replace(/\bAI\b/g, 'trợ lý')
     .replace(/[\u{1F300}-\u{1FAFF}☀-➿→←✓■…]/gu, ' ').replace(/\s*\/\s*/g, ' hoặc ').replace(/\s+/g, ' ').trim();
-  let player = null;
+  let player = null, voiceEl = null, voiceUnlocked = false;
+  // One reusable <audio> element. Playing it once inside a click "unlocks" it, so the
+  // AI voice can still play seconds later when the answer arrives (Brave/Safari block
+  // audio that starts without a recent click otherwise).
+  const SILENT_WAV = (() => {
+    const bytes = new Uint8Array(44 + 800), view = new DataView(bytes.buffer);
+    const tag = (o, s) => [...s].forEach((ch, i) => view.setUint8(o + i, ch.charCodeAt(0)));
+    tag(0, 'RIFF'); view.setUint32(4, 36 + 800, true); tag(8, 'WAVE'); tag(12, 'fmt ');
+    view.setUint32(16, 16, true); view.setUint16(20, 1, true); view.setUint16(22, 1, true);
+    view.setUint32(24, 8000, true); view.setUint32(28, 16000, true); view.setUint16(32, 2, true); view.setUint16(34, 16, true);
+    tag(36, 'data'); view.setUint32(40, 800, true);
+    return 'data:audio/wav;base64,' + btoa(String.fromCharCode(...bytes));
+  })();
+  const voiceElement = () => voiceEl || (typeof window.Audio === 'function' ? (voiceEl = new Audio()) : null);
+  function unlockVoice() {
+    const a = voiceElement();
+    if (!a || voiceUnlocked || !aiVoice.checked || player) return;
+    try { a.src = SILENT_WAV; const p = a.play(); if (p?.then) p.then(() => { voiceUnlocked = true; }, () => {}); } catch { /* fall back later */ }
+  }
   function haltSpeech() {
     speechToken++;
     synth?.cancel();
@@ -123,16 +141,25 @@
   // Natural voice made on the server; falls back to the device voice if it cannot play.
   const audioRate = () => ({ 0.75: 0.85, 0.9: 1, 1.1: 1.15 })[Number(prefs.rate)] || 1;
   function speak(text, from, onDone, audio) {
-    if ((audio?.data || audio?.url) && aiVoice.checked && typeof window.Audio === 'function') {
+    if ((audio?.data || audio?.url) && aiVoice.checked && voiceElement()) {
       haltSpeech();
       if (!onDone && state === 'speaking') setState('idle');
-      const token = speechToken, a = player = new Audio(audio.url || 'data:' + audio.mime + ';base64,' + audio.data);
-      const done = () => { if (token !== speechToken) return; player = null; if (from) from.setAttribute('aria-pressed', 'false'); if (from === listenBtn) listenBtn.querySelector('.va-listen-text').textContent = 'Nghe hướng dẫn'; speakingFrom = null; onDone?.(); };
+      const token = speechToken, a = player = voiceElement();
+      const done = () => { if (token !== speechToken || player !== a) return; player = null; if (from) from.setAttribute('aria-pressed', 'false'); if (from === listenBtn) listenBtn.querySelector('.va-listen-text').textContent = 'Nghe hướng dẫn'; speakingFrom = null; onDone?.(); };
+      const fallback = reason => {
+        if (token !== speechToken) return;
+        player = null;
+        notice(reason === 'NotAllowedError'
+          ? 'Trình duyệt đang chặn phát giọng AI nên tạm dùng giọng của máy. Với Brave: bấm biểu tượng sư tử hoặc ổ khóa cạnh địa chỉ web, cho phép "Tự động phát" (Autoplay) rồi tải lại trang.'
+          : 'Chưa phát được giọng AI nên tạm dùng giọng của máy.');
+        speak(text, from, onDone);
+      };
       speakingFrom = from || null; if (from) from.setAttribute('aria-pressed', 'true');
       if (from === listenBtn) listenBtn.querySelector('.va-listen-text').textContent = 'Dừng đọc';
-      a.playbackRate = audioRate(); a.onended = done;
-      a.onerror = () => { if (token === speechToken) speak(text, from, onDone); };
-      Promise.resolve().then(() => a.play()).catch(() => { if (token === speechToken) speak(text, from, onDone); });
+      a.onended = done; a.onerror = () => fallback('error');
+      a.src = audio.url || 'data:' + audio.mime + ';base64,' + audio.data;
+      a.playbackRate = audioRate();
+      Promise.resolve().then(() => a.play()).then(() => { voiceUnlocked = true; }, e => fallback(e?.name));
       return;
     }
     if (!synth) { notice('Trình duyệt này chưa hỗ trợ đọc to. Hãy dùng Chrome, Edge hoặc Safari.'); onDone?.(); return; }
@@ -233,7 +260,7 @@
     // Error messages change with each situation, so only they use the device voice.
     speak(g.text, listenBtn, g.alert ? () => { if (token === guideToken) speak(g.alert, listenBtn); } : undefined, clip);
   }
-  listenBtn.onclick = () => { if (speakingFrom === listenBtn) { guideToken++; stopSpeaking(); } else playGuide(); };
+  listenBtn.onclick = () => { if (speakingFrom === listenBtn) { guideToken++; stopSpeaking(); } else { unlockVoice(); playGuide(); } };
 
   // ---------- Gemini conversation ----------
   const member = () => window.PortalAuth?.isMember() === true;
@@ -320,7 +347,7 @@
     item.append(el('strong', 'va-who', role === 'user' ? 'Bạn' : 'Trợ lý'), el('p', '', text));
     if (role === 'model') {
       const again = el('button', 'va-again', '🔊 Đọc lại'); again.type = 'button';
-      again.onclick = () => { stopListening(); speak(text, again, undefined, audio); };
+      again.onclick = () => { unlockVoice(); stopListening(); speak(text, again, undefined, audio); };
       item.append(again);
     }
     log.append(item); log.scrollTop = log.scrollHeight;
@@ -339,6 +366,7 @@
   function close() { stopListening(); if (state === 'speaking') stopSpeaking(); panel.hidden = true; askBtn.setAttribute('aria-expanded', 'false'); host.classList.remove('va-open'); }
   // One press: open the panel and start listening straight away.
   askBtn.onclick = () => {
+    unlockVoice();
     if (panel.hidden) { open(); if (Recognition) startListening(); else input.focus(); return; }
     if (state === 'listening') stopListening(); else if (state !== 'thinking') startListening();
   };
@@ -382,6 +410,7 @@
       controller = null; clearTimeout(timer);
       const place = typeof data.target === 'string' && data.target !== 'none' ? await goTo(data.target) : null;
       const audio = data.audio && typeof data.audio.data === 'string' && /^audio\/[a-z0-9.+-]+$/i.test(String(data.audio.mime)) ? data.audio : null;
+      if (!audio && autoRead.checked && aiVoice.checked) notice('Chưa tạo được giọng AI cho câu này nên tạm dùng giọng của máy.');
       deliver(data.answer, place, audio);
     } catch (error) {
       if (controller !== mine) return;
@@ -399,8 +428,8 @@
       clearTimeout(timer);
     }
   }
-  form.onsubmit = e => { e.preventDefault(); ask(input.value); };
-  input.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); ask(input.value); } });
+  form.onsubmit = e => { e.preventDefault(); unlockVoice(); ask(input.value); };
+  input.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); unlockVoice(); ask(input.value); } });
 
   // ---------- Speech input ----------
   let recognizer = null;
@@ -441,7 +470,7 @@
     $('.va-label').textContent = 'Gõ câu hỏi (trình duyệt này chưa nghe được giọng nói, hãy dùng Chrome hoặc Edge)';
     continuous.closest('label').hidden = true;
   }
-  micBtn.onclick = () => { if (state === 'listening') stopListening(); else startListening(); };
+  micBtn.onclick = () => { unlockVoice(); if (state === 'listening') stopListening(); else startListening(); };
 
   window.addEventListener('hashchange', () => { if (speakingFrom === listenBtn) stopSpeaking(); sync(); });
   window.addEventListener('portalauthchange', sync);
