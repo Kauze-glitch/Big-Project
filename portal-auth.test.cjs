@@ -41,3 +41,5 @@ test('Changing accounts revokes immediately and cannot retain previous membershi
 test('Refreshing the same token still revokes access when server validation fails',async()=>{
  const x=setup('one');await settle();x.setFailure(true);x.signal('TOKEN_REFRESHED','one');await new Promise(r=>setTimeout(r,10));assert.equal(x.window.PortalAuth.isMember(),false);assert.equal(x.window.PortalAuth.status(),'unavailable');
 });
+test('Explicit sign-in check survives the concurrent Auth event check (member is not signed out)',async()=>{const x=setup(null);await settle();x.setUser('one');x.signal('SIGNED_IN','one');assert.equal(await x.window.PortalAuth.verify(),true);assert.equal(x.window.PortalAuth.isMember(),true);});
+test('Explicit sign-in check still rejects a non-member during the Auth event check',async()=>{const x=setup(null);await settle();x.setUser('outsider');x.signal('SIGNED_IN','outsider');assert.equal(await x.window.PortalAuth.verify(),false);assert.equal(x.window.PortalAuth.status(),'ready');});
