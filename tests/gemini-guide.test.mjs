@@ -114,3 +114,15 @@ test('Only allowlisted female voices are used; unknown voices fall back to the d
  const ask2=backend({citizen:'c-1'});const base=globalThis.fetch;globalThis.fetch=async(url,o)=>{if(url.includes('-tts:')){ask2.push({url,options:o});return Response.json({candidates:[{content:{parts:[{inlineData:{mimeType:'audio/wav',data:'UklGRg=='}}]}}]});}return base(url,o);};
  await (await ask({audio:true,voice:'Sulafat'})).json();assert.equal(voiceOf(ask2),'Sulafat');
 });
+
+test('When TTS quota is exhausted the same guide recorded in another female voice is served, with the reason',async()=>{
+ const calls=[];globalThis.fetch=async(url,o={})=>{calls.push(url);
+  if(url.includes('/storage/v1/object/public/assistant-voice/'))return new Response(null,{status:calls.filter(u=>u.includes('/public/')).length===1?404:(url.includes('portal_home')&&calls.filter(u=>u.includes('/public/')).length===3?200:404)});
+  if(url.includes('-tts:'))return new Response('{}',{status:429});
+  throw new Error('unexpected '+url);};
+ const res=await handler(new Request('https://fn.invalid',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({operation:'guide_audio',key:'portal_home',voice:'Leda'})}));
+ const data=await res.json();assert.equal(res.status,200);assert.equal(data.reason,'http_429');assert.equal(data.voice,'Sulafat');assert.match(data.url,/portal_home-/);
+ globalThis.fetch=async url=>url.includes('-tts:')?new Response('{}',{status:429}):new Response(null,{status:404});
+ const none=await handler(new Request('https://fn.invalid',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({operation:'guide_audio',key:'portal_home',voice:'Leda'})}));
+ assert.equal(none.status,502);assert.equal((await none.json()).reason,'http_429');
+});

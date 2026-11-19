@@ -234,3 +234,10 @@ test('Questions send the chosen AI voice and the settings show the version and B
   assert.equal(p.requests[0].body.voice,'Sulafat');assert.equal(p.requests[0].body.audio,true);
  }finally{p.close();}
 });
+
+test('Running out of Gemini voice quota is explained instead of silently switching voice',async()=>{
+ const p=page({citizen:true,hash:'#/profile/personal',body:'<h1>Thông tin cá nhân</h1>',fetchImpl:()=>({ok:true,json:async()=>({answer:'Trả lời.',target:'none',audioError:'http_429'})})});try{
+  p.d.querySelector('.va-ask').click();p.d.querySelector('#va-question').value='Hỏi';p.d.querySelector('.va-form').requestSubmit();await tick();
+  assert.match(p.d.querySelector('.va-status').textContent,/hết lượt tạo giọng AI miễn phí/);
+ }finally{p.close();}
+});

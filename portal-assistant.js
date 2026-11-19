@@ -431,7 +431,9 @@
       controller = null; clearTimeout(timer);
       const place = typeof data.target === 'string' && data.target !== 'none' ? await goTo(data.target) : null;
       const audio = data.audio && typeof data.audio.data === 'string' && /^audio\/[a-z0-9.+-]+$/i.test(String(data.audio.mime)) ? data.audio : null;
-      if (!audio && autoRead.checked && aiVoice.checked) notice('Chưa tạo được giọng AI cho câu này nên tạm dùng giọng của máy.');
+      if (!audio && autoRead.checked && aiVoice.checked) notice(data.audioError === 'http_429'
+        ? 'Hôm nay đã hết lượt tạo giọng AI miễn phí của Gemini, nên câu trả lời tạm đọc bằng giọng của máy. Nút Nghe hướng dẫn vẫn dùng giọng nữ đã lưu sẵn.'
+        : 'Chưa tạo được giọng AI cho câu này nên tạm dùng giọng của máy.');
       deliver(data.answer, place, audio);
     } catch (error) {
       if (controller !== mine) return;
