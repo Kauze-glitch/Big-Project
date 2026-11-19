@@ -9,7 +9,7 @@ function page({member=false,citizen=false,hash='#/login',body='<form id="citizen
  const dom=new JSDOM(`<div id="portal-app"><main id="portal-main">${body}</main></div>`,{url:'https://fixture.invalid/portal.html'+hash,runScripts:'outside-only'}),w=dom.window,spoken=[],requests=[],utterances=[];
  w.SpeechSynthesisUtterance=class{constructor(text){this.text=text;}};
  w.speechSynthesis={getVoices:()=>voices,cancel(){},speak(u){spoken.push(u.text);utterances.push(u);u.onend?.();}};preload?.(w);
- if(!aiVoice)w.localStorage.setItem('nhom12-voice',JSON.stringify({aiVoice:false}));
+ if(aiVoice)w.localStorage.setItem('nhom12-voice',JSON.stringify({aiVoice:true,v:2}));
  const state={member,citizen};
  w.PortalAuth={isMember:()=>state.member,client:()=>({auth:{getSession:async()=>({data:{session:{access_token:'member-token'}}})}})};
  w.PortalAPI={url:'https://api.invalid',key:'publishable',memberId:()=>state.member?'one':null};
@@ -166,7 +166,7 @@ test('A clip URL outside the project storage is ignored and the device voice rea
 test('Voice picker offers the female AI voice first, labels device voices, and "Nghe thử" plays the selected voice',async()=>{
  let played;const p=page({aiVoice:true,voices:[{lang:'vi-VN',name:'Microsoft An - Vietnamese (Vietnam)',localService:true}],preload:w=>{played=audioStub(w);},fetchImpl:()=>({ok:true,json:async()=>({url:'https://api.invalid/storage/v1/object/public/assistant-voice/portal_home-1.wav'})})});try{
   const select=p.d.querySelector('[name=voice]');
-  assert.deepEqual([...select.options].map(o=>o.textContent),['Giọng nữ AI: trẻ trung, rõ (khuyên dùng)','Giọng nữ AI: nhẹ nhàng','Giọng nữ AI: ấm áp','Giọng nữ AI: trầm','Giọng của máy: tự chọn','Giọng của máy: An (nam)']);
+  assert.deepEqual([...select.options].map(o=>o.textContent),['Giọng nữ AI: trẻ trung, rõ (bấm nút để nghe)','Giọng nữ AI: nhẹ nhàng','Giọng nữ AI: ấm áp','Giọng nữ AI: trầm','Giọng của máy: tự chọn (tự đọc ngay)','Giọng của máy: An (nam)']);
   assert.equal(select.value,'ai:Leda');
   p.d.querySelector('.va-try').click();await tick();await tick();
   assert.deepEqual(p.requests[0].body,{operation:'guide_audio',key:'portal_home',voice:'Leda'});
@@ -253,5 +253,24 @@ test('A click unlocks one shared audio element that later plays the answer voice
 test('Settings show the assistant version and Brave',()=>{
  const p=page({citizen:true,preload:w=>{Object.defineProperty(w.navigator,'userAgentData',{value:{brands:[{brand:'Brave',version:'140'}]}});}});try{
   assert.match(p.d.querySelector('.va-version').textContent,/Phiên bản trợ lý: .+ · Brave/);assert.equal(p.d.querySelector('.va-mic').hidden,true);
+ }finally{p.close();}
+});
+
+test('By default the answer to a spoken question is read aloud right away with the device voice, no button needed',async()=>{
+ const mics=[];const p=page({citizen:true,hash:'#/profile/personal',body:'<h1>Thông tin cá nhân</h1>',preload:w=>{w.SpeechRecognition=class{constructor(){mics.push(this);}start(){}abort(){}};}});try{
+  assert.equal(p.d.querySelector('[name=voice]').value,'');
+  p.d.querySelector('.va-ask').click();
+  mics[0].onresult({resultIndex:0,results:[Object.assign([{transcript:'Sửa địa chỉ'}],{isFinal:true})]});mics[0].onend();await tick();
+  assert.equal(p.requests[0].body.question,'Sửa địa chỉ');assert(p.spoken.some(t=>/Bước 1/.test(t)),'answer read without pressing anything');
+  assert.equal(mics.length,2,'then listens for the next question');
+ }finally{p.close();}
+});
+
+test('Settings saved before the new default switch to the device voice once; a later AI choice is kept',()=>{
+ let p=page({preload:w=>w.localStorage.setItem('nhom12-voice',JSON.stringify({aiVoice:true,aiVoiceName:'Aoede',autoRead:false,rate:0.75}))});try{
+  assert.equal(p.d.querySelector('[name=voice]').value,'');assert.equal(p.d.querySelector('[name=autoRead]').checked,true);assert.equal(p.d.querySelector('[name=rate]').value,'0.75');
+ }finally{p.close();}
+ p=page({preload:w=>w.localStorage.setItem('nhom12-voice',JSON.stringify({aiVoice:true,aiVoiceName:'Aoede',v:2}))});try{
+  assert.equal(p.d.querySelector('[name=voice]').value,'ai:Aoede');
  }finally{p.close();}
 });

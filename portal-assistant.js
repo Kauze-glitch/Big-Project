@@ -6,14 +6,22 @@
   const synth = window.speechSynthesis;
   // Brave exposes the API but blocks the speech service behind it, so treat it as unsupported.
   const isBrave = !!window.navigator?.brave || (window.navigator?.userAgentData?.brands || []).some(b => /brave/i.test(b.brand));
-  const VERSION = '2026-11-20.4';
+  const VERSION = '2026-11-20.5';
   const Recognition = isBrave ? null : (window.SpeechRecognition || window.webkitSpeechRecognition);
   const el = (tag, cls, text) => { const x = document.createElement(tag); if (cls) x.className = cls; if (text !== undefined) x.textContent = text; return x; };
 
   // ---------- Saved per-device preferences ----------
   const PREF_KEY = 'nhom12-voice';
-  const prefs = { rate: 0.9, voice: '', autoRead: true, continuous: true, aiVoice: true, aiVoiceName: 'Leda' };
-  try { Object.assign(prefs, JSON.parse(localStorage.getItem(PREF_KEY) || '{}')); } catch { /* storage unavailable */ }
+  // Default: the device voice, so answers are read aloud at once with no button and no
+  // Gemini quota. The female AI voice stays available (read on demand) in the settings.
+  const PREFS_VERSION = 2;
+  const prefs = { rate: 0.9, voice: '', autoRead: true, continuous: true, aiVoice: false, aiVoiceName: 'Leda', v: PREFS_VERSION };
+  try {
+    const saved = JSON.parse(localStorage.getItem(PREF_KEY) || '{}');
+    // Choices saved before version 2 had the AI voice on by default; start them on the device voice.
+    if (saved.v !== PREFS_VERSION) { delete saved.aiVoice; saved.autoRead = true; saved.v = PREFS_VERSION; }
+    Object.assign(prefs, saved);
+  } catch { /* storage unavailable */ }
   const savePrefs = () => { try { localStorage.setItem(PREF_KEY, JSON.stringify(prefs)); } catch { /* storage unavailable */ } };
 
   const host = el('div', 'va-dock');
@@ -90,14 +98,14 @@
     return voices.find(v => v.name === prefs.voice) || voices[0] || null;
   }
   // Female Gemini voices (server allowlist TTS_VOICES); the first is the default.
-  const AI_VOICES = [['Leda', 'Giọng nữ AI: trẻ trung, rõ (khuyên dùng)'], ['Aoede', 'Giọng nữ AI: nhẹ nhàng'], ['Sulafat', 'Giọng nữ AI: ấm áp'], ['Kore', 'Giọng nữ AI: trầm']];
+  const AI_VOICES = [['Leda', 'Giọng nữ AI: trẻ trung, rõ (bấm nút để nghe)'], ['Aoede', 'Giọng nữ AI: nhẹ nhàng'], ['Sulafat', 'Giọng nữ AI: ấm áp'], ['Kore', 'Giọng nữ AI: trầm']];
   // The natural AI voice comes first; device voices are labelled so a male one is obvious.
   const voiceGender = v => /hoaimy|hoài my|linh|female|\bnữ\b|\bmy\b/i.test(v.name) ? ' (nữ)' : /namminh|nam minh|\ban\b|male|\bnam\b/i.test(v.name) ? ' (nam)' : '';
   const voiceLabel = v => 'Giọng của máy: ' + v.name.replace(/^Microsoft\s+/i, '').replace(/\s*-\s*Vietnamese.*$/i, '').replace(/\s*Online \(Natural\)/i, '') + voiceGender(v);
   function fillVoices() {
     const voices = vietnameseVoices();
     voiceSelect.replaceChildren(...AI_VOICES.map(([name, label]) => new Option(label, 'ai:' + name)),
-      new Option(voices.length ? 'Giọng của máy: tự chọn' : 'Giọng của máy (máy chưa có giọng tiếng Việt)', ''),
+      new Option(voices.length ? 'Giọng của máy: tự chọn (tự đọc ngay)' : 'Giọng của máy (máy chưa có giọng tiếng Việt)', ''),
       ...voices.map(v => new Option(voiceLabel(v), v.name)));
     voiceSelect.value = prefs.aiVoice !== false ? 'ai:' + (AI_VOICES.some(([n]) => n === prefs.aiVoiceName) ? prefs.aiVoiceName : AI_VOICES[0][0])
       : voices.some(v => v.name === prefs.voice) ? prefs.voice : '';
