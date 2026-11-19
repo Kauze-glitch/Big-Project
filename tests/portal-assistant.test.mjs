@@ -135,3 +135,31 @@ test('Keyword fallback does not confuse "như thế nào" with the ID card or "�
   assert.equal(p.w.location.hash,'#/profile/personal');assert.match(p.d.querySelector('.va-status').textContent,/Lỗi/);
  }finally{p.close();}
 });
+
+function audioStub(w,{fail=false}={}){const played=[];w.Audio=class{constructor(src){this.src=src;played.push(this);}play(){if(fail)return Promise.reject(new Error('blocked'));this.playing=true;setTimeout(()=>this.onended?.(),0);return Promise.resolve();}pause(){this.paused=true;}};return played;}
+
+test('Answers with server audio play the natural female voice instead of the device voice',async()=>{
+ let played;const p=page({citizen:true,hash:'#/profile/personal',body:'<h1>Thông tin cá nhân</h1>',preload:w=>{played=audioStub(w);},fetchImpl:()=>({ok:true,json:async()=>({answer:'Xin chào bạn.',target:'none',audio:{mime:'audio/wav',data:'UklGRg=='}})})});try{
+  p.d.querySelector('.va-ask').click();p.d.querySelector('#va-question').value='Chào';p.d.querySelector('.va-form').requestSubmit();await tick();await tick();
+  assert.equal(p.requests[0].body.audio,true);
+  assert.equal(played.length,1);assert.equal(played[0].src,'data:audio/wav;base64,UklGRg==');assert(played[0].playing);
+  assert.equal(p.spoken.length,0,'device voice not used');assert.equal(p.d.querySelector('.va-state').dataset.state,'idle');
+  p.d.querySelector('.va-model:last-child .va-again').click();assert.equal(played.length,2,'replay uses the same natural voice');
+ }finally{p.close();}
+});
+
+test('Blocked audio playback falls back to the device voice; turning AI voice off asks for no audio',async()=>{
+ const p=page({citizen:true,hash:'#/profile/personal',body:'<h1>Thông tin cá nhân</h1>',preload:w=>audioStub(w,{fail:true}),fetchImpl:()=>({ok:true,json:async()=>({answer:'Bước 1: mở trang.',target:'none',audio:{mime:'audio/wav',data:'UklGRg=='}})})});try{
+  p.d.querySelector('.va-ask').click();p.d.querySelector('#va-question').value='Câu hỏi';p.d.querySelector('.va-form').requestSubmit();await tick();await tick();
+  assert(p.spoken.some(t=>/Bước 1/.test(t)));
+  const ai=p.d.querySelector('[name=aiVoice]');ai.checked=false;ai.dispatchEvent(new p.w.Event('change'));
+  p.d.querySelector('#va-question').value='Câu khác';p.d.querySelector('.va-form').requestSubmit();await tick();
+  assert.equal(p.requests[1].body.audio,false);assert.equal(JSON.parse(p.w.localStorage.getItem('nhom12-voice')).aiVoice,false);
+ }finally{p.close();}
+});
+
+test('Device voice prefers a Vietnamese female voice over a male one',()=>{
+ const p=page({voices:[{lang:'vi-VN',name:'Microsoft NamMinh Online (Natural) - Vietnamese (Vietnam)',localService:false},{lang:'vi-VN',name:'Microsoft An - Vietnamese (Vietnam)',localService:true},{lang:'vi-VN',name:'Google Tiếng Việt',localService:false}]});try{
+  p.d.querySelector('.va-listen').click();assert.equal(p.utterances[0].voice.name,'Google Tiếng Việt');
+ }finally{p.close();}
+});

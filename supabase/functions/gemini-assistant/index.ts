@@ -156,7 +156,42 @@ async function guideAnswer(body, user, authorization, c) {
   } catch { /* plain text answer without navigation */ }
   answer = answer.replace(/[*#\x60]/g,'').trim();
   if (!answer) return reply(502,{error:'Trợ lý chưa hiểu câu hỏi. Hãy nói lại theo cách khác.'});
-  return reply(200,{answer:answer.slice(0,3000),target});
+  answer = answer.slice(0,3000);
+  // Optional natural female voice; the browser falls back to its own voice without it.
+  const audio = body.audio === true ? await speech(answer, c).catch(() => null) : null;
+  return reply(200,{answer,target,...(audio ? {audio} : {})});
+}
+
+// Gemini text-to-speech. Returns {mime, data} with WAV audio as base64, or null.
+async function speech(text, c) {
+  const model = env('GEMINI_TTS_MODEL') || 'gemini-2.5-flash-preview-tts';
+  const voice = env('GEMINI_TTS_VOICE') || 'Kore';
+  if (!/^gemini-[a-z0-9.-]+$/.test(model) || !/^[A-Za-z]+$/.test(voice)) return null;
+  const response = await c.request('https://generativelanguage.googleapis.com/v1beta/models/'+model+':generateContent',{
+    method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':c.geminiKey},
+    body:JSON.stringify({
+      contents:[{parts:[{text:'Đọc đoạn sau bằng tiếng Việt chuẩn, giọng nữ ấm áp, rõ ràng, tốc độ vừa phải, như nhân viên hướng dẫn tận tình với người lớn tuổi:\n'+text.slice(0,1500)}]}],
+      generationConfig:{responseModalities:['AUDIO'],speechConfig:{voiceConfig:{prebuiltVoiceConfig:{voiceName:voice}}}},
+    }),
+  });
+  if (!response.ok) return null;
+  const result = await response.json();
+  const part = (result.candidates?.[0]?.content?.parts || []).find(p => typeof p.inlineData?.data === 'string');
+  if (!part) return null;
+  const mime = String(part.inlineData.mimeType || '');
+  if (/wav|mpeg|mp3|ogg/i.test(mime)) return {mime, data:part.inlineData.data};
+  // Raw 16-bit PCM (audio/L16;rate=24000): add a WAV header so every browser can play it.
+  const rate = Number(/rate=(\d+)/.exec(mime)?.[1]) || 24000;
+  const pcm = Uint8Array.from(atob(part.inlineData.data), ch => ch.charCodeAt(0));
+  const wav = new Uint8Array(44 + pcm.length), view = new DataView(wav.buffer);
+  const tag = (offset, s) => [...s].forEach((ch, i) => view.setUint8(offset + i, ch.charCodeAt(0)));
+  tag(0,'RIFF'); view.setUint32(4, 36 + pcm.length, true); tag(8,'WAVE'); tag(12,'fmt ');
+  view.setUint32(16,16,true); view.setUint16(20,1,true); view.setUint16(22,1,true);
+  view.setUint32(24,rate,true); view.setUint32(28,rate*2,true); view.setUint16(32,2,true); view.setUint16(34,16,true);
+  tag(36,'data'); view.setUint32(40, pcm.length, true); wav.set(pcm, 44);
+  let binary = '';
+  for (let i = 0; i < wav.length; i += 0x8000) binary += String.fromCharCode(...wav.subarray(i, i + 0x8000));
+  return {mime:'audio/wav', data:btoa(binary)};
 }
 async function handle(req) {
   if (req.method === 'OPTIONS') return new Response(null,{status:204,headers:cors});
@@ -169,7 +204,7 @@ async function handle(req) {
   const model = env('GEMINI_MODEL') || 'gemini-3.5-flash-lite';
   if (!url || !publicKey || !serviceKey) return reply(503,{error:'Trợ lý chưa được cấu hình đầy đủ.'});
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 40000);
+  const timeout = setTimeout(() => controller.abort(), 55000);
   const request = (target, options = {}) => fetch(target,{...options,signal:controller.signal});
   try {
     const auth = await request(url+'/auth/v1/user',{headers:{apikey:publicKey,authorization}});
