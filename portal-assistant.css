@@ -7,7 +7,7 @@
 .va-listen[aria-pressed=true]{background:var(--gold,#af8650);border-color:var(--gold,#af8650);color:#fff}
 .va-ask{background:var(--green,#315b46);color:#fff}
 .va-buttons button:focus-visible,.va-panel button:focus-visible,.va-panel textarea:focus-visible{outline:3px solid var(--gold,#af8650);outline-offset:2px}
-.va-panel{width:min(400px,calc(100vw - 32px));max-height:min(620px,calc(100vh - 110px));display:flex;flex-direction:column;background:var(--paper,#fffefb);color:var(--ink,#203b30);border:1px solid var(--line,#dce4db);border-radius:16px;box-shadow:0 14px 44px #203b3038;overflow:hidden}
+.va-panel{width:min(400px,calc(100vw - 32px));max-height:min(620px,calc(100vh - 110px));display:flex;flex-direction:column;background:var(--paper,#fffefb);color:var(--ink,#203b30);border:1px solid var(--line,#dce4db);border-radius:16px;box-shadow:0 14px 44px #203b3038;overflow-y:auto;overscroll-behavior:contain}
 .va-panel[hidden]{display:none}
 .va-head{display:flex;align-items:center;justify-content:space-between;padding:12px 14px 12px 18px;background:var(--soft,#e4ecdf);font-size:16px}
 .va-close{width:44px;height:44px;border:0;border-radius:10px;background:transparent;color:inherit;font-size:26px;line-height:1}
@@ -40,3 +40,21 @@
   .va-listen,.va-ask{padding:11px 15px;font-size:15px}
 }
 @media print{.va-dock{display:none}}
+/* Conversation state banner */
+.va-state{display:flex;align-items:center;gap:12px;margin:0 16px 6px;padding:12px 14px;border-radius:12px;background:var(--soft,#e4ecdf);font-size:16px;font-weight:600;line-height:1.45}
+.va-state-icon{flex:none;width:18px;height:18px;border-radius:50%;background:var(--muted,#65776d)}
+.va-state[data-state=listening]{background:#f7e3dc;color:#7c2e1f}
+.va-state[data-state=listening] .va-state-icon{background:#c2412b;animation:va-pulse 1.1s ease-in-out infinite}
+.va-state[data-state=thinking] .va-state-icon{background:var(--gold,#af8650);animation:va-pulse 1.4s ease-in-out infinite}
+.va-state[data-state=speaking] .va-state-icon{background:var(--green,#315b46);animation:va-pulse 0.9s ease-in-out infinite}
+@keyframes va-pulse{0%,100%{transform:scale(.75);opacity:.55}50%{transform:scale(1.15);opacity:1}}
+.va-live .va-ask{background:#c2412b;border-color:#c2412b}
+.va-ask{font-size:17px}
+.va-settings{font-size:14px}
+.va-settings summary{cursor:pointer;min-height:36px;display:flex;align-items:center;color:var(--green,#315b46);font-weight:600}
+.va-settings[open]{display:flex;flex-direction:column;gap:8px;padding-bottom:4px}
+.va-field{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.va-field select{min-height:40px;max-width:62%;padding:6px 8px;border:1px solid var(--line,#dce4db);border-radius:8px;font:inherit;background:#fff;color:inherit}
+.va-try{align-self:flex-start;min-height:40px;padding:6px 14px;border:1px solid var(--line,#dce4db);border-radius:8px;background:var(--paper,#fffefb);color:var(--green,#315b46);font:inherit;font-weight:600;cursor:pointer}
+@media (prefers-reduced-motion:reduce){.va-state-icon{animation:none!important}}
+:root[data-motion=off] .va-state-icon{animation:none!important}

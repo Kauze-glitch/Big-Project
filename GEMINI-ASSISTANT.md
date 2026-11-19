@@ -3,7 +3,8 @@
 Cổng công dân (`portal.html`) có hai nút ở góc dưới bên phải màn hình:
 
 - **🔊 Nghe hướng dẫn**: dành cho mọi người, kể cả khách chưa đăng nhập. Máy đọc to các bước của màn hình đang mở (đăng nhập, nhập mã OTP, từng trang hồ sơ) và đọc cả thông báo lỗi đang hiện. Nút này dùng giọng đọc có sẵn trên thiết bị (`speechSynthesis`), không gọi AI và không tốn phí.
-- **💬 Hỏi trợ lý**: chỉ hiện với công dân đã xác thực OTP và với thành viên dự án. Người dùng bấm **Bấm để nói** để nói câu hỏi (`SpeechRecognition`, tiếng Việt), hoặc gõ chữ. Gemini trả lời bằng câu ngắn, theo từng bước, và câu trả lời được đọc to tự động. Muốn tắt đọc tự động thì bỏ chọn ô tương ứng.
+- **🎙 Nói với trợ lý**: chỉ hiện với công dân đã xác thực OTP và với thành viên dự án. Bấm một lần là khung trợ lý mở và bắt đầu nghe ngay (`SpeechRecognition`, tiếng Việt). Người dùng nói câu hỏi, Gemini trả lời bằng câu ngắn theo từng bước, và câu trả lời được đọc to. Ở chế độ **trò chuyện liên tục** (bật sẵn), đọc xong trợ lý tự nghe tiếp câu hỏi sau. Nếu không nghe thấy gì thì dừng lại, không lặp. Bấm micro khi trợ lý đang đọc sẽ ngắt lời để hỏi tiếp. Vẫn có ô gõ chữ cho trình duyệt không nghe được giọng nói.
+- **Cài đặt giọng nói** (trong khung trợ lý): bật hoặc tắt đọc to, bật hoặc tắt trò chuyện liên tục, chọn tốc độ (chậm, vừa, nhanh) và chọn giọng đọc. Lựa chọn được lưu trên thiết bị. Mặc định trang tự chọn giọng tiếng Việt tự nhiên nhất mà máy có, ví dụ *HoaiMy/NamMinh Online (Natural)* trên Edge hoặc *Google Tiếng Việt* trên Chrome.
 
 Mã nguồn nằm ở `portal-assistant.js`, `portal-assistant.css` và `supabase/functions/gemini-assistant/index.ts` (thao tác `operation: "guide"`).
 
