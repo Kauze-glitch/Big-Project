@@ -6,7 +6,7 @@
   const synth = window.speechSynthesis;
   // Brave exposes the API but blocks the speech service behind it, so treat it as unsupported.
   const isBrave = !!window.navigator?.brave || (window.navigator?.userAgentData?.brands || []).some(b => /brave/i.test(b.brand));
-  const VERSION = '2026-11-20.3';
+  const VERSION = '2026-11-20.4';
   const Recognition = isBrave ? null : (window.SpeechRecognition || window.webkitSpeechRecognition);
   const el = (tag, cls, text) => { const x = document.createElement(tag); if (cls) x.className = cls; if (text !== undefined) x.textContent = text; return x; };
 
@@ -28,7 +28,7 @@
         <label class="va-label" for="va-question">Hoặc gõ câu hỏi</label>
         <div class="va-row"><textarea id="va-question" rows="2" maxlength="1000" placeholder="Ví dụ: Làm sao để sửa địa chỉ?"></textarea><button type="submit" class="va-send">Gửi</button></div>
         <details class="va-settings"><summary>Cài đặt giọng nói</summary>
-          <label class="va-auto"><input type="checkbox" name="autoRead"> Tự đọc to câu trả lời</label>
+          <label class="va-auto"><input type="checkbox" name="autoRead"> Tự đọc to câu trả lời (khi dùng giọng của máy)</label>
           <label class="va-auto"><input type="checkbox" name="continuous"> Trò chuyện liên tục (trả lời xong tự nghe tiếp)</label>
           <label class="va-field">Tốc độ đọc <select name="rate"><option value="0.75">Chậm</option><option value="0.9">Vừa</option><option value="1.1">Nhanh</option></select></label>
           <label class="va-field">Giọng đọc <select name="voice"></select></label>
@@ -363,13 +363,44 @@
   const narrow = () => window.matchMedia?.('(max-width: 640px)').matches === true;
   let history = [], controller = null, identity = null;
   function notice(text) { status.textContent = text; }
-  function bubble(role, text, audio) {
+  // The natural voice for an answer is made only when someone presses "Nghe", once per text.
+  const answerVoices = new Map();
+  async function answerVoice(text) {
+    if (answerVoices.has(text)) return answerVoices.get(text);
+    try {
+      const access = await token();
+      if (!access) return null;
+      const response = await fetch(window.PortalAPI.url + '/functions/v1/gemini-assistant', {
+        method: 'POST',
+        headers: { apikey: window.PortalAPI.key, authorization: 'Bearer ' + access, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ operation: 'speak', text, voice: aiVoiceName() }),
+      });
+      let data = {}; try { data = await response.json(); } catch { /* handled below */ }
+      const audio = response.ok && typeof data.audio?.data === 'string' && /^audio\/[a-z0-9.+-]+$/i.test(String(data.audio.mime)) ? data.audio : null;
+      if (audio) { answerVoices.set(text, audio); return audio; }
+      notice(data.reason === 'http_429'
+        ? 'Hôm nay đã hết lượt tạo giọng AI miễn phí của Gemini (lượt mới có vào khoảng 14–15 giờ chiều), nên tạm đọc bằng giọng của máy.'
+        : (data.error || 'Chưa tạo được giọng AI') + ' Tạm đọc bằng giọng của máy.');
+    } catch { notice('Chưa kết nối được để tạo giọng AI. Tạm đọc bằng giọng của máy.'); }
+    return null;
+  }
+  function bubble(role, text) {
     const item = el('div', 'va-msg va-' + role);
     item.append(el('strong', 'va-who', role === 'user' ? 'Bạn' : 'Trợ lý'), el('p', '', text));
     if (role === 'model') {
-      const again = el('button', 'va-again', '🔊 Đọc lại'); again.type = 'button';
-      again.onclick = () => { unlockVoice(); stopListening(); speak(text, again, undefined, audio); };
-      item.append(again);
+      const listen = el('button', 'va-again', '🔊 Nghe câu trả lời'); listen.type = 'button';
+      listen.onclick = async () => {
+        unlockVoice(); stopListening();
+        if (!aiVoice.checked) { speak(text, listen); return; }
+        listen.disabled = true; listen.textContent = 'Đang tạo giọng…';
+        const audio = await answerVoice(text);
+        listen.disabled = false; listen.textContent = '🔊 Nghe câu trả lời';
+        // After hearing the newest answer, keep the conversation going if the user wants that.
+        const latest = item === log.querySelector('.va-model:last-of-type');
+        setState('speaking');
+        speak(text, listen, () => { setState('idle'); if (latest && continuous.checked && Recognition && !panel.hidden && canAsk()) startListening(); }, audio);
+      };
+      item.append(listen);
     }
     log.append(item); log.scrollTop = log.scrollHeight;
   }
@@ -398,18 +429,20 @@
     if (member()) { const { data } = await window.PortalAuth.client().auth.getSession(); return data?.session?.access_token; }
     return window.CitizenRepository.citizenAccessToken();
   }
-  function afterAnswer(text, audio) {
-    // Read the answer, then keep the conversation going if the user wants that.
+  function afterAnswer(text) {
+    // With the AI voice the answer is read only when "Nghe" is pressed, to save Gemini quota.
+    if (aiVoice.checked) { setState('idle'); notice('Bấm "🔊 Nghe câu trả lời" để nghe bằng giọng nữ.'); return; }
+    // Device voice: read it now, then keep the conversation going if the user wants that.
     const resume = () => { setState('idle'); if (continuous.checked && Recognition && !panel.hidden && canAsk()) startListening(); };
-    if (autoRead.checked) { setState('speaking'); speak(text, null, resume, audio); } else setState('idle');
+    if (autoRead.checked) { setState('speaking'); speak(text, null, resume); } else setState('idle');
   }
-  function deliver(answer, place, audio) {
+  function deliver(answer, place) {
     if (place) {
       const note = el('p', 'va-nav', '📍 Đã đưa bạn tới: ' + place.label); log.append(note); log.scrollTop = log.scrollHeight;
     }
-    bubble('model', answer, audio);
+    bubble('model', answer);
     if (place && narrow() && !panel.hidden) close();
-    afterAnswer(answer, audio);
+    afterAnswer(answer);
   }
   async function ask(question) {
     question = question.trim();
@@ -422,7 +455,7 @@
       const response = await fetch(window.PortalAPI.url + '/functions/v1/gemini-assistant', {
         method: 'POST', signal: mine.signal,
         headers: { apikey: window.PortalAPI.key, authorization: 'Bearer ' + access, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ operation: 'guide', question, page: heading() || route(), history, audio: autoRead.checked && aiVoice.checked, voice: aiVoiceName() }),
+        body: JSON.stringify({ operation: 'guide', question, page: heading() || route(), history }),
       });
       let data = {}; try { data = await response.json(); } catch { /* handled below */ }
       if (controller !== mine) return;
@@ -430,11 +463,7 @@
       history = [...history, { role: 'user', text: question }, { role: 'model', text: data.answer.slice(0, 3000) }].slice(-6);
       controller = null; clearTimeout(timer);
       const place = typeof data.target === 'string' && data.target !== 'none' ? await goTo(data.target) : null;
-      const audio = data.audio && typeof data.audio.data === 'string' && /^audio\/[a-z0-9.+-]+$/i.test(String(data.audio.mime)) ? data.audio : null;
-      if (!audio && autoRead.checked && aiVoice.checked) notice(data.audioError === 'http_429'
-        ? 'Hôm nay đã hết lượt tạo giọng AI miễn phí của Gemini, nên câu trả lời tạm đọc bằng giọng của máy. Nút Nghe hướng dẫn vẫn dùng giọng nữ đã lưu sẵn.'
-        : 'Chưa tạo được giọng AI cho câu này nên tạm dùng giọng của máy.');
-      deliver(data.answer, place, audio);
+      deliver(data.answer, place);
     } catch (error) {
       if (controller !== mine) return;
       controller = null;

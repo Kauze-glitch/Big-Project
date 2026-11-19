@@ -126,3 +126,20 @@ test('When TTS quota is exhausted the same guide recorded in another female voic
  const none=await handler(new Request('https://fn.invalid',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({operation:'guide_audio',key:'portal_home',voice:'Leda'})}));
  assert.equal(none.status,502);assert.equal((await none.json()).reason,'http_429');
 });
+
+test('"speak" makes the voice for one answer only for signed-in citizens or members, within quota and length limits',async()=>{
+ const speak=(body,auth='Bearer token')=>handler(new Request('https://fn.invalid',{method:'POST',headers:{'content-type':'application/json',...(auth?{authorization:auth}:{})},body:JSON.stringify({operation:'speak',...body})}));
+ const withTts=(opts,tts=()=>Response.json({candidates:[{content:{parts:[{inlineData:{mimeType:'audio/wav',data:'UklGRg=='}}]}}]}))=>{const calls=backend(opts);const base=globalThis.fetch;globalThis.fetch=async(url,o)=>{if(url.includes('-tts:')){calls.push({url,options:o});return tts();}return base(url,o);};return calls;};
+ let calls=withTts({citizen:'c-1'});let res=await speak({text:'Bước 1: mở trang.',voice:'Aoede'});let data=await res.json();
+ assert.equal(res.status,200);assert.equal(data.audio.data,'UklGRg==');
+ const sent=JSON.parse(calls.find(c=>c.url.includes('-tts:')).options.body);assert.equal(sent.generationConfig.speechConfig.voiceConfig.prebuiltVoiceConfig.voiceName,'Aoede');
+ assert(calls.some(c=>c.url.endsWith('/rpc/reserve_ai_guide_request')),'counts against the per-user limit');
+ assert(!calls.some(c=>c.url.includes(':generateContent')&&!c.url.includes('-tts:')),'no text generation for speak');
+ withTts({member:true});assert.equal((await speak({text:'Xin chào.'})).status,200);
+ calls=withTts({});assert.equal((await speak({text:'Xin chào.'})).status,403);assert(!calls.some(c=>c.url.includes('-tts:')));
+ assert.equal((await speak({text:'Xin chào.'},'')).status,401);
+ calls=withTts({citizen:'c-1'});assert.equal((await speak({text:'x'.repeat(3001)})).status,400);assert(!calls.some(c=>c.url.includes('-tts:')));
+ calls=withTts({citizen:'c-1',quota:false});assert.equal((await speak({text:'Xin chào.'})).status,429);assert(!calls.some(c=>c.url.includes('-tts:')));
+ withTts({citizen:'c-1'},()=>new Response('{}',{status:429}));res=await speak({text:'Xin chào.'});data=await res.json();
+ assert.equal(res.status,502);assert.equal(data.reason,'http_429');
+});
