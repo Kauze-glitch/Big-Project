@@ -1,61 +1,141 @@
 'use strict';
 // Voice help for the citizen portal: scripted read-aloud guidance for everyone,
-// plus a Gemini question box (speech in, speech out) for signed-in users.
+// plus a push-to-talk conversation with Gemini for signed-in users:
+// press the mic, speak, the assistant answers aloud, then listens again.
 (() => {
   const synth = window.speechSynthesis;
   const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   const el = (tag, cls, text) => { const x = document.createElement(tag); if (cls) x.className = cls; if (text !== undefined) x.textContent = text; return x; };
+
+  // ---------- Saved per-device preferences ----------
+  const PREF_KEY = 'nhom12-voice';
+  const prefs = { rate: 0.9, voice: '', autoRead: true, continuous: true };
+  try { Object.assign(prefs, JSON.parse(localStorage.getItem(PREF_KEY) || '{}')); } catch { /* storage unavailable */ }
+  const savePrefs = () => { try { localStorage.setItem(PREF_KEY, JSON.stringify(prefs)); } catch { /* storage unavailable */ } };
 
   const host = el('div', 'va-dock');
   host.innerHTML = `
     <section class="va-panel" id="va-panel" aria-labelledby="va-title" hidden>
       <header class="va-head"><strong id="va-title">Trợ lý Cổng công dân</strong><button type="button" class="va-close" aria-label="Đóng trợ lý">×</button></header>
       <div class="va-log" role="log" aria-live="polite" aria-label="Hội thoại với trợ lý"></div>
+      <div class="va-state" data-state="idle"><span class="va-state-icon" aria-hidden="true"></span><span class="va-state-text"></span></div>
       <p class="va-status" role="status"></p>
       <form class="va-form">
-        <button type="button" class="va-mic" aria-pressed="false"><span aria-hidden="true">🎙</span> Bấm để nói</button>
+        <button type="button" class="va-mic" aria-pressed="false"></button>
         <label class="va-label" for="va-question">Hoặc gõ câu hỏi</label>
         <div class="va-row"><textarea id="va-question" rows="2" maxlength="1000" placeholder="Ví dụ: Làm sao để sửa địa chỉ?"></textarea><button type="submit" class="va-send">Gửi</button></div>
-        <label class="va-auto"><input type="checkbox" checked> Tự đọc to câu trả lời</label>
+        <details class="va-settings"><summary>Cài đặt giọng nói</summary>
+          <label class="va-auto"><input type="checkbox" name="autoRead"> Tự đọc to câu trả lời</label>
+          <label class="va-auto"><input type="checkbox" name="continuous"> Trò chuyện liên tục (trả lời xong tự nghe tiếp)</label>
+          <label class="va-field">Tốc độ đọc <select name="rate"><option value="0.75">Chậm</option><option value="0.9">Vừa</option><option value="1.1">Nhanh</option></select></label>
+          <label class="va-field">Giọng đọc <select name="voice"></select></label>
+          <button type="button" class="va-try">🔊 Nghe thử</button>
+        </details>
       </form>
       <small class="va-note">Không nói mật khẩu, mã OTP hay số căn cước. Câu hỏi được gửi tới Google Gemini; trợ lý có thể nhầm.</small>
     </section>
     <div class="va-buttons">
       <button type="button" class="va-listen" aria-pressed="false"><span aria-hidden="true">🔊</span> <span class="va-listen-text">Nghe hướng dẫn</span></button>
-      <button type="button" class="va-ask" aria-controls="va-panel" aria-expanded="false" hidden><span aria-hidden="true">💬</span> Hỏi trợ lý</button>
+      <button type="button" class="va-ask" aria-controls="va-panel" aria-expanded="false" hidden><span aria-hidden="true">🎙</span> Nói với trợ lý</button>
     </div>`;
   document.body.append(host);
   const $ = s => host.querySelector(s);
   const panel = $('.va-panel'), log = $('.va-log'), status = $('.va-status'), form = $('.va-form'), input = $('#va-question');
-  const listenBtn = $('.va-listen'), askBtn = $('.va-ask'), micBtn = $('.va-mic'), sendBtn = $('.va-send'), autoRead = $('.va-auto input');
+  const listenBtn = $('.va-listen'), askBtn = $('.va-ask'), micBtn = $('.va-mic'), sendBtn = $('.va-send');
+  const stateBox = $('.va-state'), settings = $('.va-settings');
+  const autoRead = settings.querySelector('[name=autoRead]'), continuous = settings.querySelector('[name=continuous]');
+  const rateSelect = settings.querySelector('[name=rate]'), voiceSelect = settings.querySelector('[name=voice]');
+
+  // ---------- Conversation state ----------
+  // idle → listening → thinking → speaking → (listening again if continuous)
+  let state = 'idle';
+  const stateText = {
+    idle: Recognition ? 'Bấm nút micro rồi nói câu hỏi của bạn.' : 'Gõ câu hỏi rồi bấm Gửi.',
+    listening: 'Đang nghe… Mời bạn nói.',
+    thinking: 'Trợ lý đang suy nghĩ…',
+    speaking: 'Trợ lý đang trả lời… Bấm micro để ngắt lời và hỏi tiếp.',
+  };
+  const micText = {
+    idle: '<span aria-hidden="true">🎙</span> Bấm để nói',
+    listening: '<span aria-hidden="true">■</span> Đang nghe… bấm để dừng',
+    thinking: '<span aria-hidden="true">…</span> Đang trả lời',
+    speaking: '<span aria-hidden="true">🎙</span> Ngắt lời và nói',
+  };
+  function setState(next) {
+    state = next;
+    stateBox.dataset.state = next;
+    $('.va-state-text').textContent = stateText[next];
+    micBtn.innerHTML = micText[next];
+    micBtn.setAttribute('aria-pressed', String(next === 'listening'));
+    micBtn.disabled = next === 'thinking';
+    sendBtn.disabled = input.disabled = next === 'thinking';
+    host.classList.toggle('va-live', next === 'listening');
+  }
+
+  // ---------- Voices ----------
+  const isVietnamese = v => /^vi([-_]|$)/i.test(v.lang);
+  // Prefer neural/natural voices (Edge "Online (Natural)", Google, Apple enhanced).
+  const voiceScore = v => (/natural|online|neural/i.test(v.name) ? 6 : 0) + (/google/i.test(v.name) ? 4 : 0)
+    + (/enhanced|premium|nâng cao/i.test(v.name) ? 3 : 0) + (v.localService === false ? 1 : 0);
+  const vietnameseVoices = () => (synth?.getVoices() || []).filter(isVietnamese).sort((a, b) => voiceScore(b) - voiceScore(a));
+  function chosenVoice() {
+    const voices = vietnameseVoices();
+    return voices.find(v => v.name === prefs.voice) || voices[0] || null;
+  }
+  function fillVoices() {
+    const voices = vietnameseVoices();
+    voiceSelect.replaceChildren(new Option(voices.length ? 'Tự chọn giọng tốt nhất' : 'Máy chưa có giọng tiếng Việt', ''),
+      ...voices.map(v => new Option(v.name.replace(/^Microsoft\s+/i, '').replace(/\s*-\s*Vietnamese.*$/i, ''), v.name)));
+    voiceSelect.value = voices.some(v => v.name === prefs.voice) ? prefs.voice : '';
+  }
+  autoRead.checked = prefs.autoRead !== false;
+  continuous.checked = prefs.continuous !== false;
+  rateSelect.value = ['0.75', '0.9', '1.1'].includes(String(prefs.rate)) ? String(prefs.rate) : '0.9';
+  autoRead.onchange = () => { prefs.autoRead = autoRead.checked; savePrefs(); };
+  continuous.onchange = () => { prefs.continuous = continuous.checked; savePrefs(); };
+  rateSelect.onchange = () => { prefs.rate = Number(rateSelect.value); savePrefs(); };
+  voiceSelect.onchange = () => { prefs.voice = voiceSelect.value; savePrefs(); };
+  $('.va-try').onclick = () => speak('Xin chào. Đây là giọng đọc của trợ lý Cổng công dân.');
+  if (synth) { fillVoices(); synth.addEventListener?.('voiceschanged', fillVoices); }
 
   // ---------- Speech output ----------
-  let speakingFrom = null, warnedVoice = false;
-  const vietnameseVoice = () => synth?.getVoices().find(v => /^vi\b|^vi[-_]/i.test(v.lang)) || null;
-  function stopSpeaking() {
+  let speakingFrom = null, warnedVoice = false, speechToken = 0;
+  // Spoken form only; the text on screen is unchanged.
+  const forSpeech = text => String(text)
+    .replace(/\bCCCD\b/g, 'căn cước công dân').replace(/\bOTP\b/g, 'mã xác thực').replace(/\bAI\b/g, 'trợ lý')
+    .replace(/[\u{1F300}-\u{1FAFF}☀-➿→←✓■…]/gu, ' ').replace(/\s*\/\s*/g, ' hoặc ').replace(/\s+/g, ' ').trim();
+  function haltSpeech() {
+    speechToken++;
     synth?.cancel();
     if (speakingFrom) speakingFrom.setAttribute('aria-pressed', 'false');
     speakingFrom = null;
     listenBtn.querySelector('.va-listen-text').textContent = 'Nghe hướng dẫn';
   }
-  function speak(text, from) {
-    if (!synth) { notice('Trình duyệt này chưa hỗ trợ đọc to. Hãy dùng Chrome, Edge hoặc Safari.'); return; }
-    stopSpeaking();
-    const voice = vietnameseVoice();
-    if (!voice && !warnedVoice) { warnedVoice = true; notice('Máy chưa có giọng đọc tiếng Việt nên có thể đọc không rõ. Hãy cài giọng tiếng Việt trong phần cài đặt giọng nói của máy.'); }
+  function stopSpeaking() { haltSpeech(); if (state === 'speaking') setState('idle'); }
+  function speak(text, from, onDone) {
+    if (!synth) { notice('Trình duyệt này chưa hỗ trợ đọc to. Hãy dùng Chrome, Edge hoặc Safari.'); onDone?.(); return; }
+    haltSpeech();
+    // Any other reading interrupts an answer that was being read out.
+    if (!onDone && state === 'speaking') setState('idle');
+    const voice = chosenVoice(), token = ++speechToken;
+    if (!voice && !warnedVoice) { warnedVoice = true; notice('Máy chưa có giọng đọc tiếng Việt nên có thể đọc không rõ. Hãy dùng trình duyệt Edge hoặc cài giọng tiếng Việt trong cài đặt máy.'); }
     // Short utterances avoid browsers cutting off long speech.
-    const parts = String(text).replace(/\s+/g, ' ').match(/[^.!?:;\n]+[.!?:;]?/g) || [];
+    const parts = forSpeech(text).match(/[^.!?:;\n]+[.!?:;]?/g) || [];
+    if (!parts.length) { onDone?.(); return; }
     speakingFrom = from || null;
     if (from) from.setAttribute('aria-pressed', 'true');
     if (from === listenBtn) listenBtn.querySelector('.va-listen-text').textContent = 'Dừng đọc';
     parts.forEach((part, i) => {
       const u = new SpeechSynthesisUtterance(part.trim());
-      u.lang = 'vi-VN'; u.rate = 0.9; if (voice) u.voice = voice;
-      if (i === parts.length - 1) u.onend = () => { if (speakingFrom === from) stopSpeaking(); };
+      u.lang = voice?.lang || 'vi-VN'; u.rate = Number(prefs.rate) || 0.9; if (voice) u.voice = voice;
+      if (i === parts.length - 1) u.onend = () => {
+        if (token !== speechToken) return;
+        if (speakingFrom === from) { if (from) from.setAttribute('aria-pressed', 'false'); speakingFrom = null; listenBtn.querySelector('.va-listen-text').textContent = 'Nghe hướng dẫn'; }
+        onDone?.();
+      };
       synth.speak(u);
     });
   }
-  if (synth) synth.onvoiceschanged = () => {};
 
   // ---------- Scripted guidance for the current screen ----------
   const route = () => (location.hash || '#/login').slice(1);
@@ -88,12 +168,12 @@
     }
     const alerts = [...document.querySelectorAll('#portal-app [role=alert], dialog[open] [role=alert]')].map(a => a.textContent.trim()).filter(Boolean);
     if (alerts.length) parts.push('Có thông báo: ' + alerts.join('. '));
-    if (canAsk()) parts.push('Nếu cần hỏi thêm, hãy bấm nút Hỏi trợ lý ở góc dưới màn hình rồi nói câu hỏi của bạn.');
+    if (canAsk()) parts.push('Nếu cần hỏi thêm, hãy bấm nút Nói với trợ lý ở góc dưới màn hình rồi nói câu hỏi của bạn.');
     return parts.join(' ');
   }
-  listenBtn.onclick = () => { if (speakingFrom === listenBtn) stopSpeaking(); else speak(guideText(), listenBtn); };
+  listenBtn.onclick = () => { if (speakingFrom === listenBtn) stopSpeaking(); else { stopListening(); speak(guideText(), listenBtn); } };
 
-  // ---------- Gemini question box ----------
+  // ---------- Gemini conversation ----------
   const member = () => window.PortalAuth?.isMember() === true;
   const citizen = () => window.CitizenRepository?.hasCitizenSession?.() === true;
   const canAsk = () => member() || citizen();
@@ -104,24 +184,28 @@
     item.append(el('strong', 'va-who', role === 'user' ? 'Bạn' : 'Trợ lý'), el('p', '', text));
     if (role === 'model') {
       const again = el('button', 'va-again', '🔊 Đọc lại'); again.type = 'button';
-      again.onclick = () => speak(text, again);
+      again.onclick = () => { stopListening(); speak(text, again); };
       item.append(again);
     }
     log.append(item); log.scrollTop = log.scrollHeight;
   }
   function greet() {
     log.replaceChildren();
-    bubble('model', 'Xin chào. Bạn hãy bấm nút Bấm để nói và hỏi tôi cách dùng Cổng công dân. Ví dụ: làm sao để sửa địa chỉ, hay mã xác thực ở đâu.');
+    bubble('model', 'Xin chào. Bạn bấm nút micro rồi nói câu hỏi về cách dùng Cổng công dân. Ví dụ: làm sao để sửa địa chỉ, hay mã xác thực ở đâu. Tôi trả lời xong sẽ nghe tiếp để bạn hỏi thêm.');
   }
   function sync() {
     const next = member() ? 'member:' + (window.PortalAPI?.memberId?.() || '') : citizen() ? 'citizen' : null;
-    if (next !== identity) { identity = next; history = []; controller?.abort(); controller = null; greet(); }
+    if (next !== identity) { identity = next; history = []; controller?.abort(); controller = null; stopListening(); setState('idle'); greet(); }
     askBtn.hidden = !next;
     if (!next && !panel.hidden) close();
   }
-  function open() { panel.hidden = false; askBtn.setAttribute('aria-expanded', 'true'); host.classList.add('va-open'); micBtn.focus(); }
-  function close() { stopListening(); panel.hidden = true; askBtn.setAttribute('aria-expanded', 'false'); host.classList.remove('va-open'); }
-  askBtn.onclick = () => panel.hidden ? open() : close();
+  function open() { panel.hidden = false; askBtn.setAttribute('aria-expanded', 'true'); host.classList.add('va-open'); }
+  function close() { stopListening(); if (state === 'speaking') stopSpeaking(); panel.hidden = true; askBtn.setAttribute('aria-expanded', 'false'); host.classList.remove('va-open'); }
+  // One press: open the panel and start listening straight away.
+  askBtn.onclick = () => {
+    if (panel.hidden) { open(); if (Recognition) startListening(); else input.focus(); return; }
+    if (state === 'listening') stopListening(); else if (state !== 'thinking') startListening();
+  };
   $('.va-close').onclick = () => { close(); askBtn.focus(); };
   panel.addEventListener('keydown', e => { if (e.key === 'Escape') { close(); askBtn.focus(); } });
 
@@ -129,11 +213,15 @@
     if (member()) { const { data } = await window.PortalAuth.client().auth.getSession(); return data?.session?.access_token; }
     return window.CitizenRepository.citizenAccessToken();
   }
-  function busy(on) { sendBtn.disabled = on; micBtn.disabled = on; input.disabled = on; }
+  function afterAnswer(text) {
+    // Read the answer, then keep the conversation going if the user wants that.
+    const resume = () => { setState('idle'); if (continuous.checked && Recognition && !panel.hidden && canAsk()) startListening(); };
+    if (autoRead.checked) { setState('speaking'); speak(text, null, resume); } else setState('idle');
+  }
   async function ask(question) {
     question = question.trim();
     if (!question || controller || !canAsk()) return;
-    stopSpeaking(); bubble('user', question); input.value = ''; busy(true); notice('Trợ lý đang trả lời…');
+    stopSpeaking(); stopListening(); bubble('user', question); input.value = ''; setState('thinking'); notice('');
     const mine = controller = new AbortController(), timer = setTimeout(() => mine.abort(), 45000);
     try {
       const access = await token();
@@ -147,14 +235,17 @@
       if (controller !== mine) return;
       if (!response.ok || typeof data.answer !== 'string') throw new Error(data.error || 'Trợ lý chưa trả lời được. Hãy thử lại.');
       history = [...history, { role: 'user', text: question }, { role: 'model', text: data.answer.slice(0, 3000) }].slice(-6);
-      bubble('model', data.answer); notice('');
-      if (autoRead.checked) speak(data.answer);
+      controller = null; clearTimeout(timer);
+      bubble('model', data.answer);
+      afterAnswer(data.answer);
     } catch (error) {
       if (controller !== mine) return;
+      controller = null;
       const text = mine.signal.aborted ? 'Trợ lý trả lời quá lâu. Hãy thử lại.' : (error.message || 'Chưa kết nối được trợ lý.');
-      notice(text); if (autoRead.checked) speak(text);
+      notice(text); setState('idle');
+      if (autoRead.checked) speak(text);
     } finally {
-      clearTimeout(timer); if (controller === mine) { controller = null; busy(false); }
+      clearTimeout(timer);
     }
   }
   form.onsubmit = e => { e.preventDefault(); ask(input.value); };
@@ -162,13 +253,14 @@
 
   // ---------- Speech input ----------
   let recognizer = null;
-  function stopListening() { recognizer?.abort(); recognizer = null; micBtn.setAttribute('aria-pressed', 'false'); micBtn.innerHTML = '<span aria-hidden="true">🎙</span> Bấm để nói'; }
-  if (!Recognition) {
-    micBtn.hidden = true;
-    $('.va-label').textContent = 'Gõ câu hỏi (trình duyệt này chưa nghe được giọng nói, hãy dùng Chrome hoặc Edge)';
-  } else micBtn.onclick = () => {
-    if (recognizer) { stopListening(); return; }
-    stopSpeaking();
+  function stopListening() {
+    const r = recognizer; recognizer = null;
+    if (r) { r.onend = null; try { r.abort(); } catch { /* already stopped */ } }
+    if (state === 'listening') setState('idle');
+  }
+  function startListening() {
+    if (!Recognition || state === 'thinking' || !canAsk()) return;
+    stopSpeaking(); stopListening();
     const r = recognizer = new Recognition();
     r.lang = 'vi-VN'; r.interimResults = true; r.maxAlternatives = 1;
     let finalText = '';
@@ -182,16 +274,28 @@
     r.onerror = e => {
       notice(e.error === 'not-allowed' || e.error === 'service-not-allowed'
         ? 'Chưa được phép dùng micro. Hãy cho phép micro trong trình duyệt rồi thử lại.'
-        : e.error === 'no-speech' ? 'Chưa nghe thấy gì. Hãy bấm và nói lại.' : 'Chưa nghe rõ. Hãy thử lại.');
+        : e.error === 'no-speech' ? 'Chưa nghe thấy gì. Bấm micro để nói lại.' : e.error === 'aborted' ? '' : 'Chưa nghe rõ. Bấm micro để nói lại.');
     };
-    r.onend = () => { if (recognizer !== r) return; stopListening(); if (finalText.trim()) ask(finalText); };
-    micBtn.setAttribute('aria-pressed', 'true'); micBtn.innerHTML = '<span aria-hidden="true">■</span> Đang nghe… bấm để dừng'; notice('Mời bạn nói.');
-    try { r.start(); } catch { stopListening(); }
-  };
+    r.onend = () => {
+      if (recognizer !== r) return;
+      recognizer = null; setState('idle');
+      // Nothing heard: stop here instead of looping.
+      if (finalText.trim()) ask(finalText); else if (!status.textContent) notice('Chưa nghe thấy gì. Bấm micro để nói lại.');
+    };
+    setState('listening'); notice('');
+    try { r.start(); } catch { recognizer = null; setState('idle'); }
+  }
+  if (!Recognition) {
+    micBtn.hidden = true;
+    $('.va-label').textContent = 'Gõ câu hỏi (trình duyệt này chưa nghe được giọng nói, hãy dùng Chrome hoặc Edge)';
+    continuous.closest('label').hidden = true;
+  }
+  micBtn.onclick = () => { if (state === 'listening') stopListening(); else startListening(); };
 
-  window.addEventListener('hashchange', () => { stopSpeaking(); sync(); });
+  window.addEventListener('hashchange', () => { if (speakingFrom === listenBtn) stopSpeaking(); sync(); });
   window.addEventListener('portalauthchange', sync);
-  window.addEventListener('pagehide', stopSpeaking);
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) sync(); });
+  window.addEventListener('pagehide', () => { stopListening(); stopSpeaking(); });
+  document.addEventListener('visibilitychange', () => { if (document.hidden) stopListening(); else sync(); });
+  setState('idle');
   sync();
 })();
