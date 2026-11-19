@@ -4,7 +4,9 @@
 // press the mic, speak, the assistant answers aloud, then listens again.
 (() => {
   const synth = window.speechSynthesis;
-  const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  // Brave exposes the API but blocks the speech service behind it, so treat it as unsupported.
+  const isBrave = !!window.navigator?.brave;
+  const Recognition = isBrave ? null : (window.SpeechRecognition || window.webkitSpeechRecognition);
   const el = (tag, cls, text) => { const x = document.createElement(tag); if (cls) x.className = cls; if (text !== undefined) x.textContent = text; return x; };
 
   // ---------- Saved per-device preferences ----------
@@ -27,7 +29,6 @@
         <details class="va-settings"><summary>Cài đặt giọng nói</summary>
           <label class="va-auto"><input type="checkbox" name="autoRead"> Tự đọc to câu trả lời</label>
           <label class="va-auto"><input type="checkbox" name="continuous"> Trò chuyện liên tục (trả lời xong tự nghe tiếp)</label>
-          <label class="va-auto"><input type="checkbox" name="aiVoice"> Giọng AI tự nhiên (giọng nữ) cho câu trả lời</label>
           <label class="va-field">Tốc độ đọc <select name="rate"><option value="0.75">Chậm</option><option value="0.9">Vừa</option><option value="1.1">Nhanh</option></select></label>
           <label class="va-field">Giọng đọc <select name="voice"></select></label>
           <button type="button" class="va-try">🔊 Nghe thử</button>
@@ -44,7 +45,7 @@
   const panel = $('.va-panel'), log = $('.va-log'), status = $('.va-status'), form = $('.va-form'), input = $('#va-question');
   const listenBtn = $('.va-listen'), askBtn = $('.va-ask'), micBtn = $('.va-mic'), sendBtn = $('.va-send');
   const stateBox = $('.va-state'), settings = $('.va-settings');
-  const autoRead = settings.querySelector('[name=autoRead]'), continuous = settings.querySelector('[name=continuous]'), aiVoice = settings.querySelector('[name=aiVoice]');
+  const autoRead = settings.querySelector('[name=autoRead]'), continuous = settings.querySelector('[name=continuous]');
   const rateSelect = settings.querySelector('[name=rate]'), voiceSelect = settings.querySelector('[name=voice]');
 
   // ---------- Conversation state ----------
@@ -86,23 +87,36 @@
     const voices = vietnameseVoices();
     return voices.find(v => v.name === prefs.voice) || voices[0] || null;
   }
+  // The natural AI voice comes first; device voices are labelled so a male one is obvious.
+  const voiceGender = v => /hoaimy|hoài my|linh|female|\bnữ\b|\bmy\b/i.test(v.name) ? ' (nữ)' : /namminh|nam minh|\ban\b|male|\bnam\b/i.test(v.name) ? ' (nam)' : '';
+  const voiceLabel = v => 'Giọng của máy: ' + v.name.replace(/^Microsoft\s+/i, '').replace(/\s*-\s*Vietnamese.*$/i, '').replace(/\s*Online \(Natural\)/i, '') + voiceGender(v);
   function fillVoices() {
     const voices = vietnameseVoices();
-    voiceSelect.replaceChildren(new Option(voices.length ? 'Tự chọn giọng tốt nhất' : 'Máy chưa có giọng tiếng Việt', ''),
-      ...voices.map(v => new Option(v.name.replace(/^Microsoft\s+/i, '').replace(/\s*-\s*Vietnamese.*$/i, ''), v.name)));
-    voiceSelect.value = voices.some(v => v.name === prefs.voice) ? prefs.voice : '';
+    voiceSelect.replaceChildren(new Option('Giọng nữ AI tự nhiên (khuyên dùng)', 'ai'),
+      new Option(voices.length ? 'Giọng của máy: tự chọn' : 'Giọng của máy (máy chưa có giọng tiếng Việt)', ''),
+      ...voices.map(v => new Option(voiceLabel(v), v.name)));
+    voiceSelect.value = prefs.aiVoice !== false ? 'ai' : voices.some(v => v.name === prefs.voice) ? prefs.voice : '';
   }
+  // Same shape as the old checkbox: true while the AI voice is selected.
+  const aiVoice = { get checked() { return voiceSelect.value === 'ai'; } };
   autoRead.checked = prefs.autoRead !== false;
   continuous.checked = prefs.continuous !== false;
   rateSelect.value = ['0.75', '0.9', '1.1'].includes(String(prefs.rate)) ? String(prefs.rate) : '0.9';
   autoRead.onchange = () => { prefs.autoRead = autoRead.checked; savePrefs(); };
-  aiVoice.checked = prefs.aiVoice !== false;
-  aiVoice.onchange = () => { prefs.aiVoice = aiVoice.checked; savePrefs(); };
   continuous.onchange = () => { prefs.continuous = continuous.checked; savePrefs(); };
   rateSelect.onchange = () => { prefs.rate = Number(rateSelect.value); savePrefs(); };
-  voiceSelect.onchange = () => { prefs.voice = voiceSelect.value; savePrefs(); };
-  $('.va-try').onclick = () => speak('Xin chào. Đây là giọng đọc của trợ lý Cổng công dân.');
-  if (synth) { fillVoices(); synth.addEventListener?.('voiceschanged', fillVoices); }
+  voiceSelect.onchange = () => { if (voiceSelect.value === 'ai') prefs.aiVoice = true; else { prefs.aiVoice = false; prefs.voice = voiceSelect.value; } savePrefs(); };
+  fillVoices();
+  if (synth) synth.addEventListener?.('voiceschanged', fillVoices);
+  // "Nghe thử" plays exactly the voice that is selected.
+  const tryBtn = $('.va-try');
+  tryBtn.onclick = async () => {
+    const sample = 'Bạn đang ở Cổng công dân.';
+    if (!aiVoice.checked) { speak(sample, tryBtn); return; }
+    unlockVoice();
+    const clip = await guideClip('portal_home');
+    speak(sample, tryBtn, undefined, clip);
+  };
 
   // ---------- Speech output ----------
   let speakingFrom = null, warnedVoice = false, speechToken = 0;
@@ -454,7 +468,9 @@
     r.onerror = e => {
       notice(e.error === 'not-allowed' || e.error === 'service-not-allowed'
         ? 'Chưa được phép dùng micro. Hãy cho phép micro trong trình duyệt rồi thử lại.'
-        : e.error === 'no-speech' ? 'Chưa nghe thấy gì. Bấm micro để nói lại.' : e.error === 'aborted' ? '' : 'Chưa nghe rõ. Bấm micro để nói lại.');
+        : e.error === 'no-speech' ? 'Chưa nghe thấy gì. Bấm micro để nói lại.' : e.error === 'aborted' ? ''
+        : e.error === 'network' ? 'Trình duyệt không kết nối được dịch vụ nhận giọng nói. Hãy gõ câu hỏi, hoặc dùng Chrome hay Edge để nói.'
+        : 'Chưa nghe rõ. Bấm micro để nói lại.');
     };
     r.onend = () => {
       if (recognizer !== r) return;
@@ -467,7 +483,8 @@
   }
   if (!Recognition) {
     micBtn.hidden = true;
-    $('.va-label').textContent = 'Gõ câu hỏi (trình duyệt này chưa nghe được giọng nói, hãy dùng Chrome hoặc Edge)';
+    $('.va-label').textContent = isBrave ? 'Brave không hỗ trợ nói vào micro. Hãy gõ câu hỏi, hoặc mở web bằng Chrome hay Edge để nói.' : 'Gõ câu hỏi (trình duyệt này chưa nghe được giọng nói, hãy dùng Chrome hoặc Edge)';
+    askBtn.innerHTML = '<span aria-hidden="true">💬</span> Hỏi trợ lý';
     continuous.closest('label').hidden = true;
   }
   micBtn.onclick = () => { unlockVoice(); if (state === 'listening') stopListening(); else startListening(); };
