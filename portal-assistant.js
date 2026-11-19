@@ -6,9 +6,19 @@
   const synth = window.speechSynthesis;
   // Brave exposes the API but blocks the speech service behind it, so treat it as unsupported.
   const isBrave = !!window.navigator?.brave || (window.navigator?.userAgentData?.brands || []).some(b => /brave/i.test(b.brand));
-  const VERSION = '2026-11-20.5';
+  const VERSION = '2026-11-20.6';
   const Recognition = isBrave ? null : (window.SpeechRecognition || window.webkitSpeechRecognition);
   const el = (tag, cls, text) => { const x = document.createElement(tag); if (cls) x.className = cls; if (text !== undefined) x.textContent = text; return x; };
+  // Line icons (Lucide shapes) instead of emoji, so every device shows the same symbol.
+  const ICONS = {
+    volume: '<path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>',
+    mic: '<rect x="9" y="2" width="6" height="12" rx="3"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><path d="M12 19v3"/>',
+    chat: '<path d="M21 11.5a8.4 8.4 0 0 1-9 8.5 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7A8.5 8.5 0 0 1 12.5 3h.5a8.5 8.5 0 0 1 8 8z"/>',
+    stop: '<rect x="6" y="6" width="12" height="12" rx="2"/>',
+    wait: '<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>',
+    pin: '<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>',
+  };
+  const ico = name => '<svg class="va-ico" aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + ICONS[name] + '</svg>';
 
   // ---------- Saved per-device preferences ----------
   const PREF_KEY = 'nhom12-voice';
@@ -40,15 +50,15 @@
           <label class="va-auto"><input type="checkbox" name="continuous"> Trò chuyện liên tục (trả lời xong tự nghe tiếp)</label>
           <label class="va-field">Tốc độ đọc <select name="rate"><option value="0.75">Chậm</option><option value="0.9">Vừa</option><option value="1.1">Nhanh</option></select></label>
           <label class="va-field">Giọng đọc <select name="voice"></select></label>
-          <button type="button" class="va-try">🔊 Nghe thử</button>
+          <button type="button" class="va-try">${ico('volume')} Nghe thử</button>
           <small class="va-version">Phiên bản trợ lý: ${VERSION}${isBrave ? ' · Brave' : ''}</small>
         </details>
       </form>
       <small class="va-note">Không nói mật khẩu, mã OTP hay số căn cước. Câu hỏi được gửi tới Google Gemini; trợ lý có thể nhầm.</small>
     </section>
     <div class="va-buttons">
-      <button type="button" class="va-listen" aria-pressed="false"><span aria-hidden="true">🔊</span> <span class="va-listen-text">Nghe hướng dẫn</span></button>
-      <button type="button" class="va-ask" aria-controls="va-panel" aria-expanded="false" hidden><span aria-hidden="true">🎙</span> Nói với trợ lý</button>
+      <button type="button" class="va-listen" aria-pressed="false">${ico('volume')} <span class="va-listen-text">Nghe hướng dẫn</span></button>
+      <button type="button" class="va-ask" aria-controls="va-panel" aria-expanded="false" hidden>${ico('mic')} Nói với trợ lý</button>
     </div>`;
   document.body.append(host);
   const $ = s => host.querySelector(s);
@@ -68,10 +78,10 @@
     speaking: 'Trợ lý đang trả lời… Bấm micro để ngắt lời và hỏi tiếp.',
   };
   const micText = {
-    idle: '<span aria-hidden="true">🎙</span> Bấm để nói',
-    listening: '<span aria-hidden="true">■</span> Đang nghe… bấm để dừng',
-    thinking: '<span aria-hidden="true">…</span> Đang trả lời',
-    speaking: '<span aria-hidden="true">🎙</span> Ngắt lời và nói',
+    idle: ico('mic') + ' Bấm để nói',
+    listening: ico('stop') + ' Đang nghe… bấm để dừng',
+    thinking: ico('wait') + ' Đang trả lời',
+    speaking: ico('mic') + ' Ngắt lời và nói',
   };
   function setState(next) {
     state = next;
@@ -396,13 +406,14 @@
     const item = el('div', 'va-msg va-' + role);
     item.append(el('strong', 'va-who', role === 'user' ? 'Bạn' : 'Trợ lý'), el('p', '', text));
     if (role === 'model') {
-      const listen = el('button', 'va-again', '🔊 Nghe câu trả lời'); listen.type = 'button';
+      const listenLabel = ico('volume') + ' Nghe câu trả lời';
+      const listen = el('button', 'va-again'); listen.type = 'button'; listen.innerHTML = listenLabel;
       listen.onclick = async () => {
         unlockVoice(); stopListening();
         if (!aiVoice.checked) { speak(text, listen); return; }
         listen.disabled = true; listen.textContent = 'Đang tạo giọng…';
         const audio = await answerVoice(text);
-        listen.disabled = false; listen.textContent = '🔊 Nghe câu trả lời';
+        listen.disabled = false; listen.innerHTML = listenLabel;
         // After hearing the newest answer, keep the conversation going if the user wants that.
         const latest = item === log.querySelector('.va-model:last-of-type');
         setState('speaking');
@@ -439,14 +450,14 @@
   }
   function afterAnswer(text) {
     // With the AI voice the answer is read only when "Nghe" is pressed, to save Gemini quota.
-    if (aiVoice.checked) { setState('idle'); notice('Bấm "🔊 Nghe câu trả lời" để nghe bằng giọng nữ.'); return; }
+    if (aiVoice.checked) { setState('idle'); notice('Bấm nút "Nghe câu trả lời" để nghe bằng giọng nữ.'); return; }
     // Device voice: read it now, then keep the conversation going if the user wants that.
     const resume = () => { setState('idle'); if (continuous.checked && Recognition && !panel.hidden && canAsk()) startListening(); };
     if (autoRead.checked) { setState('speaking'); speak(text, null, resume); } else setState('idle');
   }
   function deliver(answer, place) {
     if (place) {
-      const note = el('p', 'va-nav', '📍 Đã đưa bạn tới: ' + place.label); log.append(note); log.scrollTop = log.scrollHeight;
+      const note = el('p', 'va-nav'); note.innerHTML = ico('pin'); note.append(' Đã đưa bạn tới: ' + place.label); log.append(note); log.scrollTop = log.scrollHeight;
     }
     bubble('model', answer);
     if (place && narrow() && !panel.hidden) close();
@@ -530,7 +541,7 @@
   if (!Recognition) {
     micBtn.hidden = true;
     $('.va-label').textContent = isBrave ? 'Brave không hỗ trợ nói vào micro. Hãy gõ câu hỏi, hoặc mở web bằng Chrome hay Edge để nói.' : 'Gõ câu hỏi (trình duyệt này chưa nghe được giọng nói, hãy dùng Chrome hoặc Edge)';
-    askBtn.innerHTML = '<span aria-hidden="true">💬</span> Hỏi trợ lý';
+    askBtn.innerHTML = ico('chat') + ' Hỏi trợ lý';
     continuous.closest('label').hidden = true;
   }
   micBtn.onclick = () => { unlockVoice(); if (state === 'listening') stopListening(); else startListening(); };
