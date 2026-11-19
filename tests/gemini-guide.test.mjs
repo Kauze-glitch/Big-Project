@@ -70,3 +70,36 @@ test('Requested audio comes back as a playable WAV made with a female Gemini voi
  data=await (await ask({audio:true})).json();assert.equal(data.answer,'Bước 1: mở mục Hồ sơ yêu cầu.');assert.equal(data.audio,undefined);
  backend({citizen:'c-1'});data=await (await ask({})).json();assert.equal(data.audio,undefined);
 });
+
+const guideAudio=(key,auth)=>handler(new Request('https://fn.invalid',{method:'POST',headers:{'content-type':'application/json',...(auth?{authorization:auth}:{})},body:JSON.stringify({operation:'guide_audio',key})}));
+function storage({cached=false,ttsOk=true,uploadOk=true}={}){const calls=[];globalThis.fetch=async(url,o={})=>{calls.push({url,options:o});
+ if(url.includes('/storage/v1/object/public/assistant-voice/'))return new Response(null,{status:cached?200:404});
+ if(url.includes('-tts:generateContent'))return ttsOk?Response.json({candidates:[{content:{parts:[{inlineData:{mimeType:'audio/L16;rate=24000',data:btoa('\x01\x02')}}]}}]}):new Response('{}',{status:500});
+ if(url.includes('/storage/v1/object/assistant-voice/'))return new Response('{}',{status:uploadOk?200:400});
+ throw new Error('unexpected '+url);};return calls;}
+
+test('Guide audio is public but limited to fixed texts, synthesized once and then served from storage',async()=>{
+ let calls=storage({cached:true});let res=await guideAudio('login_citizen');let data=await res.json();
+ assert.equal(res.status,200);assert.match(data.url,/^https:\/\/db\.invalid\/storage\/v1\/object\/public\/assistant-voice\/login_citizen-[0-9a-f]{16}\.wav$/);
+ assert(!calls.some(c=>c.url.includes('generativelanguage')),'cached clip costs no Gemini call');
+ calls=storage();data=await (await guideAudio('profile_requests')).json();
+ const upload=calls.find(c=>c.url.includes('/storage/v1/object/assistant-voice/'));assert(upload);assert.equal(upload.options.headers.authorization,'Bearer service');
+ assert.match(data.url,/profile_requests-/);
+ const tts=JSON.parse(calls.find(c=>c.url.includes('-tts:')).options.body);assert.match(tts.contents[0].parts[0].text,/Hồ sơ yêu cầu/);
+ storage({uploadOk:false});data=await (await guideAudio('login_otp')).json();assert.equal(data.audio.mime,'audio/wav');
+ calls=storage();res=await guideAudio('../../secret');assert.equal(res.status,400);assert.equal(calls.length,0);
+ storage();res=await guideAudio('__proto__');assert.equal(res.status,400);
+});
+
+test('Client and server guide texts are identical',async()=>{
+ const fs=await import('node:fs');const src=fs.readFileSync('portal-assistant.js','utf8');
+ const clientKeys=['login_citizen','login_otp','login_member','portal_home','member_area','profile_personal','profile_card','profile_residence','profile_documents','profile_requests','profile_security'];
+ // Both copies are plain constants, so evaluate them on their own.
+ const start=src.indexOf('const profileGuides = {'),end=src.indexOf('function guideScript()');
+ const clips=new Function(src.slice(start,end)+';return GUIDE_CLIPS;')();
+ assert.deepEqual(Object.keys(clips).sort(),[...clientKeys].sort());
+ const server=(await import('node:fs')).readFileSync('supabase/functions/gemini-assistant/index.ts','utf8');
+ const sStart=server.indexOf('const ASK_HINT'),sEnd=server.indexOf('// Public, but limited');
+ const serverClips=new Function('env',server.slice(sStart,sEnd)+';return GUIDE_CLIPS;')(()=>'' );
+ assert.deepEqual(serverClips,clips);
+});

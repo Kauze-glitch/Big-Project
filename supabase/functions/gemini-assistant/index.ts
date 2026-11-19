@@ -162,6 +162,47 @@ async function guideAnswer(body, user, authorization, c) {
   return reply(200,{answer,target,...(audio ? {audio} : {})});
 }
 
+// Fixed texts of the "Nghe hướng dẫn" button; portal-assistant.js has an identical copy.
+const ASK_HINT = 'Nếu cần hỏi thêm, hãy bấm nút Nói với trợ lý ở góc dưới màn hình rồi nói câu hỏi của bạn.';
+const PROFILE_NAV = 'Danh sách các trang nằm ở cột bên trái, hoặc nút menu ở đầu trang trên điện thoại. Khi dùng xong, hãy bấm Đăng xuất.';
+const PROFILE_GUIDES = {
+  personal: ['Thông tin cá nhân', 'Trang này cho bạn xem thông tin cá nhân như họ tên, ngày sinh và quê quán. Nếu thấy thông tin sai, hãy vào mục Hồ sơ yêu cầu để gửi yêu cầu sửa.'],
+  card: ['Căn cước', 'Trang này cho bạn xem thông tin thẻ căn cước. Bạn chỉ xem, không tự sửa được.'],
+  residence: ['Thông tin cư trú', 'Trang này cho bạn xem nơi thường trú và tạm trú. Muốn thay đổi, hãy gửi yêu cầu ở mục Hồ sơ yêu cầu.'],
+  documents: ['Giấy tờ của tôi', 'Trang này liệt kê giấy tờ của bạn. Bấm vào từng giấy tờ để xem chi tiết.'],
+  requests: ['Hồ sơ yêu cầu', 'Trang này để gửi và theo dõi yêu cầu. Bước 1: bấm nút gửi yêu cầu. Bước 2: chọn loại yêu cầu và ghi nội dung cần sửa. Bước 3: bấm Gửi. Trạng thái sẽ chuyển từ Đã gửi, sang Đã tiếp nhận, Đang xử lý rồi Hoàn thành. Nếu thấy Cần bổ sung, hãy mở yêu cầu, bổ sung rồi gửi lại.'],
+  security: ['Bảo mật tài khoản', 'Trang này để đổi mật khẩu. Nhập mật khẩu hiện tại, rồi nhập mật khẩu mới hai lần và bấm lưu. Nếu quên mật khẩu hoặc mất số nhận mã, hãy liên hệ thành viên phụ trách.'],
+};
+const GUIDE_CLIPS = {
+  login_citizen: 'Chào bạn. Đây là trang đăng nhập Cổng công dân. Bước 1: nhập số căn cước công dân gồm 12 chữ số vào ô đầu tiên. Bước 2: nhập mật khẩu mà cán bộ đã cấp cho bạn. Bước 3: bấm nút Tiếp tục. Sau đó bạn sẽ nhận mã xác thực qua Telegram. Nếu quên mật khẩu, hãy liên hệ thành viên phụ trách.',
+  login_otp: 'Bạn đang ở bước nhập mã xác thực. Mở ứng dụng Telegram trên điện thoại để xem mã gồm 6 chữ số. Nhập 6 chữ số đó vào ô Mã xác thực rồi bấm nút Xác thực và truy cập. Nếu mã hết hạn, chờ hết thời gian rồi bấm Cấp mã mới.',
+  login_member: 'Đây là phần đăng nhập dành cho thành viên dự án. Nếu bạn là công dân, hãy bấm thẻ Công dân ở phía trên.',
+  portal_home: 'Bạn đang ở Cổng công dân.',
+  member_area: 'Đây là khu vực quản lý dành cho thành viên dự án. ' + ASK_HINT,
+  ...Object.fromEntries(Object.entries(PROFILE_GUIDES).map(([page,[title,text]]) =>
+    ['profile_'+page, 'Bạn đang ở trang '+title+'. '+text+' '+PROFILE_NAV+' '+ASK_HINT])),
+};
+
+// Public, but limited to the fixed texts above: each one is synthesized once and
+// then served from the public "assistant-voice" bucket, so repeat calls cost nothing.
+async function guideAudio(body, c) {
+  if (typeof body.key !== 'string' || !Object.hasOwn(GUIDE_CLIPS, body.key)) return reply(400,{error:'Đoạn hướng dẫn không hợp lệ.'});
+  const text = GUIDE_CLIPS[body.key];
+  const model = env('GEMINI_TTS_MODEL') || 'gemini-2.5-flash-preview-tts', voice = env('GEMINI_TTS_VOICE') || 'Kore';
+  const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text+'|'+voice+'|'+model)));
+  const path = body.key+'-'+[...digest.slice(0,8)].map(b=>b.toString(16).padStart(2,'0')).join('')+'.wav';
+  const publicUrl = c.url+'/storage/v1/object/public/assistant-voice/'+path;
+  const cached = await c.request(publicUrl,{method:'HEAD'});
+  if (cached.ok) return reply(200,{url:publicUrl});
+  if (!c.geminiKey) return reply(503,{error:'Chưa cấu hình giọng đọc.'});
+  const audio = await speech(text, c).catch(() => null);
+  if (!audio) return reply(502,{error:'Chưa tạo được giọng đọc.'});
+  const bytes = Uint8Array.from(atob(audio.data), ch => ch.charCodeAt(0));
+  const saved = await c.request(c.url+'/storage/v1/object/assistant-voice/'+path,{method:'POST',
+    headers:{apikey:c.serviceKey,authorization:'Bearer '+c.serviceKey,'Content-Type':audio.mime,'x-upsert':'true','cache-control':'31536000'},body:bytes});
+  return reply(200, saved.ok ? {url:publicUrl} : {audio});
+}
+
 // Gemini text-to-speech. Returns {mime, data} with WAV audio as base64, or null.
 async function speech(text, c) {
   const model = env('GEMINI_TTS_MODEL') || 'gemini-2.5-flash-preview-tts';
@@ -197,7 +238,12 @@ async function handle(req) {
   if (req.method === 'OPTIONS') return new Response(null,{status:204,headers:cors});
   if (req.method !== 'POST') return reply(405,{error:'Chỉ hỗ trợ gửi câu hỏi.'});
   const authorization = req.headers.get('authorization') || '';
-  if (!/^Bearer \S+$/i.test(authorization)) return reply(401,{error:'Hãy đăng nhập để dùng trợ lý.'});
+  // The only public operation: recorded voice for the fixed guide texts.
+  let publicBody = null;
+  if (!/^Bearer \S+$/i.test(authorization)) {
+    try { publicBody = await limitedBody(req); } catch { publicBody = null; }
+    if (publicBody?.operation !== 'guide_audio') return reply(401,{error:'Hãy đăng nhập để dùng trợ lý.'});
+  }
   const url = env('SUPABASE_URL'), publicKey = key('SUPABASE_PUBLISHABLE_KEYS','SUPABASE_ANON_KEY');
   const serviceKey = key('SUPABASE_SECRET_KEYS','SUPABASE_SERVICE_ROLE_KEY');
   const geminiKey = env('GEMINI_API_KEY');
@@ -207,6 +253,7 @@ async function handle(req) {
   const timeout = setTimeout(() => controller.abort(), 55000);
   const request = (target, options = {}) => fetch(target,{...options,signal:controller.signal});
   try {
+    if (publicBody) return await guideAudio(publicBody, {url, serviceKey, geminiKey, request});
     const auth = await request(url+'/auth/v1/user',{headers:{apikey:publicKey,authorization}});
     if (!auth.ok) return reply(401,{error:'Phiên đăng nhập hết hạn. Hãy đăng nhập lại.'});
     const user = await auth.json();
