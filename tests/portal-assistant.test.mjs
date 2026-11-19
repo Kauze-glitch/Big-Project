@@ -136,7 +136,8 @@ test('Keyword fallback does not confuse "như thế nào" with the ID card or "�
  }finally{p.close();}
 });
 
-function audioStub(w,{fail=false}={}){const played=[];w.Audio=class{constructor(src){this.src=src;played.push(this);}play(){if(fail)return Promise.reject(new Error('blocked'));this.playing=true;setTimeout(()=>this.onended?.(),0);return Promise.resolve();}pause(){this.paused=true;}};return played;}
+// Records every real playback (the silent unlock clip is ignored); ended fires only if the source did not change.
+function audioStub(w,{fail=false}={}){const played=[];w.Audio=class{constructor(src){this.src=src||'';}play(){const src=this.src;if(fail){const e=new Error('blocked');e.name='NotAllowedError';return Promise.reject(e);}if(!(src.startsWith('data:audio/wav;base64,')&&src.length>500))played.push({src,playing:true});setTimeout(()=>{if(this.src===src)this.onended?.();},0);return Promise.resolve();}pause(){this.paused=true;}};return played;}
 
 test('Answers with server audio play the natural female voice instead of the device voice',async()=>{
  let played;const p=page({citizen:true,hash:'#/profile/personal',body:'<h1>Thông tin cá nhân</h1>',preload:w=>{played=audioStub(w);},fetchImpl:()=>({ok:true,json:async()=>({answer:'Xin chào bạn.',target:'none',audio:{mime:'audio/wav',data:'UklGRg=='}})})});try{
@@ -144,7 +145,7 @@ test('Answers with server audio play the natural female voice instead of the dev
   assert.equal(p.requests[0].body.audio,true);
   assert.equal(played.length,1);assert.equal(played[0].src,'data:audio/wav;base64,UklGRg==');assert(played[0].playing);
   assert.equal(p.spoken.length,0,'device voice not used');assert.equal(p.d.querySelector('.va-state').dataset.state,'idle');
-  p.d.querySelector('.va-model:last-child .va-again').click();assert.equal(played.length,2,'replay uses the same natural voice');
+  p.d.querySelector('.va-model:last-child .va-again').click();await tick();assert.equal(played.length,2,'replay uses the same natural voice');
  }finally{p.close();}
 });
 
@@ -178,5 +179,25 @@ test('A clip URL outside the project storage is ignored and the device voice rea
  let played;const p=page({preload:w=>{played=audioStub(w);},fetchImpl:()=>({ok:true,json:async()=>({url:'https://evil.invalid/x.wav'})})});try{
   p.d.querySelector('.va-listen').click();await tick();await tick();
   assert.equal(played.length,0);assert.match(p.spoken.join(' '),/12 chữ số/);
+ }finally{p.close();}
+});
+
+test('Blocked autoplay is explained on screen and an answer without audio says the device voice is used',async()=>{
+ const p=page({citizen:true,hash:'#/profile/personal',body:'<h1>Thông tin cá nhân</h1>',preload:w=>audioStub(w,{fail:true}),fetchImpl:()=>({ok:true,json:async()=>({answer:'Bước 1.',target:'none',audio:{mime:'audio/wav',data:'UklGRg=='}})})});try{
+  p.d.querySelector('.va-ask').click();p.d.querySelector('#va-question').value='Hỏi';p.d.querySelector('.va-form').requestSubmit();await tick();await tick();
+  assert.match(p.d.querySelector('.va-status').textContent,/chặn phát giọng AI/);assert(p.spoken.some(t=>/Bước 1/.test(t)));
+ }finally{p.close();}
+ const q=page({citizen:true,hash:'#/profile/personal',body:'<h1>Thông tin cá nhân</h1>',fetchImpl:()=>({ok:true,json:async()=>({answer:'Trả lời.',target:'none'})})});try{
+  q.d.querySelector('.va-ask').click();q.d.querySelector('#va-question').value='Hỏi';q.d.querySelector('.va-form').requestSubmit();await tick();
+  assert.match(q.d.querySelector('.va-status').textContent,/Chưa tạo được giọng AI/);
+ }finally{q.close();}
+});
+
+test('A click unlocks one shared audio element that later plays the delayed AI answer',async()=>{
+ const elements=[];let plays=[];const p=page({citizen:true,hash:'#/profile/personal',body:'<h1>Thông tin cá nhân</h1>',preload:w=>{w.Audio=class{constructor(){elements.push(this);this.src='';}play(){plays.push(this.src.slice(0,30));return Promise.resolve();}pause(){}};},fetchImpl:async()=>{await tick();return {ok:true,json:async()=>({answer:'Xin chào.',target:'none',audio:{mime:'audio/wav',data:'UklGRg=='}})};}});try{
+  p.d.querySelector('.va-ask').click();
+  assert.equal(elements.length,1);assert.match(plays[0],/^data:audio\/wav;base64,/,'silent unlock played inside the click');
+  p.d.querySelector('#va-question').value='Chào';p.d.querySelector('.va-form').requestSubmit();await tick();await tick();await tick();
+  assert.equal(elements.length,1,'same element reused');assert.equal(plays.at(-1),'data:audio/wav;base64,UklGRg==');
  }finally{p.close();}
 });
